@@ -16,6 +16,8 @@ private:
     TFT_eSPI* _tft = nullptr;
     uint32_t _lastTapMs = 0;
     bool _wasTouched = false;
+    uint16_t _lastTouchX = 0;
+    uint16_t _lastTouchY = 0;
     uint16_t _calData[5] = {300, 3600, 300, 3600, 1};
 };
 #endif

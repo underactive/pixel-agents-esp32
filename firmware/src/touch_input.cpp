@@ -16,12 +16,18 @@ TouchEvent TouchInput::poll() {
 
     uint32_t now = millis();
 
+    if (touched) {
+        // Save valid coordinates while finger is down
+        _lastTouchX = tx;
+        _lastTouchY = ty;
+    }
+
     // Detect tap on release with debounce
     if (_wasTouched && !touched) {
         if (now - _lastTapMs >= TOUCH_DEBOUNCE_MS) {
             ev.tapped = true;
-            ev.x = (int16_t)tx;
-            ev.y = (int16_t)ty;
+            ev.x = (int16_t)_lastTouchX;
+            ev.y = (int16_t)_lastTouchY;
             _lastTapMs = now;
         }
     }
