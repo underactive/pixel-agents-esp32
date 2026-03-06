@@ -75,10 +75,12 @@ void setup() {
 // ── Main loop ───────────────────────────────────────────
 
 void loop() {
-    uint32_t now = millis();
-
     // Process serial (non-blocking)
     protocol.process();
+
+    // Capture time AFTER serial processing so now >= _lastHeartbeatMs
+    // (avoids unsigned underflow in timeout check)
+    uint32_t now = millis();
 
     // Check heartbeat
     office.checkHeartbeat(now);

@@ -3,36 +3,121 @@
 #include "sprites/furniture.h"
 #include "sprites/bubbles.h"
 
-void Renderer::begin(TFT_eSPI& tft) {
-    _tft = &tft;
+// ── Drawing wrappers (apply _yOffset, dispatch to canvas or TFT) ──
 
-    // Create sprite canvas for double buffering
-    _canvas = new TFT_eSprite(&tft);
-
-    void* buf = _canvas->createSprite(SCREEN_W, SCREEN_H);
-    if (!buf) {
-        delete _canvas;
-        _canvas = nullptr;
-        return;
-    }
-    _canvas->setSwapBytes(true);
+inline void Renderer::gfxFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t c) {
+    int32_t ay = y + _yOffset;
+    if (_canvas) _canvas->fillRect(x, ay, w, h, c);
+    else _tft->fillRect(x, ay, w, h, c);
 }
 
+inline void Renderer::gfxDrawPixel(int32_t x, int32_t y, uint32_t c) {
+    int32_t ay = y + _yOffset;
+    if (_canvas) _canvas->drawPixel(x, ay, c);
+    else _tft->drawPixel(x, ay, c);
+}
+
+inline void Renderer::gfxFillCircle(int32_t cx, int32_t cy, int32_t r, uint32_t c) {
+    int32_t ay = cy + _yOffset;
+    if (_canvas) _canvas->fillCircle(cx, ay, r, c);
+    else _tft->fillCircle(cx, ay, r, c);
+}
+
+inline void Renderer::gfxSetTextColor(uint32_t c) {
+    if (_canvas) _canvas->setTextColor(c);
+    else _tft->setTextColor(c);
+}
+
+inline void Renderer::gfxSetTextSize(uint8_t s) {
+    if (_canvas) _canvas->setTextSize(s);
+    else _tft->setTextSize(s);
+}
+
+inline void Renderer::gfxDrawString(const char* str, int32_t x, int32_t y) {
+    int32_t ay = y + _yOffset;
+    if (_canvas) _canvas->drawString(str, x, ay);
+    else _tft->drawString(str, x, ay);
+}
+
+// ── Initialization ────────────────────────────────────────
+
+void Renderer::begin(TFT_eSPI& tft) {
+    _tft = &tft;
+    _canvas = new TFT_eSprite(&tft);
+
+    // Try full-screen sprite (works with PSRAM)
+    void* buf = _canvas->createSprite(SCREEN_W, SCREEN_H);
+    if (buf) {
+        _canvas->setSwapBytes(true);
+        Serial.println("[renderer] full-screen buffer OK");
+        return;
+    }
+
+    // Try half-screen sprite (fits in ESP32 DRAM without PSRAM)
+    _halfHeight = SCREEN_H / 2;
+    buf = _canvas->createSprite(SCREEN_W, _halfHeight);
+    if (buf) {
+        _canvas->setSwapBytes(true);
+        _halfMode = true;
+        Serial.printf("[renderer] half-screen buffer (%dx%d)\n", SCREEN_W, _halfHeight);
+        return;
+    }
+
+    // Last resort: direct TFT rendering (will flicker)
+    Serial.println("[renderer] no buffer — direct TFT mode");
+    delete _canvas;
+    _canvas = nullptr;
+    _directMode = true;
+    _tft->setSwapBytes(true);
+    _tft->fillScreen(COLOR_BG);
+}
+
+// ── Frame rendering ───────────────────────────────────────
+
 void Renderer::renderFrame(OfficeState& office) {
-    if (!_canvas) return;
+    if (!_canvas && !_directMode) return;
 
-    _canvas->fillSprite(COLOR_BG);
+    if (_halfMode) {
+        // Pass 1: top half
+        _canvas->fillSprite(COLOR_BG);
+        _yOffset = 0;
+        drawScene(office);
+        _canvas->pushSprite(0, 0);
 
+        // Pass 2: bottom half
+        _canvas->fillSprite(COLOR_BG);
+        _yOffset = -_halfHeight;
+        drawScene(office);
+        _canvas->pushSprite(0, _halfHeight);
+    } else if (_canvas) {
+        // Full-screen buffered
+        _canvas->fillSprite(COLOR_BG);
+        _yOffset = 0;
+        drawScene(office);
+        _canvas->pushSprite(0, 0);
+    } else {
+        // Direct mode (flickers but works as last resort)
+        _yOffset = 0;
+        drawScene(office);
+    }
+}
+
+void Renderer::drawScene(OfficeState& office) {
     // 1. Draw floor tiles
     drawFloor();
 
-    // 2. Draw furniture (static items)
+    // 2. Fill gap between grid bottom and status bar
+    int gridBottom = GRID_ROWS * TILE_SIZE;
+    int statusTop = SCREEN_H - STATUS_BAR_H;
+    if (gridBottom < statusTop) {
+        gfxFillRect(0, gridBottom, SCREEN_W, statusTop - gridBottom, COLOR_BG);
+    }
+
+    // 3. Draw furniture
     drawFurniture();
 
-    // 3. Collect and depth-sort characters
+    // 4. Collect and depth-sort characters
     Character* chars = office.getCharacters();
-
-    // Simple insertion sort by Y position for depth ordering
     int indices[MAX_AGENTS];
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
@@ -40,7 +125,6 @@ void Renderer::renderFrame(OfficeState& office) {
             indices[count++] = i;
         }
     }
-    // Sort by Y (characters further down screen are drawn later = in front)
     for (int i = 1; i < count; i++) {
         int key = indices[i];
         int j = i - 1;
@@ -51,7 +135,7 @@ void Renderer::renderFrame(OfficeState& office) {
         indices[j + 1] = key;
     }
 
-    // 4. Draw characters
+    // 5. Draw characters
     for (int i = 0; i < count; i++) {
         const Character& ch = chars[indices[i]];
         if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
@@ -61,7 +145,7 @@ void Renderer::renderFrame(OfficeState& office) {
         }
     }
 
-    // 5. Draw speech bubbles (on top of characters)
+    // 6. Draw speech bubbles
     for (int i = 0; i < count; i++) {
         const Character& ch = chars[indices[i]];
         if (ch.bubbleType > 0) {
@@ -69,11 +153,8 @@ void Renderer::renderFrame(OfficeState& office) {
         }
     }
 
-    // 6. Draw status bar
+    // 7. Draw status bar
     drawStatusBar(office);
-
-    // Push to display
-    _canvas->pushSprite(0, 0);
 }
 
 void Renderer::drawFloor() {
@@ -82,10 +163,10 @@ void Renderer::drawFloor() {
             int x = c * TILE_SIZE;
             int y = r * TILE_SIZE;
             if (r == 0) {
-                _canvas->fillRect(x, y, TILE_SIZE, TILE_SIZE, COLOR_WALL);
+                gfxFillRect(x, y, TILE_SIZE, TILE_SIZE, COLOR_WALL);
             } else {
                 uint16_t floorColor = ((r + c) % 2 == 0) ? COLOR_FLOOR_ALT : COLOR_FLOOR;
-                _canvas->fillRect(x, y, TILE_SIZE, TILE_SIZE, floorColor);
+                gfxFillRect(x, y, TILE_SIZE, TILE_SIZE, floorColor);
             }
         }
     }
@@ -130,7 +211,6 @@ void Renderer::drawCharacter(const Character& ch) {
         flipH = true;
     }
 
-    // Compute CharTemplate enum index: direction * 7 + local frame
     int templateEnum = static_cast<int>(renderDir) * FRAMES_PER_DIR + localFrame;
     if (templateEnum >= CHAR_TEMPLATE_COUNT) return;
     const uint8_t* tmpl = CHAR_TEMPLATES[templateEnum];
@@ -138,7 +218,6 @@ void Renderer::drawCharacter(const Character& ch) {
     if (ch.palette >= NUM_PALETTES) return;
     const uint16_t* palette = CHAR_PALETTES[ch.palette];
 
-    // Character anchored at bottom-center
     int sittingOffset = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
     int drawX = (int)(ch.x) - CHAR_W / 2;
     int drawY = (int)(ch.y + sittingOffset) - CHAR_H;
@@ -160,7 +239,6 @@ void Renderer::drawSpawnEffect(const Character& ch) {
         flipH = true;
     }
 
-    // Use standing frame (walk2 = index 1 within direction)
     int templateEnum = static_cast<int>(renderDir) * FRAMES_PER_DIR + 1;
     if (templateEnum >= CHAR_TEMPLATE_COUNT) return;
     const uint8_t* tmpl = CHAR_TEMPLATES[templateEnum];
@@ -171,7 +249,6 @@ void Renderer::drawSpawnEffect(const Character& ch) {
     int drawX = (int)(ch.x) - CHAR_W / 2;
     int drawY = (int)(ch.y) - CHAR_H;
 
-    // Draw column by column based on progress
     int revealCols = (int)(progress * CHAR_W);
 
     for (int col = 0; col < revealCols && col < CHAR_W; col++) {
@@ -204,7 +281,7 @@ void Renderer::drawSpawnEffect(const Character& ch) {
             int dx = drawX + col;
             int dy = drawY + row;
             if (dx >= 0 && dx < SCREEN_W && dy >= 0 && dy < SCREEN_H) {
-                _canvas->drawPixel(dx, dy, color);
+                gfxDrawPixel(dx, dy, color);
             }
         }
     }
@@ -235,29 +312,28 @@ void Renderer::drawBubble(const Character& ch) {
 
 void Renderer::drawStatusBar(OfficeState& office) {
     int y = SCREEN_H - STATUS_BAR_H;
-    _canvas->fillRect(0, y, SCREEN_W, STATUS_BAR_H, COLOR_STATUS);
+    gfxFillRect(0, y, SCREEN_W, STATUS_BAR_H, COLOR_STATUS);
 
     // Connection indicator
     uint16_t dotColor = office.isConnected() ? COLOR_ACTIVE : COLOR_DISCONNECTED;
-    _canvas->fillCircle(5, y + STATUS_BAR_H / 2, 3, dotColor);
+    gfxFillCircle(5, y + STATUS_BAR_H / 2, 3, dotColor);
 
     // Agent count
     int agentCount = office.getCharacterCount();
     char buf[32];
     snprintf(buf, sizeof(buf), "%d agent%s", agentCount, agentCount != 1 ? "s" : "");
-    _canvas->setTextColor(COLOR_TEXT);
-    _canvas->setTextSize(1);
-    _canvas->drawString(buf, 12, y + 1);
+    gfxSetTextColor(COLOR_TEXT);
+    gfxSetTextSize(1);
+    gfxDrawString(buf, 12, y + 1);
 
     if (!office.isConnected()) {
-        _canvas->drawString("Disconnected", SCREEN_W - 80, y + 1);
+        gfxDrawString("Disconnected", SCREEN_W - 80, y + 1);
     }
 }
 
 int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
     switch (state) {
         case CharState::WALK:
-            // Walk frames: 0,1,2 stored; animation cycles [0,1,2,1]
             switch (frame % 4) {
                 case 0: return 0;
                 case 1: return 1;
@@ -266,11 +342,11 @@ int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
             }
             break;
         case CharState::TYPE:
-            return 3 + (frame % 2); // type1, type2
+            return 3 + (frame % 2);
         case CharState::READ:
-            return 5 + (frame % 2); // read1, read2
+            return 5 + (frame % 2);
         case CharState::IDLE:
-            return 1; // standing frame
+            return 1;
         default:
             return 1;
     }
@@ -297,7 +373,7 @@ void Renderer::drawIndexedSprite(int x, int y, const uint8_t* tmpl, int w, int h
             int dx = x + col;
             int dy = y + row;
             if (dx >= 0 && dx < SCREEN_W && dy >= 0 && dy < SCREEN_H) {
-                _canvas->drawPixel(dx, dy, color);
+                gfxDrawPixel(dx, dy, color);
             }
         }
     }
@@ -311,7 +387,7 @@ void Renderer::drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h
             int dx = x + col;
             int dy = y + row;
             if (dx >= 0 && dx < SCREEN_W && dy >= 0 && dy < SCREEN_H) {
-                _canvas->drawPixel(dx, dy, px);
+                gfxDrawPixel(dx, dy, px);
             }
         }
     }

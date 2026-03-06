@@ -11,7 +11,12 @@ public:
 private:
     TFT_eSPI* _tft = nullptr;
     TFT_eSprite* _canvas = nullptr;
+    bool _directMode = false;
+    bool _halfMode = false;
+    int _halfHeight = 0;
+    int _yOffset = 0;
 
+    void drawScene(OfficeState& office);
     void drawFloor();
     void drawFurniture();
     void drawCharacter(const Character& ch);
@@ -26,4 +31,12 @@ private:
 
     // Get local frame index (0-6) for animation state
     int getFrameIndex(CharState state, uint8_t frame) const;
+
+    // Drawing wrappers — dispatch to _canvas or _tft, applying _yOffset
+    inline void gfxFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t c);
+    inline void gfxDrawPixel(int32_t x, int32_t y, uint32_t c);
+    inline void gfxFillCircle(int32_t cx, int32_t cy, int32_t r, uint32_t c);
+    inline void gfxSetTextColor(uint32_t c);
+    inline void gfxSetTextSize(uint8_t s);
+    inline void gfxDrawString(const char* str, int32_t x, int32_t y);
 };
