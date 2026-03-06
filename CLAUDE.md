@@ -182,6 +182,7 @@ Invalid protocol messages are discarded with state reset, not silently consumed.
 | `companion/requirements.txt` | Python dependencies |
 | `tools/sprite_converter.py` | Sprite data → C header generator |
 | `tools/sprite_validation.html` | Visual sprite verification (generated) |
+| `tools/layout_editor.html` | Office layout visual editor (generates C code) |
 | `CLAUDE.md` | This file |
 | `docs/CLAUDE.md/plans/` | Plan and audit records |
 
