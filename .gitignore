@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Assets
+Office Tileset/
+
+# Build artifacts
+*.o
+*.bin
+*.elf
