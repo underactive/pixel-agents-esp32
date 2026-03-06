@@ -73,7 +73,7 @@ void setup() {
     protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText);
 
 #if defined(HAS_TOUCH)
-    touchInput.begin(tft);
+    touchInput.begin();
 #endif
 
     lastFrameMs = millis();

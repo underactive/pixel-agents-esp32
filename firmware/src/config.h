@@ -152,4 +152,11 @@ enum class StatusMode : uint8_t {
 static constexpr int TOUCH_DEBOUNCE_MS = 200;
 static constexpr int TOUCH_CHAR_RADIUS_PX = 12;
 static constexpr float INFO_BUBBLE_DURATION_SEC = 3.0f;
+
+// CYD XPT2046 touch SPI pins (separate from display SPI)
+static constexpr int TOUCH_SPI_CLK  = 25;
+static constexpr int TOUCH_SPI_MISO = 39;
+static constexpr int TOUCH_SPI_MOSI = 32;
+static constexpr int TOUCH_SPI_CS   = 33;
+static constexpr int TOUCH_IRQ_PIN  = 36;
 #endif
