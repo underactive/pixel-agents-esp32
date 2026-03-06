@@ -15,6 +15,8 @@ private:
     bool _halfMode = false;
     int _halfHeight = 0;
     int _yOffset = 0;
+    uint32_t _lastRenderMs = 0;
+    float _fps = 0;
 
     void drawScene(OfficeState& office);
     void drawFloor();

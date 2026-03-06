@@ -109,9 +109,13 @@ void loop() {
     // Poll touch input
     TouchEvent te = touchInput.poll();
     if (te.tapped) {
-        int hit = office.hitTestCharacter(te.x, te.y);
-        if (hit >= 0) {
-            office.showInfoBubble(hit);
+        if (office.hitTestStatusBar(te.y)) {
+            office.cycleStatusMode();
+        } else {
+            int hit = office.hitTestCharacter(te.x, te.y);
+            if (hit >= 0) {
+                office.showInfoBubble(hit);
+            }
         }
     }
 #endif

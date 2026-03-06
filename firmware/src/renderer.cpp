@@ -78,6 +78,17 @@ void Renderer::begin(TFT_eSPI& tft) {
 void Renderer::renderFrame(OfficeState& office) {
     if (!_canvas && !_directMode) return;
 
+    // Track FPS
+    uint32_t now = millis();
+    if (_lastRenderMs > 0) {
+        uint32_t elapsed = now - _lastRenderMs;
+        if (elapsed > 0) {
+            float instantFps = 1000.0f / elapsed;
+            _fps = _fps * 0.9f + instantFps * 0.1f; // smoothed
+        }
+    }
+    _lastRenderMs = now;
+
     if (_halfMode) {
         // Pass 1: top half
         _canvas->fillSprite(COLOR_BG);
@@ -349,20 +360,61 @@ void Renderer::drawStatusBar(OfficeState& office) {
     int y = SCREEN_H - STATUS_BAR_H;
     gfxFillRect(0, y, SCREEN_W, STATUS_BAR_H, COLOR_STATUS);
 
-    // Connection indicator
+    // Connection indicator (always shown)
     uint16_t dotColor = office.isConnected() ? COLOR_ACTIVE : COLOR_DISCONNECTED;
     gfxFillCircle(5, y + STATUS_BAR_H / 2, 3, dotColor);
 
-    // Agent count
-    int agentCount = office.getCharacterCount();
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%d agent%s", agentCount, agentCount != 1 ? "s" : "");
     gfxSetTextColor(COLOR_TEXT);
     gfxSetTextSize(1);
-    gfxDrawString(buf, 12, y + 1);
 
-    if (!office.isConnected()) {
-        gfxDrawString("Disconnected", SCREEN_W - 80, y + 1);
+    char buf[64];
+
+    switch (office.getStatusMode()) {
+        case StatusMode::OVERVIEW: {
+            int agentCount = office.getCharacterCount();
+            snprintf(buf, sizeof(buf), "%d agent%s", agentCount, agentCount != 1 ? "s" : "");
+            gfxDrawString(buf, 12, y + 1);
+            if (!office.isConnected()) {
+                gfxDrawString("Disconnected", SCREEN_W - 80, y + 1);
+            }
+            break;
+        }
+        case StatusMode::AGENT_LIST: {
+            int pos = 12;
+            const Character* chars = office.getCharacters();
+            for (int i = 0; i < MAX_AGENTS; i++) {
+                if (!chars[i].alive) continue;
+                const char* stateStr;
+                switch (chars[i].state) {
+                    case CharState::TYPE:    stateStr = "TYP"; break;
+                    case CharState::READ:    stateStr = "RD";  break;
+                    case CharState::IDLE:    stateStr = "IDL"; break;
+                    case CharState::WALK:    stateStr = "WLK"; break;
+                    case CharState::SPAWN:   stateStr = "SPN"; break;
+                    case CharState::DESPAWN: stateStr = "DSP"; break;
+                    default:                 stateStr = "?";   break;
+                }
+                snprintf(buf, sizeof(buf), "%d:%s", chars[i].id + 1, stateStr);
+                gfxDrawString(buf, pos, y + 1);
+                pos += 6 * (int)strlen(buf) + 4;
+                if (pos > SCREEN_W - 20) break;
+            }
+            break;
+        }
+        case StatusMode::PERFORMANCE: {
+            snprintf(buf, sizeof(buf), "%.1f FPS", (double)_fps);
+            gfxDrawString(buf, 12, y + 1);
+            break;
+        }
+        case StatusMode::UPTIME: {
+            uint32_t sec = millis() / 1000;
+            uint32_t h = sec / 3600;
+            uint32_t m = (sec % 3600) / 60;
+            uint32_t s = sec % 60;
+            snprintf(buf, sizeof(buf), "%lu:%02lu:%02lu", (unsigned long)h, (unsigned long)m, (unsigned long)s);
+            gfxDrawString(buf, 12, y + 1);
+            break;
+        }
     }
 }
 
