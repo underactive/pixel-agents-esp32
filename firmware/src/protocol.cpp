@@ -2,11 +2,13 @@
 #include <Arduino.h>
 
 void Protocol::begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
-                     HeartbeatCb onHeartbeat, StatusTextCb onStatus) {
+                     HeartbeatCb onHeartbeat, StatusTextCb onStatus,
+                     UsageStatsCb onUsage) {
     _onUpdate = onUpdate;
     _onCount = onCount;
     _onHeartbeat = onHeartbeat;
     _onStatus = onStatus;
+    _onUsage = onUsage;
     _state = State::WAIT_SYNC1;
 }
 
@@ -15,6 +17,7 @@ int Protocol::payloadLength(uint8_t msgType) const {
         case MSG_AGENT_UPDATE: return -1;  // variable: 2 + toolName
         case MSG_AGENT_COUNT:  return 1;
         case MSG_HEARTBEAT:    return 4;
+        case MSG_USAGE_STATS: return 6;
         case MSG_STATUS_TEXT:  return -1;  // variable: 2 + text
         default: return -2;  // unknown
     }
@@ -143,6 +146,16 @@ void Protocol::dispatch() {
             memcpy(st.text, &_buf[2], textLen);
             st.text[textLen] = '\0';
             if (_onStatus) _onStatus(st);
+            break;
+        }
+        case MSG_USAGE_STATS: {
+            if (_bufIdx < 6) break;
+            UsageStatsMsg us;
+            us.currentPct = _buf[0];
+            us.weeklyPct = _buf[1];
+            us.currentResetMin = ((uint16_t)_buf[2] << 8) | _buf[3];
+            us.weeklyResetMin = ((uint16_t)_buf[4] << 8) | _buf[5];
+            if (_onUsage) _onUsage(us);
             break;
         }
     }

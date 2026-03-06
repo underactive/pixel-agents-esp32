@@ -13,16 +13,25 @@ struct StatusText {
     char text[MAX_STATUS_TEXT_LEN + 1];
 };
 
+struct UsageStatsMsg {
+    uint8_t currentPct;
+    uint8_t weeklyPct;
+    uint16_t currentResetMin;
+    uint16_t weeklyResetMin;
+};
+
 // Callback types
 using AgentUpdateCb  = void(*)(const AgentUpdate&);
 using AgentCountCb   = void(*)(uint8_t count);
 using HeartbeatCb    = void(*)(uint32_t timestamp);
 using StatusTextCb   = void(*)(const StatusText&);
+using UsageStatsCb   = void(*)(const UsageStatsMsg&);
 
 class Protocol {
 public:
     void begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
-               HeartbeatCb onHeartbeat, StatusTextCb onStatus);
+               HeartbeatCb onHeartbeat, StatusTextCb onStatus,
+               UsageStatsCb onUsage = nullptr);
     void process();  // call each loop iteration — reads available serial bytes
 
 private:
@@ -44,6 +53,7 @@ private:
     AgentCountCb  _onCount = nullptr;
     HeartbeatCb   _onHeartbeat = nullptr;
     StatusTextCb  _onStatus = nullptr;
+    UsageStatsCb  _onUsage = nullptr;
 
     int payloadLength(uint8_t msgType) const;
     void dispatch();

@@ -63,6 +63,7 @@ static constexpr uint8_t MSG_AGENT_UPDATE = 0x01;
 static constexpr uint8_t MSG_AGENT_COUNT  = 0x02;
 static constexpr uint8_t MSG_HEARTBEAT    = 0x03;
 static constexpr uint8_t MSG_STATUS_TEXT  = 0x04;
+static constexpr uint8_t MSG_USAGE_STATS  = 0x05;
 
 // ── Agent Limits ────────────────────────────────────────
 static constexpr int MAX_AGENTS = 6;
@@ -139,12 +140,13 @@ static constexpr Workstation WORKSTATIONS[] = {
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);
 
 // ── Status Bar Modes ───────────────────────────────────
-static constexpr int STATUS_MODE_COUNT = 4;
+static constexpr int STATUS_MODE_COUNT = 5;
 enum class StatusMode : uint8_t {
     OVERVIEW    = 0,  // connection dot + agent count
-    AGENT_LIST  = 1,  // per-agent ID:state
-    PERFORMANCE = 2,  // FPS
-    UPTIME      = 3,  // device uptime
+    USAGE_STATS = 1,  // current + weekly usage bars
+    AGENT_LIST  = 2,  // per-agent ID:state
+    PERFORMANCE = 3,  // FPS
+    UPTIME      = 4,  // device uptime
 };
 
 // ── Touch Input (CYD only) ─────────────────────────────

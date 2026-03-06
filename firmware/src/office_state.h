@@ -43,6 +43,14 @@ struct Character {
     bool alive;               // false = slot is free
 };
 
+struct UsageStats {
+    uint8_t currentPct;
+    uint8_t weeklyPct;
+    uint16_t currentResetMin;
+    uint16_t weeklyResetMin;
+    bool valid;
+};
+
 class OfficeState {
 public:
     void init();
@@ -53,6 +61,10 @@ public:
     void removeAgent(uint8_t id);
     void setAgentState(uint8_t id, CharState state, const char* toolName);
     void setAgentCount(uint8_t count);
+
+    // Usage stats
+    void setUsageStats(uint8_t curPct, uint8_t wkPct, uint16_t curResetMin, uint16_t wkResetMin);
+    const UsageStats& getUsageStats() const { return _usage; }
 
     // Touch interaction
     int hitTestCharacter(int screenX, int screenY) const;
@@ -79,6 +91,7 @@ private:
     bool _connected = false;
     uint32_t _lastHeartbeatMs = 0;
     StatusMode _statusMode = StatusMode::OVERVIEW;
+    UsageStats _usage = {};
 
     void initTileMap();
     int findFreeSlot() const;
