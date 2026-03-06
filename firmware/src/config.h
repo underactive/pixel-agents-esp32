@@ -138,6 +138,15 @@ static constexpr Workstation WORKSTATIONS[] = {
 #endif
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);
 
+// ── Status Bar Modes ───────────────────────────────────
+static constexpr int STATUS_MODE_COUNT = 4;
+enum class StatusMode : uint8_t {
+    OVERVIEW    = 0,  // connection dot + agent count
+    AGENT_LIST  = 1,  // per-agent ID:state
+    PERFORMANCE = 2,  // FPS
+    UPTIME      = 3,  // device uptime
+};
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;

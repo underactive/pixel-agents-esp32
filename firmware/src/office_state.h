@@ -56,7 +56,9 @@ public:
 
     // Touch interaction
     int hitTestCharacter(int screenX, int screenY) const;
+    bool hitTestStatusBar(int screenY) const;
     void showInfoBubble(int agentIndex);
+    void cycleStatusMode();
 
     // Accessors
     Character* getCharacters() { return _chars; }
@@ -65,6 +67,7 @@ public:
     const TileType* getTileMap() const { return &_tiles[0][0]; }
     bool isConnected() const { return _connected; }
     void setConnected(bool c) { _connected = c; }
+    StatusMode getStatusMode() const { return _statusMode; }
 
     // Heartbeat
     void onHeartbeat();
@@ -75,6 +78,7 @@ private:
     TileType _tiles[GRID_ROWS][GRID_COLS];
     bool _connected = false;
     uint32_t _lastHeartbeatMs = 0;
+    StatusMode _statusMode = StatusMode::OVERVIEW;
 
     void initTileMap();
     int findFreeSlot() const;

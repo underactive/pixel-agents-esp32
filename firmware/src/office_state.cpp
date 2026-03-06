@@ -287,6 +287,14 @@ void OfficeState::showInfoBubble(int agentIndex) {
 #endif
 }
 
+bool OfficeState::hitTestStatusBar(int screenY) const {
+    return screenY >= SCREEN_H - STATUS_BAR_H;
+}
+
+void OfficeState::cycleStatusMode() {
+    _statusMode = static_cast<StatusMode>((static_cast<uint8_t>(_statusMode) + 1) % STATUS_MODE_COUNT);
+}
+
 void OfficeState::update(float dt) {
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (!_chars[i].alive) continue;
