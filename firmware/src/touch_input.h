@@ -1,6 +1,7 @@
 #pragma once
 #if defined(HAS_TOUCH)
-#include <TFT_eSPI.h>
+#include <SPI.h>
+#include <XPT2046_Touchscreen.h>
 #include "config.h"
 
 struct TouchEvent {
@@ -10,14 +11,14 @@ struct TouchEvent {
 
 class TouchInput {
 public:
-    void begin(TFT_eSPI& tft);
+    void begin();
     TouchEvent poll();
 private:
-    TFT_eSPI* _tft = nullptr;
+    SPIClass _touchSPI = SPIClass(VSPI);
+    XPT2046_Touchscreen _ts = XPT2046_Touchscreen(TOUCH_SPI_CS, TOUCH_IRQ_PIN);
     uint32_t _lastTapMs = 0;
     bool _wasTouched = false;
-    uint16_t _lastTouchX = 0;
-    uint16_t _lastTouchY = 0;
-    uint16_t _calData[5] = {300, 3600, 300, 3600, 1};
+    int16_t _lastTouchX = 0;
+    int16_t _lastTouchY = 0;
 };
 #endif
