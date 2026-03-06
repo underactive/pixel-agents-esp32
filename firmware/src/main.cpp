@@ -49,12 +49,14 @@ void setup() {
 
     // Initialize display
     tft.init();
-    tft.setRotation(1); // Landscape: 320x170
+    tft.setRotation(1); // Landscape: 320xSCREEN_H
     tft.fillScreen(TFT_BLACK);
 
     // Backlight
+#ifdef TFT_BL
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
+#endif
 
     // Show splash
     drawSplash();

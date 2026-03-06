@@ -45,15 +45,23 @@ void OfficeState::initTileMap() {
             }
         }
     }
-    // Mark some decorative furniture as blocked
-    // Plant at (11, 1)
+    // Mark decorative furniture as blocked
+    // Plant at col 11, row 1
     _tiles[1][11] = TileType::BLOCKED;
-    // Bookshelf at (0, 1-2) - against wall
+    // Bookshelf at col 0, rows 1-2 (against wall)
     _tiles[1][0] = TileType::BLOCKED;
     _tiles[2][0] = TileType::BLOCKED;
-    // Water cooler at (18, 7-8) — sprite is 16x24 (1x1.5 tiles)
+#if defined(BOARD_CYD)
+    // Water cooler at col 18, rows 10-11
+    _tiles[10][18] = TileType::BLOCKED;
+    _tiles[11][18] = TileType::BLOCKED;
+    // Extra plant at col 17, row 1
+    _tiles[1][17] = TileType::BLOCKED;
+#else
+    // Water cooler at col 18, rows 7-8
     _tiles[7][18] = TileType::BLOCKED;
     _tiles[8][18] = TileType::BLOCKED;
+#endif
 }
 
 int OfficeState::findFreeSlot() const {
