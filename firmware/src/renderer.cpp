@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include <string.h>
 #include "sprites/characters.h"
 #include "sprites/furniture.h"
 #include "sprites/bubbles.h"
@@ -299,6 +300,40 @@ void Renderer::drawBubble(const Character& ch) {
         bubbleData = SPRITE_BUBBLE_WAITING;
         bw = SPRITE_BUBBLE_WAITING_W;
         bh = SPRITE_BUBBLE_WAITING_H;
+    } else if (ch.bubbleType == 3) {
+        // Info bubble: draw text-based bubble with agent ID and state
+        int sittingOffset = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
+
+        char label[16];
+        snprintf(label, sizeof(label), "Agent %d", ch.id + 1);
+
+        int textW = 6 * (int)strlen(label); // font2 approx 6px per char at size 1
+        int padX = 3;
+        int padY = 2;
+        int bw2 = textW + padX * 2;
+        int bh2 = 10 + padY * 2;
+
+        int bubbleX = (int)(ch.x) - bw2 / 2;
+        int bubbleY = (int)(ch.y + sittingOffset) - CHAR_H - bh2 - 2;
+
+        // Clamp to screen
+        if (bubbleX < 0) bubbleX = 0;
+        if (bubbleX + bw2 > SCREEN_W) bubbleX = SCREEN_W - bw2;
+        if (bubbleY < 0) bubbleY = 0;
+
+        // Background
+        gfxFillRect(bubbleX, bubbleY, bw2, bh2, 0xFFFF);
+        // Border
+        gfxFillRect(bubbleX, bubbleY, bw2, 1, 0x0000);
+        gfxFillRect(bubbleX, bubbleY + bh2 - 1, bw2, 1, 0x0000);
+        gfxFillRect(bubbleX, bubbleY, 1, bh2, 0x0000);
+        gfxFillRect(bubbleX + bw2 - 1, bubbleY, 1, bh2, 0x0000);
+
+        // Text
+        gfxSetTextColor(0x0000);
+        gfxSetTextSize(1);
+        gfxDrawString(label, bubbleX + padX, bubbleY + padY);
+        return;
     } else {
         return;
     }

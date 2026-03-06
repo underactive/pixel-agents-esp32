@@ -54,8 +54,13 @@ public:
     void setAgentState(uint8_t id, CharState state, const char* toolName);
     void setAgentCount(uint8_t count);
 
+    // Touch interaction
+    int hitTestCharacter(int screenX, int screenY) const;
+    void showInfoBubble(int agentIndex);
+
     // Accessors
     Character* getCharacters() { return _chars; }
+    const Character* getCharacters() const { return _chars; }
     int getCharacterCount() const;
     const TileType* getTileMap() const { return &_tiles[0][0]; }
     bool isConnected() const { return _connected; }

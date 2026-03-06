@@ -252,6 +252,41 @@ bool OfficeState::checkHeartbeat(uint32_t nowMs) {
     return true;
 }
 
+int OfficeState::hitTestCharacter(int screenX, int screenY) const {
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (!_chars[i].alive) continue;
+        if (_chars[i].state == CharState::SPAWN || _chars[i].state == CharState::DESPAWN) continue;
+
+        int sittingOffset = (_chars[i].state == CharState::TYPE || _chars[i].state == CharState::READ) ? SITTING_OFFSET_PX : 0;
+        // Character center: x, y+sittingOffset shifted up by half height
+        float cx = _chars[i].x;
+        float cy = _chars[i].y + sittingOffset - CHAR_H / 2.0f;
+
+        float dx = screenX - cx;
+        float dy = screenY - cy;
+#if defined(HAS_TOUCH)
+        if (dx * dx + dy * dy <= TOUCH_CHAR_RADIUS_PX * TOUCH_CHAR_RADIUS_PX) {
+            return i;
+        }
+#else
+        (void)dx; (void)dy;
+#endif
+    }
+    return -1;
+}
+
+void OfficeState::showInfoBubble(int agentIndex) {
+    if (agentIndex < 0 || agentIndex >= MAX_AGENTS) return;
+    Character& ch = _chars[agentIndex];
+    if (!ch.alive) return;
+    ch.bubbleType = 3;
+#if defined(HAS_TOUCH)
+    ch.bubbleTimer = INFO_BUBBLE_DURATION_SEC;
+#else
+    ch.bubbleTimer = 3.0f;
+#endif
+}
+
 void OfficeState::update(float dt) {
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (!_chars[i].alive) continue;
