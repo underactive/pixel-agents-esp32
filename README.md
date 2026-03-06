@@ -64,6 +64,8 @@ PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically 
 
 ```bash
 cd companion
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 python3 pixel_agents_bridge.py
 ```
