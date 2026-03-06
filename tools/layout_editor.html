@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Agents - Office Layout Editor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+header { background: #181825; padding: 8px 16px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #313244; flex-shrink: 0; }
+header h1 { font-size: 16px; font-weight: 600; color: #cba6f7; white-space: nowrap; }
+.header-group { display: flex; align-items: center; gap: 8px; }
+.header-group label { font-size: 12px; color: #a6adc8; }
+select, button { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+select:hover, button:hover { background: #45475a; }
+button.active { background: #cba6f7; color: #1e1e2e; border-color: #cba6f7; }
+button:disabled { opacity: 0.4; cursor: default; }
+.sep { width: 1px; height: 20px; background: #45475a; }
+
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Toolbar */
+.toolbar { width: 200px; background: #181825; border-right: 1px solid #313244; padding: 12px; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+.toolbar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 4px; }
+.tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tool-btn { padding: 6px 4px; font-size: 11px; text-align: center; border-radius: 4px; }
+.furn-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.furn-btn { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 11px; border-radius: 4px; }
+.furn-swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid #585b70; flex-shrink: 0; }
+.furn-btn .furn-size { color: #7f849c; font-size: 10px; margin-left: auto; }
+
+/* Canvas area */
+.canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #11111b; position: relative; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+
+/* Right panel */
+.panel { width: 280px; background: #181825; border-left: 1px solid #313244; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+.panel-section { padding: 12px; border-bottom: 1px solid #313244; }
+.panel-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 8px; }
+
+.ws-list { font-size: 11px; }
+.ws-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #313244; }
+.ws-item:last-child { border-bottom: none; }
+.ws-idx { color: #cba6f7; font-weight: 600; width: 16px; }
+.ws-detail { color: #bac2de; }
+
+.info-row { font-size: 11px; color: #a6adc8; padding: 2px 0; }
+.info-row span { color: #cdd6f4; }
+
+/* Export */
+.export-area { flex: 1; display: flex; flex-direction: column; }
+.export-tabs { display: flex; border-bottom: 1px solid #313244; }
+.export-tab { flex: 1; padding: 6px; font-size: 11px; text-align: center; background: none; border: none; border-bottom: 2px solid transparent; color: #a6adc8; cursor: pointer; border-radius: 0; }
+.export-tab:hover { color: #cdd6f4; background: none; }
+.export-tab.active { color: #cba6f7; border-bottom-color: #cba6f7; background: none; }
+.export-code { flex: 1; margin: 0; padding: 8px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; background: #11111b; color: #a6e3a1; border: none; resize: none; white-space: pre; overflow: auto; tab-size: 4; }
+
+/* Status */
+footer { background: #181825; border-top: 1px solid #313244; padding: 4px 16px; font-size: 11px; color: #7f849c; display: flex; gap: 16px; flex-shrink: 0; }
+footer span.highlight { color: #f9e2af; }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Office Layout Editor</h1>
+    <div class="sep"></div>
+    <div class="header-group">
+        <label>Board:</label>
+        <select id="boardSelect">
+            <option value="lilygo">LILYGO T-Display S3 (20x10)</option>
+            <option value="cyd">CYD ESP32-2432S028R (20x14)</option>
+        </select>
+    </div>
+    <div class="sep"></div>
+    <button id="btnUndo" disabled title="Ctrl+Z">Undo</button>
+    <button id="btnRedo" disabled title="Ctrl+Y">Redo</button>
+    <div class="sep"></div>
+    <button id="btnClear">Clear All</button>
+    <button id="btnDefault">Load Default</button>
+    <div class="sep"></div>
+    <button id="btnImport">Import JSON</button>
+    <button id="btnExport">Export JSON</button>
+</header>
+
+<div class="main">
+    <div class="toolbar">
+        <div>
+            <h3>Tools</h3>
+            <div class="tool-grid">
+                <button class="tool-btn active" data-tool="select">Select</button>
+                <button class="tool-btn" data-tool="floor">Floor</button>
+                <button class="tool-btn" data-tool="wall">Wall</button>
+                <button class="tool-btn" data-tool="erase">Erase</button>
+            </div>
+        </div>
+        <div>
+            <h3>Furniture</h3>
+            <div class="furn-grid">
+                <button class="furn-btn" data-furn="desk">
+                    <span class="furn-swatch" style="background:#8B6914"></span>
+                    Desk <span class="furn-size">2x2</span>
+                </button>
+                <button class="furn-btn" data-furn="chair">
+                    <span class="furn-swatch" style="background:#666"></span>
+                    Chair <span class="furn-size">1x1</span>
+                </button>
+                <button class="furn-btn" data-furn="plant">
+                    <span class="furn-swatch" style="background:#228B22"></span>
+                    Plant <span class="furn-size">1x1</span>
+                </button>
+                <button class="furn-btn" data-furn="bookshelf">
+                    <span class="furn-swatch" style="background:#654321"></span>
+                    Bookshelf <span class="furn-size">1x2</span>
+                </button>
+                <button class="furn-btn" data-furn="cooler">
+                    <span class="furn-swatch" style="background:#4682B4"></span>
+                    Water Cooler <span class="furn-size">1x2</span>
+                </button>
+            </div>
+        </div>
+        <div>
+            <h3>Preview</h3>
+            <button id="btnPreview" style="width:100%">Toggle Characters</button>
+            <div style="margin-top:6px; font-size:10px; color:#7f849c;">
+                Shows idle agents at workstations
+            </div>
+        </div>
+        <div>
+            <h3>Tips</h3>
+            <div style="font-size:10px; color:#7f849c; line-height:1.5;">
+                Click to paint tiles or place furniture.<br>
+                Drag to paint multiple tiles.<br>
+                Click furniture to select, then Delete to remove.<br>
+                Desks + adjacent chairs auto-link as workstations.<br>
+                Right-click to erase.
+            </div>
+        </div>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="panel">
+        <div class="panel-section">
+            <h3>Grid Info</h3>
+            <div class="info-row">Size: <span id="infoSize">20 x 10</span></div>
+            <div class="info-row">Tile: <span>16px</span></div>
+            <div class="info-row">Furniture: <span id="infoFurnCount">0</span></div>
+            <div class="info-row">Cursor: <span id="infoCursor">-</span></div>
+        </div>
+        <div class="panel-section">
+            <h3>Workstations (auto-detected)</h3>
+            <div id="wsList" class="ws-list">
+                <div style="font-size:11px; color:#7f849c;">Place desk + chair pairs</div>
+            </div>
+        </div>
+        <div class="panel-section">
+            <h3>Selection</h3>
+            <div id="selInfo" style="font-size:11px; color:#7f849c;">Nothing selected</div>
+        </div>
+        <div class="panel-section export-area">
+            <h3>Generated Code</h3>
+            <div class="export-tabs">
+                <button class="export-tab active" data-tab="config">config.h</button>
+                <button class="export-tab" data-tab="office">office_state</button>
+                <button class="export-tab" data-tab="renderer">renderer</button>
+            </div>
+            <textarea class="export-code" id="exportCode" readonly></textarea>
+            <button id="btnCopy" style="margin:4px;">Copy to Clipboard</button>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <span>Tool: <span class="highlight" id="footTool">Select</span></span>
+    <span>Board: <span class="highlight" id="footBoard">LILYGO</span></span>
+    <span>Workstations: <span class="highlight" id="footWS">0</span></span>
+</footer>
+
+<input type="file" id="fileInput" accept=".json" style="display:none">
+
+<script>
+// ── Constants ──────────────────────────────────────────────
+const TILE = 16;
+const SCALE = 3;
+const TS = TILE * SCALE; // rendered tile size
+
+const BOARDS = {
+    lilygo: { cols: 20, rows: 10, label: 'LILYGO' },
+    cyd:    { cols: 20, rows: 14, label: 'CYD' },
+};
+
+const TILE_FLOOR = 0;
+const TILE_WALL = 1;
+
+const FURN_CATALOG = {
+    desk:      { w: 2, h: 2, color: '#8B6914', blockW: 2, blockH: 2, label: 'Desk' },
+    chair:     { w: 1, h: 1, color: '#666666', blockW: 0, blockH: 0, label: 'Chair' },
+    plant:     { w: 1, h: 1, color: '#228B22', blockW: 1, blockH: 1, label: 'Plant' },
+    bookshelf: { w: 1, h: 2, color: '#654321', blockW: 1, blockH: 2, label: 'Bookshelf' },
+    cooler:    { w: 1, h: 2, color: '#4682B4', blockW: 1, blockH: 2, label: 'Cooler' },
+};
+
+// Floor colors (approximate RGB from RGB565)
+const CLR_FLOOR     = '#424242';
+const CLR_FLOOR_ALT = '#454545';
+const CLR_WALL      = '#333333';
+const CLR_GRID      = 'rgba(255,255,255,0.08)';
+const CLR_SELECT    = 'rgba(203,166,247,0.5)';
+const CLR_GHOST_OK  = 'rgba(166,227,161,0.4)';
+const CLR_GHOST_BAD = 'rgba(243,139,168,0.4)';
+const CLR_WS_LINE   = 'rgba(137,180,250,0.6)';
+
+// ── State ──────────────────────────────────────────────────
+let board = 'lilygo';
+let gridCols = 20;
+let gridRows = 10;
+let tiles = [];      // tiles[row][col] = TILE_FLOOR | TILE_WALL
+let furniture = [];  // [{id, type, col, row}]
+let nextId = 1;
+
+let tool = 'select';
+let furnType = null;
+let selectedId = null;
+let ghostCol = -1, ghostRow = -1;
+let isDragging = false;
+let dragMoved = false;
+let dragFurnId = null;
+let dragOffCol = 0, dragOffRow = 0;
+
+let showPreview = false;
+
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO = 50;
+
+let activeExportTab = 'config';
+
+// ── Canvas ─────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    canvas.width = gridCols * TS;
+    canvas.height = gridRows * TS;
+    canvas.style.width = canvas.width + 'px';
+    canvas.style.height = canvas.height + 'px';
+}
+
+// ── Tile helpers ───────────────────────────────────────────
+function initTiles() {
+    tiles = [];
+    for (let r = 0; r < gridRows; r++) {
+        tiles[r] = [];
+        for (let c = 0; c < gridCols; c++) {
+            tiles[r][c] = r === 0 ? TILE_WALL : TILE_FLOOR;
+        }
+    }
+}
+
+function tileAt(col, row) {
+    if (row < 0 || row >= gridRows || col < 0 || col >= gridCols) return -1;
+    return tiles[row][col];
+}
+
+// ── Furniture helpers ──────────────────────────────────────
+function furnAt(col, row) {
+    for (const f of furniture) {
+        const cat = FURN_CATALOG[f.type];
+        if (col >= f.col && col < f.col + cat.w && row >= f.row && row < f.row + cat.h) {
+            return f;
+        }
+    }
+    return null;
+}
+
+function canPlace(type, col, row, ignoreId) {
+    const cat = FURN_CATALOG[type];
+    // Bounds check
+    if (col < 0 || row < 0 || col + cat.w > gridCols || row + cat.h > gridRows) return false;
+    // Check tile types (furniture needs floor)
+    for (let dr = 0; dr < cat.h; dr++) {
+        for (let dc = 0; dc < cat.w; dc++) {
+            if (tiles[row + dr][col + dc] !== TILE_FLOOR) return false;
+        }
+    }
+    // Check overlap with existing furniture
+    for (const f of furniture) {
+        if (ignoreId != null && f.id === ignoreId) continue;
+        const fc = FURN_CATALOG[f.type];
+        if (col < f.col + fc.w && col + cat.w > f.col &&
+            row < f.row + fc.h && row + cat.h > f.row) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function addFurniture(type, col, row) {
+    const f = { id: nextId++, type, col, row };
+    furniture.push(f);
+    return f;
+}
+
+function removeFurniture(id) {
+    furniture = furniture.filter(f => f.id !== id);
+    if (selectedId === id) selectedId = null;
+}
+
+// ── Workstation detection ──────────────────────────────────
+function detectWorkstations() {
+    const desks = furniture.filter(f => f.type === 'desk');
+    const chairs = furniture.filter(f => f.type === 'chair');
+    const workstations = [];
+
+    for (const desk of desks) {
+        // Find adjacent chairs
+        // Desk occupies (col, row) to (col+1, row+1) — 2x2
+        // Check positions around the desk for chairs
+        const candidates = [];
+
+        // Below desk
+        for (let dc = 0; dc < 2; dc++) {
+            const cc = desk.col + dc;
+            const cr = desk.row + 2;
+            const chair = chairs.find(ch =>
+                ch.col === cc && ch.row === cr &&
+                !workstations.some(ws => ws.chairId === ch.id)
+            );
+            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'UP' });
+        }
+
+        // Above desk
+        for (let dc = 0; dc < 2; dc++) {
+            const cc = desk.col + dc;
+            const cr = desk.row - 1;
+            const chair = chairs.find(ch =>
+                ch.col === cc && ch.row === cr &&
+                !workstations.some(ws => ws.chairId === ch.id)
+            );
+            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'DOWN' });
+        }
+
+        // Right of desk
+        for (let dr = 0; dr < 2; dr++) {
+            const cc = desk.col + 2;
+            const cr = desk.row + dr;
+            const chair = chairs.find(ch =>
+                ch.col === cc && ch.row === cr &&
+                !workstations.some(ws => ws.chairId === ch.id)
+            );
+            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'LEFT' });
+        }
+
+        // Left of desk
+        for (let dr = 0; dr < 2; dr++) {
+            const cc = desk.col - 1;
+            const cr = desk.row + dr;
+            const chair = chairs.find(ch =>
+                ch.col === cc && ch.row === cr &&
+                !workstations.some(ws => ws.chairId === ch.id)
+            );
+            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'RIGHT' });
+        }
+
+        // Take first candidate per desk
+        if (candidates.length > 0) {
+            const c = candidates[0];
+            workstations.push({
+                deskCol: desk.col,
+                deskRow: desk.row,
+                seatCol: c.seatCol,
+                seatRow: c.seatRow,
+                facingDir: c.dir,
+                deskId: desk.id,
+                chairId: c.chair.id,
+            });
+        }
+    }
+    return workstations;
+}
+
+// ── Undo / Redo ────────────────────────────────────────────
+function snapshot() {
+    return JSON.stringify({ tiles, furniture, nextId });
+}
+
+function restore(snap) {
+    const s = JSON.parse(snap);
+    tiles = s.tiles;
+    furniture = s.furniture;
+    nextId = s.nextId;
+    selectedId = null;
+}
+
+function pushUndo() {
+    undoStack.push(snapshot());
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack = [];
+    updateUndoButtons();
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(snapshot());
+    restore(undoStack.pop());
+    updateUndoButtons();
+    render();
+    updateUI();
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(snapshot());
+    restore(redoStack.pop());
+    updateUndoButtons();
+    render();
+    updateUI();
+}
+
+function updateUndoButtons() {
+    document.getElementById('btnUndo').disabled = undoStack.length === 0;
+    document.getElementById('btnRedo').disabled = redoStack.length === 0;
+}
+
+// ── Rendering ──────────────────────────────────────────────
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw tiles
+    for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+            const x = c * TS, y = r * TS;
+            if (tiles[r][c] === TILE_WALL) {
+                ctx.fillStyle = CLR_WALL;
+            } else {
+                ctx.fillStyle = (r + c) % 2 === 0 ? CLR_FLOOR_ALT : CLR_FLOOR;
+            }
+            ctx.fillRect(x, y, TS, TS);
+        }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = CLR_GRID;
+    ctx.lineWidth = 1;
+    for (let r = 0; r <= gridRows; r++) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * TS + 0.5);
+        ctx.lineTo(gridCols * TS, r * TS + 0.5);
+        ctx.stroke();
+    }
+    for (let c = 0; c <= gridCols; c++) {
+        ctx.beginPath();
+        ctx.moveTo(c * TS + 0.5, 0);
+        ctx.lineTo(c * TS + 0.5, gridRows * TS);
+        ctx.stroke();
+    }
+
+    // Draw workstation links
+    const workstations = detectWorkstations();
+    for (const ws of workstations) {
+        const deskCX = (ws.deskCol + 1) * TS;
+        const deskCY = (ws.deskRow + 1) * TS;
+        const seatCX = (ws.seatCol + 0.5) * TS;
+        const seatCY = (ws.seatRow + 0.5) * TS;
+        ctx.strokeStyle = CLR_WS_LINE;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(deskCX, deskCY);
+        ctx.lineTo(seatCX, seatCY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Direction arrow at seat
+        ctx.fillStyle = CLR_WS_LINE;
+        ctx.font = `${TS * 0.4}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const arrows = { UP: '\u2191', DOWN: '\u2193', LEFT: '\u2190', RIGHT: '\u2192' };
+        ctx.fillText(arrows[ws.facingDir], seatCX, seatCY - TS * 0.35);
+    }
+
+    // Draw furniture
+    for (const f of furniture) {
+        drawFurnitureItem(f, f.id === selectedId);
+    }
+
+    // Ghost preview for furniture placement
+    if (tool === 'place' && furnType && ghostCol >= 0 && ghostRow >= 0) {
+        const cat = FURN_CATALOG[furnType];
+        const valid = canPlace(furnType, ghostCol, ghostRow);
+        ctx.fillStyle = valid ? CLR_GHOST_OK : CLR_GHOST_BAD;
+        ctx.fillRect(ghostCol * TS, ghostRow * TS, cat.w * TS, cat.h * TS);
+        ctx.strokeStyle = valid ? '#a6e3a1' : '#f38ba8';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ghostCol * TS + 1, ghostRow * TS + 1, cat.w * TS - 2, cat.h * TS - 2);
+    }
+
+    // Preview characters at workstations
+    if (showPreview) {
+        const palettes = [
+            '#f38ba8', '#fab387', '#f9e2af', '#a6e3a1', '#89b4fa', '#cba6f7'
+        ];
+        workstations.forEach((ws, i) => {
+            if (i >= 6) return;
+            const cx = (ws.seatCol + 0.5) * TS;
+            const cy = (ws.seatRow + 0.5) * TS;
+            // Simple character representation
+            const color = palettes[i % palettes.length];
+            // Body
+            ctx.fillStyle = color;
+            ctx.fillRect(cx - TS * 0.25, cy - TS * 0.15, TS * 0.5, TS * 0.45);
+            // Head
+            ctx.beginPath();
+            ctx.arc(cx, cy - TS * 0.3, TS * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    updateExportCode();
+}
+
+function drawFurnitureItem(f, selected) {
+    const cat = FURN_CATALOG[f.type];
+    const x = f.col * TS, y = f.row * TS;
+    const w = cat.w * TS, h = cat.h * TS;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x + 2, y + 2, w, h);
+
+    // Body
+    ctx.fillStyle = cat.color;
+    ctx.fillRect(x, y, w, h);
+
+    // Details per type
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    if (f.type === 'desk') {
+        // Monitor suggestion
+        ctx.fillRect(x + w * 0.3, y + h * 0.15, w * 0.4, h * 0.25);
+        // Keyboard
+        ctx.fillRect(x + w * 0.2, y + h * 0.55, w * 0.6, h * 0.12);
+    } else if (f.type === 'bookshelf') {
+        // Shelf lines
+        for (let i = 1; i < cat.h * 2; i++) {
+            ctx.fillRect(x + 2, y + (h / (cat.h * 2)) * i - 1, w - 4, 2);
+        }
+    } else if (f.type === 'cooler') {
+        // Jug shape
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(x + w * 0.2, y + h * 0.1, w * 0.6, h * 0.4);
+    } else if (f.type === 'plant') {
+        // Leaves
+        ctx.fillStyle = 'rgba(0,100,0,0.3)';
+        ctx.beginPath();
+        ctx.arc(x + w * 0.5, y + h * 0.3, w * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        // Pot
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(x + w * 0.25, y + h * 0.65, w * 0.5, h * 0.3);
+    } else if (f.type === 'chair') {
+        // Seat circle
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath();
+        ctx.arc(x + w * 0.5, y + h * 0.5, w * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Label
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = `bold ${Math.min(TS * 0.28, 12)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cat.label, x + w / 2, y + h / 2);
+
+    // Selection highlight
+    if (selected) {
+        ctx.strokeStyle = '#cba6f7';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    }
+}
+
+// ── Event handlers ─────────────────────────────────────────
+function screenToTile(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    return { col: Math.floor(x / TS), row: Math.floor(y / TS) };
+}
+
+canvas.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const { col, row } = screenToTile(e);
+    if (col < 0 || col >= gridCols || row < 0 || row >= gridRows) return;
+
+    // Right-click: erase
+    if (e.button === 2) {
+        const f = furnAt(col, row);
+        if (f) {
+            pushUndo();
+            removeFurniture(f.id);
+        } else if (tiles[row][col] === TILE_WALL) {
+            pushUndo();
+            tiles[row][col] = TILE_FLOOR;
+        }
+        render();
+        updateUI();
+        return;
+    }
+
+    isDragging = true;
+    dragMoved = false;
+
+    if (tool === 'select') {
+        const f = furnAt(col, row);
+        if (f) {
+            selectedId = f.id;
+            dragFurnId = f.id;
+            dragOffCol = col - f.col;
+            dragOffRow = row - f.row;
+        } else {
+            selectedId = null;
+            dragFurnId = null;
+        }
+        render();
+        updateUI();
+    } else if (tool === 'floor') {
+        pushUndo();
+        tiles[row][col] = TILE_FLOOR;
+        render();
+    } else if (tool === 'wall') {
+        pushUndo();
+        // Remove any furniture on this tile first
+        const f = furnAt(col, row);
+        if (f) removeFurniture(f.id);
+        tiles[row][col] = TILE_WALL;
+        render();
+    } else if (tool === 'erase') {
+        const f = furnAt(col, row);
+        if (f) {
+            pushUndo();
+            removeFurniture(f.id);
+        } else if (tiles[row][col] === TILE_WALL) {
+            pushUndo();
+            tiles[row][col] = TILE_FLOOR;
+        }
+        render();
+        updateUI();
+    } else if (tool === 'place' && furnType) {
+        if (canPlace(furnType, col, row)) {
+            pushUndo();
+            const f = addFurniture(furnType, col, row);
+            selectedId = f.id;
+            render();
+            updateUI();
+        }
+    }
+});
+
+canvas.addEventListener('mousemove', e => {
+    const { col, row } = screenToTile(e);
+    document.getElementById('infoCursor').textContent =
+        (col >= 0 && col < gridCols && row >= 0 && row < gridRows)
+            ? `(${col}, ${row})` : '-';
+
+    if (tool === 'place' && furnType) {
+        const cat = FURN_CATALOG[furnType];
+        ghostCol = col;
+        ghostRow = row;
+        render();
+    }
+
+    if (!isDragging) return;
+    dragMoved = true;
+
+    if (tool === 'select' && dragFurnId != null) {
+        const f = furniture.find(x => x.id === dragFurnId);
+        if (f) {
+            const newCol = col - dragOffCol;
+            const newRow = row - dragOffRow;
+            if (canPlace(f.type, newCol, newRow, f.id)) {
+                if (!dragMoved) pushUndo();
+                f.col = newCol;
+                f.row = newRow;
+                render();
+                updateUI();
+            }
+        }
+    } else if (tool === 'floor') {
+        if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
+            tiles[row][col] = TILE_FLOOR;
+            render();
+        }
+    } else if (tool === 'wall') {
+        if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
+            const f = furnAt(col, row);
+            if (f) removeFurniture(f.id);
+            tiles[row][col] = TILE_WALL;
+            render();
+        }
+    } else if (tool === 'erase') {
+        if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
+            const f = furnAt(col, row);
+            if (f) removeFurniture(f.id);
+            if (tiles[row][col] === TILE_WALL) tiles[row][col] = TILE_FLOOR;
+            render();
+            updateUI();
+        }
+    }
+});
+
+canvas.addEventListener('mouseup', e => {
+    if (tool === 'select' && dragFurnId != null && dragMoved) {
+        pushUndo();
+    }
+    isDragging = false;
+    dragFurnId = null;
+});
+
+canvas.addEventListener('mouseleave', () => {
+    ghostCol = ghostRow = -1;
+    if (tool === 'place') render();
+    document.getElementById('infoCursor').textContent = '-';
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// ── Keyboard ───────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedId != null) {
+            pushUndo();
+            removeFurniture(selectedId);
+            render();
+            updateUI();
+        }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
+    if (e.key === '1') setTool('select');
+    if (e.key === '2') setTool('floor');
+    if (e.key === '3') setTool('wall');
+    if (e.key === '4') setTool('erase');
+    if (e.key === 'Escape') { selectedId = null; setTool('select'); render(); updateUI(); }
+});
+
+// ── Tool selection ─────────────────────────────────────────
+function setTool(t) {
+    tool = t;
+    furnType = null;
+    ghostCol = ghostRow = -1;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('footTool').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    canvas.style.cursor = t === 'select' ? 'default' : 'crosshair';
+    render();
+}
+
+document.querySelectorAll('.tool-btn').forEach(b => {
+    b.addEventListener('click', () => setTool(b.dataset.tool));
+});
+
+document.querySelectorAll('.furn-btn').forEach(b => {
+    b.addEventListener('click', () => {
+        tool = 'place';
+        furnType = b.dataset.furn;
+        document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.furn-btn').forEach(x => x.classList.toggle('active', x.dataset.furn === furnType));
+        document.getElementById('footTool').textContent = 'Place ' + FURN_CATALOG[furnType].label;
+        canvas.style.cursor = 'crosshair';
+    });
+});
+
+// ── Board switch ───────────────────────────────────────────
+document.getElementById('boardSelect').addEventListener('change', e => {
+    switchBoard(e.target.value);
+});
+
+function switchBoard(b) {
+    pushUndo();
+    board = b;
+    const def = BOARDS[b];
+    const oldRows = gridRows;
+    gridCols = def.cols;
+    gridRows = def.rows;
+    document.getElementById('footBoard').textContent = def.label;
+    document.getElementById('infoSize').textContent = `${gridCols} x ${gridRows}`;
+
+    // Resize tile array
+    if (gridRows > oldRows) {
+        for (let r = oldRows; r < gridRows; r++) {
+            tiles[r] = [];
+            for (let c = 0; c < gridCols; c++) tiles[r][c] = TILE_FLOOR;
+        }
+    } else if (gridRows < oldRows) {
+        tiles.length = gridRows;
+        // Remove furniture that's out of bounds
+        furniture = furniture.filter(f => {
+            const cat = FURN_CATALOG[f.type];
+            return f.row + cat.h <= gridRows;
+        });
+    }
+
+    resizeCanvas();
+    render();
+    updateUI();
+}
+
+// ── Header buttons ─────────────────────────────────────────
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnRedo').addEventListener('click', redo);
+
+document.getElementById('btnClear').addEventListener('click', () => {
+    if (!confirm('Clear entire layout?')) return;
+    pushUndo();
+    furniture = [];
+    selectedId = null;
+    initTiles();
+    render();
+    updateUI();
+});
+
+document.getElementById('btnDefault').addEventListener('click', () => {
+    pushUndo();
+    loadDefault();
+    render();
+    updateUI();
+});
+
+document.getElementById('btnPreview').addEventListener('click', () => {
+    showPreview = !showPreview;
+    document.getElementById('btnPreview').classList.toggle('active', showPreview);
+    render();
+});
+
+// ── JSON Import / Export ───────────────────────────────────
+document.getElementById('btnExport').addEventListener('click', () => {
+    const data = {
+        version: 1,
+        board,
+        cols: gridCols,
+        rows: gridRows,
+        tiles: tiles,
+        furniture: furniture.map(f => ({ type: f.type, col: f.col, row: f.row })),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `office-layout-${board}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('btnImport').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const data = JSON.parse(ev.target.result);
+            pushUndo();
+            board = data.board || 'lilygo';
+            gridCols = data.cols || 20;
+            gridRows = data.rows || 10;
+            tiles = data.tiles || [];
+            furniture = [];
+            nextId = 1;
+            for (const f of (data.furniture || [])) {
+                addFurniture(f.type, f.col, f.row);
+            }
+            document.getElementById('boardSelect').value = board;
+            resizeCanvas();
+            render();
+            updateUI();
+        } catch (err) {
+            alert('Invalid JSON file: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+});
+
+// ── Copy button ────────────────────────────────────────────
+document.getElementById('btnCopy').addEventListener('click', () => {
+    const code = document.getElementById('exportCode').value;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('btnCopy');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
+    });
+});
+
+// ── Export tabs ────────────────────────────────────────────
+document.querySelectorAll('.export-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        activeExportTab = tab.dataset.tab;
+        document.querySelectorAll('.export-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === activeExportTab));
+        updateExportCode();
+    });
+});
+
+// ── Code generation ────────────────────────────────────────
+function generateConfigCode(workstations) {
+    const lines = [];
+    lines.push('// ── Office Layout ───────────────────────────────────────');
+    lines.push('// Generated by tools/layout_editor.html');
+    lines.push('// Desk workstation positions (tile col, row for seat)');
+    lines.push('struct Workstation {');
+    lines.push('    int deskCol, deskRow;   // top-left of 2x2 desk');
+    lines.push('    int seatCol, seatRow;   // where character sits');
+    lines.push('    Dir facingDir;          // direction character faces when seated');
+    lines.push('};');
+    lines.push('');
+
+    if (workstations.length === 0) {
+        lines.push('// No workstations detected — place desk+chair pairs');
+        lines.push('static constexpr Workstation WORKSTATIONS[] = {};');
+    } else {
+        lines.push('static constexpr Workstation WORKSTATIONS[] = {');
+        for (let i = 0; i < workstations.length; i++) {
+            const ws = workstations[i];
+            const comma = i < workstations.length - 1 ? ',' : '';
+            const dirStr = `Dir::${ws.facingDir}`;
+            lines.push(`    {${ws.deskCol}, ${ws.deskRow}, ${ws.seatCol}, ${ws.seatRow}, ${dirStr}}${comma}` +
+                `    // desk at (${ws.deskCol},${ws.deskRow}), seat at (${ws.seatCol},${ws.seatRow}), face ${ws.facingDir.toLowerCase()}`);
+        }
+        lines.push('};');
+    }
+    lines.push('static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);');
+
+    return lines.join('\n');
+}
+
+function generateOfficeStateCode(workstations) {
+    const lines = [];
+    lines.push('// Generated by tools/layout_editor.html');
+    lines.push('void OfficeState::initTileMap() {');
+    lines.push('    // Initialize all tiles');
+    lines.push('    for (int r = 0; r < GRID_ROWS; r++) {');
+    lines.push('        for (int c = 0; c < GRID_COLS; c++) {');
+
+    // Collect wall rows (contiguous wall rows)
+    const wallRows = [];
+    for (let r = 0; r < gridRows; r++) {
+        let allWall = true;
+        for (let c = 0; c < gridCols; c++) {
+            if (tiles[r][c] !== TILE_WALL) { allWall = false; break; }
+        }
+        if (allWall) wallRows.push(r);
+    }
+
+    if (wallRows.length > 0 && wallRows[0] === 0 && wallRows.length === 1) {
+        lines.push('            if (r == 0) {');
+        lines.push('                _tiles[r][c] = TileType::WALL;');
+        lines.push('            } else {');
+        lines.push('                _tiles[r][c] = TileType::FLOOR;');
+        lines.push('            }');
+    } else {
+        // General case: check individual tiles
+        lines.push('            _tiles[r][c] = TileType::FLOOR;');
+    }
+
+    lines.push('        }');
+    lines.push('    }');
+
+    // Wall tiles that aren't full rows
+    const sparseWalls = [];
+    for (let r = 0; r < gridRows; r++) {
+        if (wallRows.includes(r)) continue;
+        for (let c = 0; c < gridCols; c++) {
+            if (tiles[r][c] === TILE_WALL) {
+                sparseWalls.push({ r, c });
+            }
+        }
+    }
+
+    // Set full wall rows
+    for (const r of wallRows) {
+        lines.push(`    // Wall row ${r}`);
+        lines.push(`    for (int c = 0; c < GRID_COLS; c++) _tiles[${r}][c] = TileType::WALL;`);
+    }
+
+    // Set sparse wall tiles
+    if (sparseWalls.length > 0) {
+        lines.push('    // Additional wall tiles');
+        for (const w of sparseWalls) {
+            lines.push(`    _tiles[${w.r}][${w.c}] = TileType::WALL;`);
+        }
+    }
+
+    // Desk blocking (from workstations)
+    if (workstations.length > 0) {
+        lines.push('    // Mark desk tiles as blocked (2x2 desks)');
+        lines.push('    for (int i = 0; i < NUM_WORKSTATIONS; i++) {');
+        lines.push('        const auto& ws = WORKSTATIONS[i];');
+        lines.push('        for (int dr = 0; dr < 2; dr++) {');
+        lines.push('            for (int dc = 0; dc < 2; dc++) {');
+        lines.push('                int r = ws.deskRow + dr;');
+        lines.push('                int c = ws.deskCol + dc;');
+        lines.push('                if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {');
+        lines.push('                    _tiles[r][c] = TileType::BLOCKED;');
+        lines.push('                }');
+        lines.push('            }');
+        lines.push('        }');
+        lines.push('    }');
+    }
+
+    // Standalone desks (not part of workstations)
+    const wsDesks = new Set(workstations.map(ws => ws.deskId));
+    const standaloneDesks = furniture.filter(f => f.type === 'desk' && !wsDesks.has(f.id));
+    for (const d of standaloneDesks) {
+        lines.push(`    // Standalone desk at (${d.col}, ${d.row})`);
+        for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+                lines.push(`    _tiles[${d.row + dr}][${d.col + dc}] = TileType::BLOCKED;`);
+            }
+        }
+    }
+
+    // Decorative furniture blocking
+    const decor = furniture.filter(f => f.type !== 'desk' && f.type !== 'chair');
+    if (decor.length > 0) {
+        lines.push('    // Mark decorative furniture as blocked');
+        for (const f of decor) {
+            const cat = FURN_CATALOG[f.type];
+            if (cat.blockW === 0 && cat.blockH === 0) continue;
+            lines.push(`    // ${cat.label} at col ${f.col}, row${cat.blockH > 1 ? 's' : ''} ${f.row}${cat.blockH > 1 ? '-' + (f.row + cat.blockH - 1) : ''}`);
+            for (let dr = 0; dr < cat.blockH; dr++) {
+                for (let dc = 0; dc < cat.blockW; dc++) {
+                    lines.push(`    _tiles[${f.row + dr}][${f.col + dc}] = TileType::BLOCKED;`);
+                }
+            }
+        }
+    }
+
+    lines.push('}');
+    return lines.join('\n');
+}
+
+function generateRendererCode(workstations) {
+    const lines = [];
+    lines.push('// Generated by tools/layout_editor.html');
+    lines.push('void Renderer::drawFurniture() {');
+
+    // Desks from workstations
+    if (workstations.length > 0) {
+        lines.push('    // Draw desks');
+        lines.push('    for (int i = 0; i < NUM_WORKSTATIONS; i++) {');
+        lines.push('        const auto& ws = WORKSTATIONS[i];');
+        lines.push('        int x = ws.deskCol * TILE_SIZE;');
+        lines.push('        int y = ws.deskRow * TILE_SIZE;');
+        lines.push('        drawRGB565Sprite(x, y, SPRITE_DESK, SPRITE_DESK_W, SPRITE_DESK_H);');
+        lines.push('    }');
+        lines.push('');
+        lines.push('    // Draw chairs at seat positions');
+        lines.push('    for (int i = 0; i < NUM_WORKSTATIONS; i++) {');
+        lines.push('        const auto& ws = WORKSTATIONS[i];');
+        lines.push('        int x = ws.seatCol * TILE_SIZE;');
+        lines.push('        int y = ws.seatRow * TILE_SIZE;');
+        lines.push('        drawRGB565Sprite(x, y, SPRITE_CHAIR, SPRITE_CHAIR_W, SPRITE_CHAIR_H);');
+        lines.push('    }');
+    }
+
+    // Standalone desks
+    const wsDesks = new Set(workstations.map(ws => ws.deskId));
+    const standaloneDesks = furniture.filter(f => f.type === 'desk' && !wsDesks.has(f.id));
+    for (const d of standaloneDesks) {
+        lines.push(`    drawRGB565Sprite(${d.col} * TILE_SIZE, ${d.row} * TILE_SIZE, SPRITE_DESK, SPRITE_DESK_W, SPRITE_DESK_H);`);
+    }
+
+    // Standalone chairs
+    const wsChairs = new Set(workstations.map(ws => ws.chairId));
+    const standaloneChairs = furniture.filter(f => f.type === 'chair' && !wsChairs.has(f.id));
+    for (const ch of standaloneChairs) {
+        lines.push(`    drawRGB565Sprite(${ch.col} * TILE_SIZE, ${ch.row} * TILE_SIZE, SPRITE_CHAIR, SPRITE_CHAIR_W, SPRITE_CHAIR_H);`);
+    }
+
+    // Decorative furniture
+    lines.push('');
+    lines.push('    // Static decorations');
+    const spriteMap = {
+        plant: { sprite: 'SPRITE_PLANT', w: 'SPRITE_PLANT_W', h: 'SPRITE_PLANT_H' },
+        bookshelf: { sprite: 'SPRITE_BOOKSHELF', w: 'SPRITE_BOOKSHELF_W', h: 'SPRITE_BOOKSHELF_H' },
+        cooler: { sprite: 'SPRITE_COOLER', w: 'SPRITE_COOLER_W', h: 'SPRITE_COOLER_H' },
+    };
+    const decor = furniture.filter(f => f.type !== 'desk' && f.type !== 'chair');
+    for (const f of decor) {
+        const sm = spriteMap[f.type];
+        if (sm) {
+            lines.push(`    drawRGB565Sprite(${f.col} * TILE_SIZE, ${f.row} * TILE_SIZE, ${sm.sprite}, ${sm.w}, ${sm.h});`);
+        }
+    }
+
+    lines.push('}');
+    return lines.join('\n');
+}
+
+function updateExportCode() {
+    const workstations = detectWorkstations();
+    let code;
+    switch (activeExportTab) {
+        case 'config':   code = generateConfigCode(workstations); break;
+        case 'office':   code = generateOfficeStateCode(workstations); break;
+        case 'renderer': code = generateRendererCode(workstations); break;
+    }
+    document.getElementById('exportCode').value = code;
+}
+
+// ── UI updates ─────────────────────────────────────────────
+function updateUI() {
+    const workstations = detectWorkstations();
+
+    // Workstation list
+    const wsList = document.getElementById('wsList');
+    if (workstations.length === 0) {
+        wsList.innerHTML = '<div style="font-size:11px;color:#7f849c;">Place desk + chair pairs to create workstations</div>';
+    } else {
+        wsList.innerHTML = workstations.map((ws, i) => `
+            <div class="ws-item">
+                <span class="ws-idx">${i}</span>
+                <span class="ws-detail">
+                    Desk(${ws.deskCol},${ws.deskRow}) Seat(${ws.seatCol},${ws.seatRow}) ${ws.facingDir}
+                </span>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('footWS').textContent = workstations.length;
+    document.getElementById('infoFurnCount').textContent = furniture.length;
+
+    // Selection info
+    const selInfo = document.getElementById('selInfo');
+    if (selectedId != null) {
+        const f = furniture.find(x => x.id === selectedId);
+        if (f) {
+            const cat = FURN_CATALOG[f.type];
+            selInfo.innerHTML = `<strong>${cat.label}</strong> at (${f.col}, ${f.row})<br>` +
+                `Size: ${cat.w}x${cat.h} tiles<br>` +
+                `<span style="color:#f38ba8;cursor:pointer;" onclick="deleteSelected()">Delete (Del)</span>`;
+        } else {
+            selInfo.textContent = 'Nothing selected';
+        }
+    } else {
+        selInfo.textContent = 'Nothing selected';
+    }
+
+    updateExportCode();
+}
+
+function deleteSelected() {
+    if (selectedId != null) {
+        pushUndo();
+        removeFurniture(selectedId);
+        render();
+        updateUI();
+    }
+}
+
+// ── Default layout ─────────────────────────────────────────
+function loadDefault() {
+    const b = BOARDS[board];
+    gridCols = b.cols;
+    gridRows = b.rows;
+    initTiles();
+    furniture = [];
+    nextId = 1;
+
+    if (board === 'cyd') {
+        // CYD default layout
+        addFurniture('desk', 3, 2);
+        addFurniture('desk', 7, 2);
+        addFurniture('desk', 13, 2);
+        addFurniture('desk', 3, 7);
+        addFurniture('desk', 7, 7);
+        addFurniture('desk', 13, 7);
+        addFurniture('chair', 3, 4);
+        addFurniture('chair', 7, 4);
+        addFurniture('chair', 13, 4);
+        addFurniture('chair', 3, 6);
+        addFurniture('chair', 7, 6);
+        addFurniture('chair', 13, 6);
+        addFurniture('plant', 11, 1);
+        addFurniture('plant', 17, 1);
+        addFurniture('bookshelf', 0, 1);
+        addFurniture('cooler', 18, 10);
+    } else {
+        // LILYGO default layout
+        addFurniture('desk', 3, 2);
+        addFurniture('desk', 7, 2);
+        addFurniture('desk', 13, 2);
+        addFurniture('desk', 17, 2);
+        addFurniture('desk', 3, 6);
+        addFurniture('desk', 7, 6);
+        addFurniture('chair', 3, 4);
+        addFurniture('chair', 7, 4);
+        addFurniture('chair', 13, 4);
+        addFurniture('chair', 17, 4);
+        addFurniture('chair', 3, 5);
+        addFurniture('chair', 7, 5);
+        addFurniture('plant', 11, 1);
+        addFurniture('bookshelf', 0, 1);
+        addFurniture('cooler', 18, 7);
+    }
+
+    resizeCanvas();
+    selectedId = null;
+}
+
+// ── Initialize ─────────────────────────────────────────────
+loadDefault();
+resizeCanvas();
+render();
+updateUI();
+</script>
+</body>
+</html>
