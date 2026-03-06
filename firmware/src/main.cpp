@@ -4,11 +4,17 @@
 #include "protocol.h"
 #include "office_state.h"
 #include "renderer.h"
+#if defined(HAS_TOUCH)
+#include "touch_input.h"
+#endif
 
 TFT_eSPI tft;
 Protocol protocol;
 OfficeState office;
 Renderer renderer;
+#if defined(HAS_TOUCH)
+TouchInput touchInput;
+#endif
 
 uint32_t lastFrameMs = 0;
 
@@ -66,6 +72,10 @@ void setup() {
     renderer.begin(tft);
     protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText);
 
+#if defined(HAS_TOUCH)
+    touchInput.begin(tft);
+#endif
+
     lastFrameMs = millis();
 
     // Seed random
@@ -94,6 +104,17 @@ void loop() {
 
     // Update office state
     office.update(dt);
+
+#if defined(HAS_TOUCH)
+    // Poll touch input
+    TouchEvent te = touchInput.poll();
+    if (te.tapped) {
+        int hit = office.hitTestCharacter(te.x, te.y);
+        if (hit >= 0) {
+            office.showInfoBubble(hit);
+        }
+    }
+#endif
 
     // Render
     renderer.renderFrame(office);

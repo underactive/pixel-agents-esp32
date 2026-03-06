@@ -137,3 +137,10 @@ static constexpr Workstation WORKSTATIONS[] = {
 };
 #endif
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);
+
+// ── Touch Input (CYD only) ─────────────────────────────
+#if defined(HAS_TOUCH)
+static constexpr int TOUCH_DEBOUNCE_MS = 200;
+static constexpr int TOUCH_CHAR_RADIUS_PX = 12;
+static constexpr float INFO_BUBBLE_DURATION_SEC = 3.0f;
+#endif
