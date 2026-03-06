@@ -4,12 +4,20 @@
 // ── Display ─────────────────────────────────────────────
 // Landscape orientation via setRotation(1)
 static constexpr int SCREEN_W = 320;
+#if defined(BOARD_CYD)
+static constexpr int SCREEN_H = 240;
+#else
 static constexpr int SCREEN_H = 170;
+#endif
 
 // ── Tile Grid ───────────────────────────────────────────
 static constexpr int TILE_SIZE = 16;
-static constexpr int GRID_COLS = 20;  // 320 / 16
-static constexpr int GRID_ROWS = 10;  // 170 / 16 = 10 (with 10px for status bar)
+static constexpr int GRID_COLS = 20;   // 320 / 16
+#if defined(BOARD_CYD)
+static constexpr int GRID_ROWS = 14;   // 240 / 16 = 15, minus 1 for status bar
+#else
+static constexpr int GRID_ROWS = 10;   // 170 / 16 = 10 (with 10px for status bar)
+#endif
 
 // ── Character Sprites ───────────────────────────────────
 static constexpr int CHAR_W = 16;
@@ -107,6 +115,18 @@ struct Workstation {
     Dir facingDir;          // direction character faces when seated
 };
 
+#if defined(BOARD_CYD)
+// CYD: 20x14 grid — spread desks across more vertical space
+static constexpr Workstation WORKSTATIONS[] = {
+    {3, 2,  3,  4, Dir::UP},    // desk at (3,2),  seat at (3,4),  face up
+    {7, 2,  7,  4, Dir::UP},    // desk at (7,2),  seat at (7,4),  face up
+    {3, 7,  3,  6, Dir::DOWN},  // desk at (3,7),  seat at (3,6),  face down
+    {7, 7,  7,  6, Dir::DOWN},  // desk at (7,7),  seat at (7,6),  face down
+    {13, 2, 13, 4, Dir::UP},    // right-side stations
+    {13, 7, 13, 6, Dir::DOWN},
+};
+#else
+// LILYGO T-Display S3: 20x10 grid — compact layout
 static constexpr Workstation WORKSTATIONS[] = {
     {3, 2, 3, 4, Dir::UP},     // desk at (3,2), seat at (3,4), face up
     {7, 2, 7, 4, Dir::UP},     // desk at (7,2), seat at (7,4), face up
@@ -115,4 +135,5 @@ static constexpr Workstation WORKSTATIONS[] = {
     {13, 2, 13, 4, Dir::UP},   // extra stations for more agents
     {17, 2, 17, 4, Dir::UP},
 };
+#endif
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);

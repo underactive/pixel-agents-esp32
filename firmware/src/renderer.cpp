@@ -111,7 +111,12 @@ void Renderer::drawFurniture() {
     // Static decorations
     drawRGB565Sprite(11 * TILE_SIZE, 1 * TILE_SIZE, SPRITE_PLANT, SPRITE_PLANT_W, SPRITE_PLANT_H);
     drawRGB565Sprite(0, 1 * TILE_SIZE, SPRITE_BOOKSHELF, SPRITE_BOOKSHELF_W, SPRITE_BOOKSHELF_H);
+#if defined(BOARD_CYD)
+    drawRGB565Sprite(18 * TILE_SIZE, 10 * TILE_SIZE, SPRITE_COOLER, SPRITE_COOLER_W, SPRITE_COOLER_H);
+    drawRGB565Sprite(17 * TILE_SIZE, 1 * TILE_SIZE, SPRITE_PLANT, SPRITE_PLANT_W, SPRITE_PLANT_H);
+#else
     drawRGB565Sprite(18 * TILE_SIZE, 7 * TILE_SIZE, SPRITE_COOLER, SPRITE_COOLER_W, SPRITE_COOLER_H);
+#endif
 }
 
 void Renderer::drawCharacter(const Character& ch) {

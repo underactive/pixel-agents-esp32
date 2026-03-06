@@ -1,6 +1,6 @@
 # Pixel Agents ESP32
 
-A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32-S3 with a small color TFT display.
+A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
 ## How It Works
 
@@ -16,14 +16,17 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 ## Hardware
 
-**Recommended:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
-- ESP32-S3 with built-in 1.9" IPS display (170x320, ST7789)
-- USB-C, no wiring needed
-- 320x170 landscape fits 20x10 tile grid
+Either board works out of the box — just pick the right PlatformIO environment.
 
-**Alternative:** ESP32-S3 CYD (Cheap Yellow Display, ~$12)
-- 2.8" ILI9341 (240x320), touch included
-- Requires different pin config in `platformio.ini`
+**Option A:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
+- ESP32-S3, built-in 1.9" IPS display (170x320, ST7789), USB-C
+- 320x170 landscape → 20x10 tile grid
+- Build env: `lilygo-t-display-s3`
+
+**Option B:** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
+- ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
+- 320x240 landscape → 20x14 tile grid (more room for wandering)
+- Build env: `cyd-2432s028r`
 
 ## Setup
 
@@ -31,7 +34,7 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 - [PlatformIO](https://platformio.org/) (CLI or VS Code extension)
 - Python 3.8+ with pip
-- LILYGO T-Display S3 (or compatible ESP32-S3 board)
+- One of the supported boards (see Hardware above)
 
 ### 1. Generate Sprite Headers
 
@@ -45,7 +48,12 @@ This creates C header files in `firmware/src/sprites/` from the built-in sprite 
 
 ```bash
 cd firmware
-pio run --target upload
+
+# For LILYGO T-Display S3:
+pio run -e lilygo-t-display-s3 --target upload
+
+# For CYD (ESP32-2432S028R):
+pio run -e cyd-2432s028r --target upload
 ```
 
 PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically on first build.
