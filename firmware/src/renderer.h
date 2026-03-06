@@ -19,7 +19,7 @@ private:
     float _fps = 0;
 
     void drawScene(OfficeState& office);
-    void drawFloor();
+    void drawFloor(const TileType* tiles);
     void drawFurniture();
     void drawCharacter(const Character& ch);
     void drawBubble(const Character& ch);

@@ -116,7 +116,7 @@ void Renderer::renderFrame(OfficeState& office) {
 
 void Renderer::drawScene(OfficeState& office) {
     // 1. Draw floor tiles
-    drawFloor();
+    drawFloor(office.getTileMap());
 
     // 2. Fill gap between grid bottom and status bar
     int gridBottom = GRID_ROWS * TILE_SIZE;
@@ -169,12 +169,12 @@ void Renderer::drawScene(OfficeState& office) {
     drawStatusBar(office);
 }
 
-void Renderer::drawFloor() {
+void Renderer::drawFloor(const TileType* tiles) {
     for (int r = 0; r < GRID_ROWS; r++) {
         for (int c = 0; c < GRID_COLS; c++) {
             int x = c * TILE_SIZE;
             int y = r * TILE_SIZE;
-            if (r == 0) {
+            if (tiles[r * GRID_COLS + c] == TileType::WALL) {
                 gfxFillRect(x, y, TILE_SIZE, TILE_SIZE, COLOR_WALL);
             } else {
                 uint16_t floorColor = ((r + c) % 2 == 0) ? COLOR_FLOOR_ALT : COLOR_FLOOR;
