@@ -12,13 +12,31 @@
 ## Hardware
 
 ### Microcontroller
-- **LILYGO T-Display S3** (ESP32-S3)
-- Xtensa LX7 dual-core, 240 MHz
+Two board targets are supported:
+
+**LILYGO T-Display S3** (primary)
+- ESP32-S3, Xtensa LX7 dual-core, 240 MHz
 - WiFi + BLE (not used in v1)
 - 16MB Flash, 8MB PSRAM (OPI)
 - USB-C, built-in 1.9" IPS ST7789 display (170x320)
 
+**ESP32-2432S028R "Cheap Yellow Display" (CYD)** (secondary)
+- ESP32 (non-S3), dual-core, 240 MHz
+- WiFi + BLE (not used in v1)
+- No PSRAM
+- 2.8" ILI9341 320x240, resistive touch (XPT2046)
+
+### Components
+| Ref | Component | Purpose |
+|-----|-----------|---------|
+| U1 | ESP32-S3 (LILYGO) or ESP32 (CYD) | MCU + display driver |
+| D1 | ST7789 1.9" IPS (LILYGO) or ILI9341 2.8" TFT (CYD) | Pixel art scene display |
+| T1 | XPT2046 (CYD only) | Resistive touch input |
+
 ### Pin Assignments
+
+**LILYGO T-Display S3:**
+
 | Pin | Function | Notes |
 |-----|----------|-------|
 | 11 | TFT_MOSI | SPI data |
@@ -28,53 +46,76 @@
 | 9 | TFT_RST | Reset |
 | 14 | TFT_BL | Backlight |
 
+**CYD (ESP32-2432S028R):**
+
+| Pin | Function | Notes |
+|-----|----------|-------|
+| 13 | TFT_MOSI | SPI data |
+| 14 | TFT_SCLK | SPI clock |
+| 15 | TFT_CS | Chip select |
+| 2 | TFT_DC | Data/command |
+| -1 | TFT_RST | No reset pin |
+| 21 | TFT_BL | Backlight |
+| 12 | TFT_MISO | SPI read-back |
+| 25 | TOUCH_CLK | XPT2046 SPI clock (separate bus) |
+| 39 | TOUCH_MISO | XPT2046 SPI data in |
+| 32 | TOUCH_MOSI | XPT2046 SPI data out |
+| 33 | TOUCH_CS | XPT2046 chip select |
+| 36 | TOUCH_IRQ | XPT2046 interrupt |
+
 ---
 
 ## Architecture
 
 ### System Architecture
 ```
-[Claude Code CLI] → writes JSONL → [Python companion] → USB Serial → [ESP32-S3 + TFT]
+[Claude Code CLI] --> writes JSONL --> [Python companion] --> USB Serial --> [ESP32-S3 + TFT]
+                                              |
+                                  reads ~/.claude/rate-limits-cache.json
 ```
 
 ### Core Files
 Modular C++ firmware with Python companion service.
 
-- `firmware/src/main.cpp` — Entry point: setup, main loop, serial callbacks
-- `firmware/src/config.h` — Constants, enums, structs (tile grid, timing, protocol, workstations)
-- `firmware/src/office_state.h/.cpp` — Character FSM, BFS pathfinding, agent lifecycle
-- `firmware/src/renderer.h/.cpp` — TFT_eSprite double-buffered rendering pipeline
-- `firmware/src/protocol.h/.cpp` — Binary serial protocol parser (non-blocking ring buffer)
-- `firmware/src/sprites/characters.h` — Character templates (indexed) + RGB565 palettes (PROGMEM)
-- `firmware/src/sprites/furniture.h` — Furniture sprites as RGB565 arrays (PROGMEM)
-- `firmware/src/sprites/bubbles.h` — Speech bubble sprites as RGB565 arrays (PROGMEM)
-- `companion/pixel_agents_bridge.py` — JSONL watcher + serial sender
-- `tools/sprite_converter.py` — Generates C headers from sprite definitions
+- `firmware/src/main.cpp` -- Entry point: setup, main loop, serial callbacks
+- `firmware/src/config.h` -- Constants, enums, structs (tile grid, timing, protocol, workstations)
+- `firmware/src/office_state.h/.cpp` -- Character FSM, BFS pathfinding, agent lifecycle, usage stats
+- `firmware/src/renderer.h/.cpp` -- TFT_eSprite double-buffered rendering pipeline
+- `firmware/src/protocol.h/.cpp` -- Binary serial protocol parser (non-blocking state machine)
+- `firmware/src/touch_input.h/.cpp` -- XPT2046 touch input driver (CYD only, `#if defined(HAS_TOUCH)`)
+- `firmware/src/sprites/characters.h` -- Character templates (indexed) + RGB565 palettes (PROGMEM)
+- `firmware/src/sprites/furniture.h` -- Furniture sprites as RGB565 arrays (PROGMEM)
+- `firmware/src/sprites/bubbles.h` -- Speech bubble sprites as RGB565 arrays (PROGMEM)
+- `companion/pixel_agents_bridge.py` -- JSONL watcher + serial sender
+- `tools/sprite_converter.py` -- Generates C headers from sprite definitions
 
 ### Dependencies
-- **PlatformIO** — Build system
-- **espressif32** — ESP32 platform
-- **Arduino framework** — Runtime
-- **TFT_eSPI** (Bodmer) — Display driver
-- **pyserial** — Python serial communication
+- **PlatformIO** -- Build system
+- **espressif32** -- ESP32 platform
+- **Arduino framework** -- Runtime
+- **TFT_eSPI** (Bodmer, ^2.5.0) -- Display driver
+- **XPT2046_Touchscreen** (PaulStoffregen) -- Touch driver (CYD only)
+- **pyserial** (>=3.5) -- Python serial communication
 
 ### Key Subsystems
 
 #### 1. Rendering Pipeline (`renderer.cpp`)
-- Landscape via `tft.setRotation(1)` → 320x170
-- Full-frame double buffer with `TFT_eSprite` in PSRAM → `pushSprite(0,0)`
-- Render order: floor → walls → depth-sorted entities (furniture + characters by Y) → speech bubbles → status bar
+- Landscape via `tft.setRotation(1)` -- 320x170 (LILYGO) or 320x240 (CYD)
+- Full-frame double buffer with `TFT_eSprite` in PSRAM -- `pushSprite(0,0)`
+- CYD (no PSRAM): half-height buffer fallback (`_halfMode`) or direct-draw (`_directMode`)
+- Render order: floor --> walls --> depth-sorted entities (furniture + characters by Y) --> speech bubbles --> status bar
 - 15 FPS target (~66ms/frame)
-- Character sprites: template index → palette lookup → RGB565 → `fillRect` per pixel
+- Character sprites: template index --> palette lookup --> RGB565 --> `fillRect` per pixel
 - LEFT-facing sprites rendered by horizontally flipping RIGHT sprites
 
 #### 2. Character State Machine (`office_state.cpp`)
 - States: `OFFLINE`, `IDLE`, `WALK`, `TYPE`, `READ`, `SPAWN`, `DESPAWN`
-- IDLE: standing still, periodic wander (random tile, 2-20s pause between moves)
+- IDLE: standing still, periodic wander (random tile, 2-20s pause between moves, 3-6 moves per wander burst)
 - WALK: 4-frame cycle [walk1, walk2, walk3, walk2] at 0.15s/frame, BFS pathfinding, 48px/s
 - TYPE/READ: 2-frame cycle at 0.3s/frame, seated at assigned desk
-- Agent active → pathfind to desk → TYPE/READ. Inactive → stand → IDLE → wander
+- Agent active --> pathfind to desk --> TYPE/READ. Inactive --> stand --> IDLE --> wander
 - Spawn/despawn: matrix column-reveal effect over 300ms
+- 6 workstations with board-specific layouts defined in `config.h`
 
 #### 3. Serial Protocol (`protocol.cpp`)
 Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
@@ -85,83 +126,293 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 | AGENT_COUNT | 0x02 | count(1) |
 | HEARTBEAT | 0x03 | timestamp(4, big-endian) |
 | STATUS_TEXT | 0x04 | agent_id(1) + text_len(1) + text(0-32) |
+| USAGE_STATS | 0x05 | current_pct(1) + weekly_pct(1) + current_reset_min(2, big-endian) + weekly_reset_min(2, big-endian) |
 
-Non-blocking ring-buffer parser. Heartbeat watchdog: "Disconnected" if no heartbeat for 6s.
+Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no heartbeat for 6s.
 
 #### 4. Companion Bridge (`companion/pixel_agents_bridge.py`)
-- Watches `~/.claude/projects/` for active JSONL transcript files
+- Watches `~/.claude/projects/` for active JSONL transcript files (modified within 5 minutes)
 - Polls at 4Hz, sends HEARTBEAT every 2s
 - Derives agent state from JSONL records:
-  - `tool_use` in assistant message → TYPE (or READ if tool in READING_TOOLS set)
-  - `turn_duration` in system message → IDLE
-  - `end_turn` stop_reason → IDLE
+  - `tool_use` in assistant message --> TYPE (or READ if tool in `READING_TOOLS` set: Read, Grep, Glob, WebFetch, WebSearch)
+  - `turn_duration` in system message --> IDLE
+  - `end_turn` stop_reason --> IDLE
 - Sends binary AGENT_UPDATE on state change only
 - Prunes stale agents after 30s, auto-reconnects on disconnect
+- Reads `~/.claude/rate-limits-cache.json` every 10s, sends USAGE_STATS on change
 
 #### 5. Sprite System
 - Characters: indexed templates (1 byte/pixel, 16x24 = 384 bytes/frame) + 6 palettes
 - Template pixel values: 0=transparent, 1=hair, 2=skin, 3=shirt, 4=pants, 5=shoes, 6=eyes
-- 21 templates: 7 frames × 3 directions (DOWN, UP, RIGHT). LEFT = flip RIGHT.
+- 21 templates: 7 frames x 3 directions (DOWN, UP, RIGHT). LEFT = flip RIGHT.
 - Furniture/bubbles: direct RGB565 uint16_t arrays
 - All sprite data in PROGMEM (flash)
 - Generated by `tools/sprite_converter.py`
+
+#### 6. Touch Input (`touch_input.cpp`, CYD only)
+- Compiled only when `HAS_TOUCH` build flag is set
+- XPT2046 on separate VSPI bus (pins 25/39/32/33, IRQ on 36)
+- Debounced at 200ms, tap-on-release detection
+- Tap status bar --> cycles through 5 status modes (overview, usage, agent list, FPS, uptime)
+- Tap character --> shows info bubble for 3s
+
+#### 7. Status Bar
+5 display modes, cycled via touch (CYD) or auto on LILYGO:
+
+| Mode | Content |
+|------|---------|
+| OVERVIEW | Connection dot (green/red) + agent count |
+| USAGE_STATS | Current + weekly usage percentage bars |
+| AGENT_LIST | Per-agent ID:state |
+| PERFORMANCE | FPS counter |
+| UPTIME | Device uptime |
 
 ---
 
 ## Build Configuration
 
 ### PlatformIO Configuration
-- **platform:** espressif32
-- **board:** lilygo-t-display-s3
-- **framework:** Arduino
-- **TFT_eSPI** configured via build_flags (no User_Setup.h needed)
-- **SPI_FREQUENCY=40000000** — 40MHz SPI for fast display updates
-- **board_build.arduino.memory_type=qio_opi** — enables PSRAM for frame buffer
+
+Two environments in `platformio.ini`:
+
+**`[env:lilygo-t-display-s3]`** (default)
+- **board:** `lilygo-t-display-s3` -- ESP32-S3 with built-in ST7789 display
+- **board_build.arduino.memory_type=qio_opi** -- enables PSRAM for full-frame double buffer
+- **board_build.partitions=default_16MB.csv** -- full 16MB flash partition layout
+
+**`[env:cyd-2432s028r]`**
+- **board:** `esp32dev` -- generic ESP32 board definition
+- **-DBOARD_CYD=1** -- enables CYD-specific layout, grid size, and conditional compilation
+- **-DHAS_TOUCH=1** -- enables touch input subsystem compilation
+- No PSRAM; renderer uses half-height buffer or direct-draw fallback
+
+**Shared flags (both environments):**
+- **-DUSER_SETUP_LOADED=1** -- tells TFT_eSPI to use build_flags instead of User_Setup.h
+- **-DSPI_FREQUENCY=40000000** -- 40MHz SPI for fast display updates
+- **-DLOAD_FONT2=1 / LOAD_FONT4=1 / SMOOTH_FONT=1** -- font rendering for status bar text
+
+### Environment Variables
+
+| Variable | Purpose | Values |
+|----------|---------|--------|
+| `BOARD_CYD` | Build-time board selection | Defined in CYD env only |
+| `HAS_TOUCH` | Enables touch input compilation | Defined in CYD env only |
+| `USER_SETUP_LOADED` | TFT_eSPI config via build_flags | Always `1` |
+
+Environment files / define sources:
+- `firmware/platformio.ini` -- all build defines set via `build_flags` per environment
 
 ---
 
 ## Code Style
 
+- **Linter:** None configured (manual review)
+- **Formatter:** None configured (manual review)
 - **Indentation:** 4 spaces (C++), 4 spaces (Python)
-- **C++ style:** `camelCase` for functions/variables, `PascalCase` for classes/enums, `UPPER_SNAKE` for constants
+- **C++ style:** `camelCase` for functions/variables, `PascalCase` for classes/enums, `UPPER_SNAKE` for constants/defines
 - **Python style:** PEP 8, `snake_case`
+- **Line endings:** LF
+
+---
+
+## External Integrations
+
+### Claude Code JSONL Transcripts
+- **What:** JSONL files written by Claude Code CLI, one per conversation session
+- **Loaded via:** filesystem polling (`~/.claude/projects/*/` directory)
+- **Lifecycle:** Files created when a Claude Code session starts; companion watches files modified within the last 5 minutes
+- **Gotchas:** JSONL format is not a public API and may change between Claude Code versions. The companion only reads `type`, `message.content[].type`, `message.stop_reason`, and `turn_duration` fields.
+
+### Claude Code Rate Limits Cache
+- **What:** JSON file written by Claude Code CLI containing current/weekly usage percentages and reset timestamps
+- **Loaded via:** file read from `~/.claude/rate-limits-cache.json` every 10s
+- **Lifecycle:** Updated by Claude Code; read-only by companion
+- **Key fields:** `current_pct`, `weekly_pct`, `current_resets_at` (ISO 8601), `weekly_resets_at` (ISO 8601)
+- **Gotchas:** File may not exist if Claude Code hasn't been run. Format is undocumented and may change.
 
 ---
 
 ## Known Issues / Limitations
 
-1. **Hardware not yet tested** — Code written against datasheet specs, needs hardware verification
-2. **JSONL format not a public API** — Claude Code transcript format may change between versions
-3. **No WiFi mode** — v1 is USB serial only
-4. **No OTA updates** — Must flash via USB
+1. **Hardware not yet tested** -- Code written against datasheet specs, needs hardware verification
+2. **JSONL format not a public API** -- Claude Code transcript format may change between versions
+3. **No WiFi mode** -- v1 is USB serial only
+4. **No OTA updates** -- Must flash via USB
+5. **CYD has no PSRAM** -- Renderer uses fallback modes (half-buffer or direct-draw) which may have visual artifacts
 
 ---
 
 ## Development Rules
 
 ### 1. Validate all external input at the boundary
-Every value arriving from serial must be validated and clamped before use.
+Every value arriving from serial must be validated and clamped before use. Never assign an externally-supplied value without bounds checking.
 
 ### 2. Guard all array-indexed lookups
-Template indices, palette indices, agent IDs — all must be bounds-checked.
+Any value used as an index into an array must have a bounds check before access: `(val < COUNT) ? ARRAY[val] : fallback`. This is defense-in-depth against corrupt or unvalidated values.
 
 ### 3. Reset connection-scoped state on disconnect
-Serial buffer state, heartbeat timer reset on reconnect.
+Serial buffer state, heartbeat timer reset on reconnect. Buffers, flags, and session variables that accumulate state during a connection must be reset on disconnect to prevent cross-session corruption.
 
 ### 4. Avoid memory-fragmenting patterns in long-running code
-Use fixed-size arrays for characters, paths, tool names. No dynamic allocation in the main loop.
+Use fixed-size arrays for characters, paths, tool names. No dynamic allocation in the main loop. Reserve dynamic allocation for short-lived, one-shot operations.
 
 ### 5. Use symbolic constants, not magic numbers
-All values defined in `config.h`.
+All values defined in `config.h`. Never hardcode index values or numeric constants -- use named defines or enums. When data structures are reordered, update both the data and all symbolic references together.
 
 ### 6. Throttle event-driven output
-Agent count messages sent only on change. Frame rate capped at 15 FPS.
+Agent count messages sent only on change. Frame rate capped at 15 FPS. Usage stats sent only when values change.
 
 ### 7. Use bounded string formatting
-Always `snprintf(buf, sizeof(buf), ...)` for text rendering.
+Always `snprintf(buf, sizeof(buf), ...)` for text rendering. This prevents silent overflow if format arguments change in the future.
 
 ### 8. Report errors, don't silently fail
-Invalid protocol messages are discarded with state reset, not silently consumed.
+Invalid protocol messages are discarded with state reset, not silently consumed. When input exceeds limits or operations fail, provide actionable error feedback to the caller.
+
+---
+
+## Plan Pre-Implementation
+
+Before planning, check `docs/CLAUDE.md/plans/` for prior plans that touched the same areas. Scan the **Files changed** lists in both `implementation.md` and `audit.md` files to find relevant plans without reading every file -- then read the full `plan.md` only for matches. This keeps context window usage low while preserving access to project history.
+
+When a plan is finalized and about to be implemented, write the full plan to `docs/CLAUDE.md/plans/{epoch}-{plan_name}/plan.md`, where `{epoch}` is the Unix timestamp at the time of writing and `{plan_name}` is a short kebab-case description of the plan (e.g., `1709142000-add-user-auth/plan.md`).
+
+The epoch prefix ensures chronological ordering -- newer plans visibly supersede earlier ones at a glance based on directory name ordering.
+
+The plan document should include:
+- **Objective** -- what is being implemented and why
+- **Changes** -- files to modify/create, with descriptions of each change
+- **Dependencies** -- any prerequisites or ordering constraints between changes
+- **Risks / open questions** -- anything flagged during planning that needs attention
+
+---
+
+## Plan Post-Implementation
+
+After a plan has been fully implemented, write the completed implementation record to `docs/CLAUDE.md/plans/{epoch}-{plan_name}/implementation.md`, using the same directory as the corresponding `plan.md`.
+
+The implementation document **must** include:
+- **Files changed** -- list of all files created, modified, or deleted. This section is **required** -- it serves as a lightweight index for future planning, allowing prior plans to be found by scanning file lists without reading full plan contents.
+- **Summary** -- what was actually implemented (noting any deviations from the plan)
+- **Verification** -- steps taken to verify the implementation is correct (tests run, manual checks, build confirmation)
+- **Follow-ups** -- any remaining work, known limitations, or future improvements identified during implementation
+
+If the implementation added or changed user-facing behavior (new settings, UI modes, protocol commands, or display changes), add corresponding `- [ ]` test items to `docs/CLAUDE.md/testing-checklist.md`. Each item should describe the expected observable behavior, not the implementation detail.
+
+---
+
+## Post-Implementation Audit
+
+After finishing implementation of a plan, run the following subagents **in parallel** to audit all changed files.
+
+> **Scope directive for all subagents:** Only flag issues in the changed code and its immediate dependents. Do not audit the entire codebase.
+
+> **Output directive:** After all subagents complete, write a single consolidated audit report to `docs/CLAUDE.md/plans/{epoch}-{plan_name}/audit.md`, using the same directory as the corresponding `plan.md`. The audit report **must** include a **Files changed** section listing all files where findings were flagged. This section is **required** -- it serves as a lightweight index for future planning, covering files affected by audit findings (including immediate dependents not in the original implementation).
+
+### 1. QA Audit (subagent)
+Review changes for:
+- **Functional correctness**: broken workflows, missing error/loading states, unreachable code paths, logic that doesn't match spec
+- **Edge cases**: empty/null/undefined inputs, zero-length collections, off-by-one errors, race conditions, boundary values (min/max/overflow)
+- **Infinite loops**: unbounded `while`/recursive calls, callbacks triggering themselves, retry logic without max attempts or backoff
+- **Performance**: unnecessary computation in hot paths, O(n^2) or worse in loops over growing data, unthrottled event handlers, expensive operations blocking main thread or interrupt context
+
+### 2. Security Audit (subagent)
+Review changes for:
+- **Injection / input trust**: unsanitized external input used in commands, queries, or output rendering; format string vulnerabilities; untrusted data used in control flow
+- **Overflows**: unbounded buffer writes, unguarded index access, integer overflow/underflow in arithmetic, unchecked size parameters
+- **Memory leaks**: allocated resources not freed on all exit paths, event/interrupt handlers not deregistered on cleanup, growing caches or buffers without eviction or bounds
+- **Hard crashes**: null/undefined dereferences without guards, unhandled exceptions in async or interrupt context, uncaught error propagation across module boundaries
+
+### 3. Interface Contract Audit (subagent)
+Review changes for:
+- **Data shape mismatches**: caller assumptions that diverge from actual API/protocol schema, missing fields treated as present, incorrect type coercion or endianness
+- **Error handling**: no distinction between recoverable and fatal errors, swallowed failures, missing retry/backoff on transient faults, no timeout or watchdog configuration
+- **Auth / privilege flows**: credential or token lifecycle issues, missing permission checks, race conditions during handshake or session refresh
+- **Data consistency**: optimistic state updates without rollback on failure, stale cache served after mutation, sequence counters or cursors not invalidated after writes
+
+### 4. State Management Audit (subagent)
+Review changes for:
+- **Mutation discipline**: shared state modified outside designated update paths, state transitions that skip validation, side effects hidden inside getters or read operations
+- **Reactivity / observation pitfalls**: mutable updates that bypass change detection or notification mechanisms, deeply nested state triggering unnecessary cascading updates
+- **Data flow**: excessive pass-through of context across layers where a shared store or service belongs, sibling modules communicating via parent state mutation, event/signal spaghetti without cleanup
+- **Sync issues**: local copies shadowing canonical state, multiple sources of truth for the same entity, concurrent writers without arbitration (locks, atomics, or message ordering)
+
+### 5. Resource & Concurrency Audit (subagent)
+Review changes for:
+- **Concurrency**: data races on shared memory, missing locks/mutexes/atomics around critical sections, deadlock potential from lock ordering, priority inversion in RTOS or threaded contexts
+- **Resource lifecycle**: file handles, sockets, DMA channels, or peripherals not released on error paths; double-free or use-after-free; resource exhaustion under sustained load
+- **Timing**: assumptions about execution order without synchronization, spin-waits without yield or timeout, interrupt latency not accounted for in real-time constraints
+- **Power & hardware**: peripherals left in active state after use, missing clock gating or sleep transitions, watchdog not fed on long operations, register access without volatile or memory barriers
+
+### 6. Testing Coverage Audit (subagent)
+Review changes for:
+- **Missing tests**: new public functions/modules without corresponding unit tests, modified branching logic without updated assertions, deleted tests not replaced
+- **Test quality**: assertions on implementation details instead of behavior, tests coupled to internal structure, mocked so heavily the test proves nothing
+- **Integration gaps**: cross-module flows tested only with mocks and never with integration or contract tests, initialization/shutdown sequences untested, error injection paths uncovered
+- **Flakiness risks**: tests dependent on timing or sleep, shared mutable state between test cases, non-deterministic data (random IDs, timestamps), hardware-dependent tests without abstraction layer
+
+### 7. DX & Maintainability Audit (subagent)
+Review changes for:
+- **Readability**: functions exceeding ~50 lines, boolean parameters without named constants, magic numbers/strings without explanation, nested ternaries or conditionals deeper than one level
+- **Dead code**: unused includes/imports, unreachable branches behind stale feature flags, commented-out blocks with no context, exported symbols with zero consumers
+- **Naming & structure**: inconsistent naming conventions, business/domain logic buried in UI or driver layers, utility functions duplicated across modules
+- **Documentation**: public API changes without updated doc comments, non-obvious workarounds missing a `// WHY:` comment, breaking changes without migration notes
+
+---
+
+## Audit Post-Implementation
+
+After audit findings have been addressed, update the `implementation.md` file in the corresponding `docs/CLAUDE.md/plans/{epoch}-{plan_name}/` directory:
+
+1. **Flag fixed items** -- In the audit report (`docs/CLAUDE.md/plans/{epoch}-{plan_name}/audit.md`), mark each finding that was fixed with a `[FIXED]` prefix so it is visually distinct from unresolved items.
+
+2. **Append a fixes summary** -- Add an `## Audit Fixes` section at the end of `implementation.md` containing:
+   - **Fixes applied** -- a numbered list of each fix, referencing the audit finding it addresses (e.g., "Fixed unchecked index access flagged by Security Audit S2")
+   - **Verification checklist** -- a `- [ ]` checkbox list of specific tests or manual checks to confirm each fix is correct (e.g., "Verify bounds check on `configIndex` with out-of-range input returns fallback")
+
+3. **Leave unresolved items as-is** -- Any audit findings intentionally deferred or accepted as-is should remain unmarked in the audit report. Add a brief note in the fixes summary explaining why they were not addressed.
+
+4. **Update testing checklist** -- If any audit fixes changed user-facing behavior, add corresponding `- [ ]` test items to `docs/CLAUDE.md/testing-checklist.md`. Each item should describe the expected observable behavior, not the implementation detail.
+
+---
+
+## Common Modifications
+
+### Version bumps
+Version string appears in 2 files:
+1. `CLAUDE.md` -- "Current Version" in Project Overview section
+2. `docs/CLAUDE.md/version-history.md` -- append a new row to the table
+
+**Keep all version references in sync.** Always bump all files together during any version bump.
+
+### Add a new board variant
+1. Add a new `[env:board-name]` section in `firmware/platformio.ini` with board-specific build_flags
+2. Add `#if defined(BOARD_XXX)` conditionals in `firmware/src/config.h` for grid dimensions, workstation layout, and any board-specific pin definitions
+3. If the board has unique peripherals (e.g., touch), add conditional compilation in `main.cpp` and create a new driver module
+4. Update the Hardware section of this file
+5. Add hardware testing items to `docs/CLAUDE.md/testing-checklist.md`
+
+### Add a new protocol message type
+1. Define `MSG_NEW_TYPE` constant in `firmware/src/config.h` (next available hex value after 0x05)
+2. Add matching constant in `companion/pixel_agents_bridge.py`
+3. Add payload struct in `firmware/src/protocol.h`
+4. Add callback type and member in `Protocol` class (`protocol.h`)
+5. Add `payloadLength()` case and `dispatch()` handler in `firmware/src/protocol.cpp`
+6. Add `build_new_type()` function in `companion/pixel_agents_bridge.py`
+7. Wire callback in `firmware/src/main.cpp` setup
+
+### Add a new character sprite frame
+1. Define the new frame in `tools/sprite_converter.py` sprite definitions
+2. Update `FRAMES_PER_DIR` in `firmware/src/config.h` if frame count changed
+3. Run `python3 tools/sprite_converter.py` to regenerate headers
+4. Update `getFrameIndex()` in `firmware/src/renderer.cpp` to map the new frame
+5. Verify in `tools/sprite_validation.html`
+
+### Add a new furniture sprite
+1. Define the sprite as RGB565 data in `tools/sprite_converter.py`
+2. Run `python3 tools/sprite_converter.py` to regenerate `firmware/src/sprites/furniture.h`
+3. Add placement coordinates in `firmware/src/renderer.cpp` `drawFurniture()`
+4. Mark occupied tiles as `TileType::BLOCKED` in `office_state.cpp` `initTileMap()`
+5. Verify in `tools/sprite_validation.html`
 
 ---
 
@@ -170,21 +421,28 @@ Invalid protocol messages are discarded with state reset, not silently consumed.
 | File / Directory | Purpose |
 |------------------|---------|
 | `firmware/` | ESP32 PlatformIO project |
-| `firmware/platformio.ini` | Build configuration |
-| `firmware/src/main.cpp` | Entry point |
-| `firmware/src/config.h` | Constants and configuration |
-| `firmware/src/protocol.h/.cpp` | Serial protocol parser |
-| `firmware/src/office_state.h/.cpp` | Game state and character FSM |
-| `firmware/src/renderer.h/.cpp` | Display rendering |
-| `firmware/src/sprites/*.h` | Generated sprite data (PROGMEM) |
+| `firmware/platformio.ini` | Build configuration (both board environments) |
+| `firmware/src/main.cpp` | Entry point: setup, main loop, callbacks |
+| `firmware/src/config.h` | Constants, enums, structs, board-specific layouts |
+| `firmware/src/protocol.h/.cpp` | Serial protocol parser (state machine) |
+| `firmware/src/office_state.h/.cpp` | Game state, character FSM, BFS pathfinding |
+| `firmware/src/renderer.h/.cpp` | Display rendering (double-buffered or fallback) |
+| `firmware/src/touch_input.h/.cpp` | XPT2046 touch driver (CYD only) |
+| `firmware/src/sprites/characters.h` | Generated character sprite data (PROGMEM) |
+| `firmware/src/sprites/furniture.h` | Generated furniture sprite data (PROGMEM) |
+| `firmware/src/sprites/bubbles.h` | Generated speech bubble sprite data (PROGMEM) |
 | `companion/` | Python bridge service |
 | `companion/pixel_agents_bridge.py` | JSONL watcher + serial sender |
-| `companion/requirements.txt` | Python dependencies |
-| `tools/sprite_converter.py` | Sprite data → C header generator |
-| `tools/sprite_validation.html` | Visual sprite verification (generated) |
+| `companion/requirements.txt` | Python dependencies (`pyserial>=3.5`) |
+| `tools/sprite_converter.py` | Sprite data --> C header generator |
+| `tools/sprite_validation.html` | Visual sprite verification (browser, generated) |
 | `tools/layout_editor.html` | Office layout visual editor (generates C code) |
 | `CLAUDE.md` | This file |
-| `docs/CLAUDE.md/plans/` | Plan and audit records |
+| `CLAUDE_TEMPLATE.md` | Template for CLAUDE.md (reference) |
+| `docs/CLAUDE.md/plans/` | Plan, implementation, and audit records (epoch-prefixed directories) |
+| `docs/CLAUDE.md/testing-checklist.md` | QA testing checklist |
+| `docs/CLAUDE.md/version-history.md` | Version history table |
+| `docs/CLAUDE.md/future-improvements.md` | Ideas backlog |
 
 ---
 
@@ -200,12 +458,21 @@ Invalid protocol messages are discarded with state reset, not silently consumed.
 # Generate sprite headers (run once, or after sprite changes)
 python3 tools/sprite_converter.py
 
-# Build and flash firmware
-cd firmware && pio run --target upload
+# Build and flash firmware (LILYGO T-Display S3)
+cd firmware && pio run -e lilygo-t-display-s3 --target upload
+
+# Build and flash firmware (CYD)
+cd firmware && pio run -e cyd-2432s028r --target upload
 
 # Start companion bridge
 cd companion && pip install -r requirements.txt && python3 pixel_agents_bridge.py
 ```
+
+### Troubleshooting Build
+- **"No ESP32 serial port found."** -- Ensure the board is connected via USB-C. On macOS, check for `/dev/cu.usbmodem*` or `/dev/cu.usbserial*`. Try `--port /dev/cu.XXX` to specify manually.
+- **"PSRAM not found" or crash on LILYGO** -- Verify `board_build.arduino.memory_type = qio_opi` is set in platformio.ini.
+- **CYD display is blank** -- CYD has no reset pin (`TFT_RST=-1`). Ensure `ILI9341_DRIVER` is defined, not `ST7789_DRIVER`.
+- **Touch not responding on CYD** -- XPT2046 uses a separate SPI bus (VSPI). Check that `HAS_TOUCH=1` build flag is set.
 
 ---
 
@@ -218,6 +485,44 @@ See `docs/CLAUDE.md/testing-checklist.md` for the full QA testing checklist.
 ## Future Improvements
 
 See `docs/CLAUDE.md/future-improvements.md` for the ideas backlog.
+
+---
+
+## Maintaining This File
+
+### When to update CLAUDE.md
+- **Adding a new subsystem or module** -- add it to Architecture and File Inventory
+- **Adding a new setting or config field** -- update the relevant subsystem section and Common Modifications
+- **Discovering a new bug class** -- add a Development Rule to prevent recurrence
+- **Changing the build process** -- update Build Instructions and/or Build Configuration
+- **Adding/changing build defines** -- update Build Configuration > Environment Variables
+- **Adding a new board variant** -- update Hardware, Build Configuration, and follow Common Modifications recipe
+- **Integrating a new third-party service or SDK** -- add to External Integrations
+- **Bumping the version** -- update the version in Project Overview
+- **Adding/removing files** -- update File Inventory
+- **Finding a new limitation** -- add to Known Issues
+- **Adding a new protocol message** -- update Serial Protocol table and follow Common Modifications recipe
+
+### Supplementary docs
+For sections that grow large (display layouts, testing checklists, changelogs), move them to separate files under `docs/` and link from here. This keeps the main CLAUDE.md scannable while preserving detail.
+
+### Future improvements tracking
+When a new feature is added and related enhancements or follow-up ideas are suggested but declined, add them as `- [ ]` items to `docs/CLAUDE.md/future-improvements.md`. This preserves good ideas for later without cluttering the current task.
+
+### Version history maintenance
+When making changes that are committed to the repository, add a row to the version history table in `docs/CLAUDE.md/version-history.md`. Each entry should include:
+
+- **Ver** -- A semantic version identifier (e.g., `v0.1.0`, `v0.2.0`). Follow semver: MAJOR.MINOR.PATCH. Use the most recent entry in the table to determine the next version number.
+- **Changes** -- A brief summary of what changed.
+
+Append new rows to the bottom of the table. Do not remove or rewrite existing entries.
+
+### Testing checklist maintenance
+When adding or modifying user-facing behavior (new settings, UI modes, protocol commands, or display changes), add corresponding `- [ ]` test items to `docs/CLAUDE.md/testing-checklist.md`. Each item should describe the expected observable behavior, not the implementation detail.
+
+### What belongs here vs. in code comments
+- **Here:** Architecture decisions, cross-cutting concerns, "how things fit together," gotchas, recipes
+- **In code:** Implementation details, function-level docs, inline explanations of tricky logic
 
 ---
 
