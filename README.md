@@ -2,6 +2,8 @@
 
 A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
+Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Code extension by [@pablodelucca](https://github.com/pablodelucca).
+
 ## How It Works
 
 ```
