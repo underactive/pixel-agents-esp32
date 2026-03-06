@@ -34,6 +34,7 @@ MSG_AGENT_UPDATE = 0x01
 MSG_AGENT_COUNT = 0x02
 MSG_HEARTBEAT = 0x03
 MSG_STATUS_TEXT = 0x04
+MSG_USAGE_STATS = 0x05
 
 # ── Agent States (must match firmware CharState enum) ────────
 STATE_OFFLINE = 0
@@ -50,12 +51,14 @@ HEARTBEAT_INTERVAL_SEC = 2.0
 STALE_AGENT_TIMEOUT_SEC = 30.0
 SERIAL_BAUD = 115200
 MAX_TOOL_NAME_LEN = 24
+USAGE_STATS_INTERVAL_SEC = 10.0
 
 # Tools that indicate reading behavior (vs typing/writing)
 READING_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 
 # Claude Code transcript directories
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+RATE_LIMITS_CACHE = Path.home() / ".claude" / "rate-limits-cache.json"
 
 
 def find_esp32_port() -> Optional[str]:
@@ -104,6 +107,44 @@ def build_heartbeat() -> bytes:
     ts = int(time.time()) & 0xFFFFFFFF
     payload = struct.pack(">I", ts)
     return build_message(MSG_HEARTBEAT, payload)
+
+
+def build_usage_stats(current_pct: int, weekly_pct: int,
+                      current_reset_min: int, weekly_reset_min: int) -> bytes:
+    """Build USAGE_STATS message (6-byte payload)."""
+    current_pct = max(0, min(100, current_pct))
+    weekly_pct = max(0, min(100, weekly_pct))
+    current_reset_min = max(0, min(0xFFFF, current_reset_min))
+    weekly_reset_min = max(0, min(0xFFFF, weekly_reset_min))
+    payload = struct.pack(">BBHH", current_pct, weekly_pct, current_reset_min, weekly_reset_min)
+    return build_message(MSG_USAGE_STATS, payload)
+
+
+def read_usage_cache() -> Optional[dict]:
+    """Read rate-limits-cache.json and compute minutes until reset."""
+    try:
+        if not RATE_LIMITS_CACHE.exists():
+            return None
+        data = json.loads(RATE_LIMITS_CACHE.read_text())
+        now = time.time()
+
+        def parse_reset_minutes(iso_str: str) -> int:
+            from datetime import datetime, timezone
+            try:
+                dt = datetime.fromisoformat(iso_str)
+                delta = (dt - datetime.now(timezone.utc)).total_seconds()
+                return max(0, int(delta / 60))
+            except (ValueError, TypeError):
+                return 0
+
+        return {
+            "current_pct": int(data.get("current_pct", 0)),
+            "weekly_pct": int(data.get("weekly_pct", 0)),
+            "current_reset_min": parse_reset_minutes(data.get("current_resets_at", "")),
+            "weekly_reset_min": parse_reset_minutes(data.get("weekly_resets_at", "")),
+        }
+    except (json.JSONDecodeError, OSError, KeyError):
+        return None
 
 
 class AgentTracker:
@@ -257,6 +298,8 @@ class PixelAgentsBridge:
         self.tracker = AgentTracker()
         self.watcher = TranscriptWatcher()
         self.last_heartbeat = 0.0
+        self.last_usage_send = 0.0
+        self.last_usage_data: Optional[tuple] = None
         self.last_states: Dict[str, tuple] = {}  # project_key -> (state, tool)
 
     def connect(self) -> bool:
@@ -296,6 +339,24 @@ class PixelAgentsBridge:
         if now - self.last_heartbeat >= HEARTBEAT_INTERVAL_SEC:
             self.send(build_heartbeat())
             self.last_heartbeat = now
+
+    def send_usage_stats(self):
+        """Send usage stats periodically, only on change."""
+        now = time.time()
+        if now - self.last_usage_send < USAGE_STATS_INTERVAL_SEC:
+            return
+        self.last_usage_send = now
+
+        usage = read_usage_cache()
+        if usage is None:
+            return
+
+        data_key = (usage["current_pct"], usage["weekly_pct"],
+                    usage["current_reset_min"], usage["weekly_reset_min"])
+        if data_key != self.last_usage_data:
+            self.last_usage_data = data_key
+            msg = build_usage_stats(*data_key)
+            self.send(msg)
 
     def process_transcripts(self):
         """Scan transcripts and send state updates."""
@@ -351,6 +412,7 @@ class PixelAgentsBridge:
                     continue
 
             self.send_heartbeat()
+            self.send_usage_stats()
             self.process_transcripts()
             time.sleep(POLL_INTERVAL_SEC)
 

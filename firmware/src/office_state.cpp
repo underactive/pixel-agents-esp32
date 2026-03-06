@@ -582,3 +582,11 @@ float OfficeState::randomRange(float minVal, float maxVal) {
 int OfficeState::randomInt(int minVal, int maxVal) {
     return minVal + random(maxVal - minVal + 1);
 }
+
+void OfficeState::setUsageStats(uint8_t curPct, uint8_t wkPct, uint16_t curResetMin, uint16_t wkResetMin) {
+    _usage.currentPct = curPct > 100 ? 100 : curPct;
+    _usage.weeklyPct = wkPct > 100 ? 100 : wkPct;
+    _usage.currentResetMin = curResetMin;
+    _usage.weeklyResetMin = wkResetMin;
+    _usage.valid = true;
+}

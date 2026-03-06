@@ -379,6 +379,62 @@ void Renderer::drawStatusBar(OfficeState& office) {
             }
             break;
         }
+        case StatusMode::USAGE_STATS: {
+            const UsageStats& us = office.getUsageStats();
+            if (!us.valid) {
+                gfxDrawString("No usage data", 12, y + 1);
+                break;
+            }
+            int barW = 40;
+            int barH = 6;
+            int barY = y + 2;
+
+            // Current usage
+            gfxDrawString("C", 12, y + 1);
+            int barX = 20;
+            gfxFillRect(barX, barY, barW, barH, 0x3186);
+            int fillW = (us.currentPct * barW) / 100;
+            uint16_t barColor = us.currentPct >= 80 ? 0xF800 : us.currentPct >= 50 ? 0xFDA0 : 0x07E0;
+            if (fillW > 0) gfxFillRect(barX, barY, fillW, barH, barColor);
+
+            char pctBuf[8];
+            snprintf(pctBuf, sizeof(pctBuf), "%d%%", us.currentPct);
+            gfxDrawString(pctBuf, barX + barW + 2, y + 1);
+
+            char rstBuf[12];
+            uint16_t m = us.currentResetMin;
+            if (m >= 1440) snprintf(rstBuf, sizeof(rstBuf), "%dd%dh", m / 1440, (m % 1440) / 60);
+            else if (m >= 60) snprintf(rstBuf, sizeof(rstBuf), "%dh%dm", m / 60, m % 60);
+            else snprintf(rstBuf, sizeof(rstBuf), "%dm", m);
+
+            int pctW = (int)strlen(pctBuf) * 6;
+            gfxSetTextColor(0x7BEF);
+            gfxDrawString(rstBuf, barX + barW + 2 + pctW + 3, y + 1);
+            gfxSetTextColor(COLOR_TEXT);
+
+            // Weekly usage
+            int wStart = 160;
+            gfxDrawString("W", wStart, y + 1);
+            int wBarX = wStart + 8;
+            gfxFillRect(wBarX, barY, barW, barH, 0x3186);
+            int wFillW = (us.weeklyPct * barW) / 100;
+            uint16_t wBarColor = us.weeklyPct >= 80 ? 0xF800 : us.weeklyPct >= 50 ? 0xFDA0 : 0x07E0;
+            if (wFillW > 0) gfxFillRect(wBarX, barY, wFillW, barH, wBarColor);
+
+            snprintf(pctBuf, sizeof(pctBuf), "%d%%", us.weeklyPct);
+            gfxDrawString(pctBuf, wBarX + barW + 2, y + 1);
+
+            m = us.weeklyResetMin;
+            if (m >= 1440) snprintf(rstBuf, sizeof(rstBuf), "%dd%dh", m / 1440, (m % 1440) / 60);
+            else if (m >= 60) snprintf(rstBuf, sizeof(rstBuf), "%dh%dm", m / 60, m % 60);
+            else snprintf(rstBuf, sizeof(rstBuf), "%dm", m);
+
+            pctW = (int)strlen(pctBuf) * 6;
+            gfxSetTextColor(0x7BEF);
+            gfxDrawString(rstBuf, wBarX + barW + 2 + pctW + 3, y + 1);
+            gfxSetTextColor(COLOR_TEXT);
+            break;
+        }
         case StatusMode::AGENT_LIST: {
             int pos = 12;
             const Character* chars = office.getCharacters();

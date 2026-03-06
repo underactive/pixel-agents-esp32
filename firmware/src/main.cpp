@@ -36,6 +36,10 @@ void onStatusText(const StatusText& st) {
     // Could display status text in future
 }
 
+void onUsageStats(const UsageStatsMsg& us) {
+    office.setUsageStats(us.currentPct, us.weeklyPct, us.currentResetMin, us.weeklyResetMin);
+}
+
 // ── Splash screen ───────────────────────────────────────
 
 void drawSplash() {
@@ -70,7 +74,7 @@ void setup() {
     // Initialize subsystems
     office.init();
     renderer.begin(tft);
-    protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText);
+    protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats);
 
 #if defined(HAS_TOUCH)
     touchInput.begin();
