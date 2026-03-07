@@ -119,10 +119,10 @@ struct Workstation {
 static constexpr Workstation WORKSTATIONS[] = {
     {1, 12, 2, 11, Dir::DOWN},    // desk at (1,12), seat at (2,11), face down
     {6, 12, 7, 11, Dir::DOWN},    // desk at (6,12), seat at (7,11), face down
-    {1, 8, 2, 9, Dir::UP},    // desk at (1,8), seat at (2,9), face up
-    {6, 8, 7, 9, Dir::UP},    // desk at (6,8), seat at (7,9), face up
-    {1, 5, 2, 4, Dir::DOWN},    // desk at (1,5), seat at (2,4), face down
-    {6, 5, 7, 4, Dir::DOWN}    // desk at (6,5), seat at (7,4), face down
+    {1, 7, 2, 8, Dir::UP},    // desk at (1,7), seat at (2,8), face up
+    {6, 7, 7, 8, Dir::UP},    // desk at (6,7), seat at (7,8), face up
+    {3, 4, 2, 4, Dir::RIGHT},    // desk at (3,4), seat at (2,4), face right
+    {6, 4, 7, 4, Dir::LEFT}    // desk at (6,4), seat at (7,4), face left
 };
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);
 
