@@ -96,8 +96,8 @@ footer span.highlight { color: #f9e2af; }
 .tp-new-dims label { font-size: 11px; color: #a6adc8; display: flex; align-items: center; gap: 4px; }
 .tp-new-dims input[type="number"] { width: 48px; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 6px; }
 .tp-new-dims input[type="number"]:focus { outline: none; border-color: #cba6f7; }
-#btnNewItem { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
-#btnNewItem:hover { background: #45475a; }
+#btnNewItem, #btnNewItemMode { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
+#btnNewItem:hover, #btnNewItemMode:hover { background: #45475a; }
 .furn-swatch { image-rendering: pixelated; }
 </style>
 </head>
@@ -140,6 +140,17 @@ footer span.highlight { color: #f9e2af; }
         <div>
             <h3 id="variantSectionTitle">Furniture</h3>
             <div id="variantGrid" class="furn-grid"></div>
+        </div>
+        <div>
+            <h3>Layer</h3>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button id="btnLayerDown" style="width:28px;">−</button>
+                <span id="layerDisplay" style="font-size:14px;font-weight:600;min-width:20px;text-align:center;">0</span>
+                <button id="btnLayerUp" style="width:28px;">+</button>
+            </div>
+            <div style="margin-top:4px;font-size:10px;color:#7f849c;">
+                Items on different layers can overlap
+            </div>
         </div>
         <div>
             <h3>Preview</h3>
@@ -188,6 +199,7 @@ footer span.highlight { color: #f9e2af; }
                 <button class="export-tab active" data-tab="config">config.h</button>
                 <button class="export-tab" data-tab="office">office_state</button>
                 <button class="export-tab" data-tab="renderer">renderer</button>
+                <button class="export-tab" data-tab="tiles">tiles.h</button>
             </div>
             <textarea class="export-code" id="exportCode" readonly></textarea>
             <button id="btnCopy" style="margin:4px;">Copy to Clipboard</button>
@@ -198,6 +210,7 @@ footer span.highlight { color: #f9e2af; }
 <footer>
     <span>Tool: <span class="highlight" id="footTool">Select</span></span>
     <span>Board: <span class="highlight" id="footBoard">LILYGO</span></span>
+    <span>Layer: <span class="highlight" id="footLayer">0</span></span>
     <span>Workstations: <span class="highlight" id="footWS">0</span></span>
 </footer>
 
@@ -223,7 +236,10 @@ footer span.highlight { color: #f9e2af; }
                 <h3>Items</h3>
                 <div id="tpItemList" class="tp-item-list"></div>
                 <div class="tp-new-item">
-                    <h3>New Item</h3>
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <h3 id="tpFormTitle">New Item</h3>
+                        <button id="btnNewItemMode" style="font-size:10px;padding:2px 6px;display:none;">+ New</button>
+                    </div>
                     <input id="tpNewName" type="text" placeholder="Name" maxlength="24">
                     <select id="tpNewType">
                         <option value="furniture">Furniture</option>
@@ -234,6 +250,11 @@ footer span.highlight { color: #f9e2af; }
                         <label>W<input id="tpNewCols" type="number" min="1" max="6" value="1"></label>
                         <label>H<input id="tpNewRows" type="number" min="1" max="6" value="1"></label>
                     </div>
+                    <select id="tpNewRole" style="display:none;">
+                        <option value="none">Role: None</option>
+                        <option value="desk">Role: Desk</option>
+                        <option value="chair">Role: Chair</option>
+                    </select>
                     <button id="btnNewItem">Add</button>
                 </div>
             </div>
@@ -265,11 +286,11 @@ const DEFAULT_FLOOR = 'floorA';
 const DEFAULT_WALL = 'wall';
 
 const FURN_CATALOG = {
-    desk:      { w: 2, h: 2, color: '#8B6914', blockW: 2, blockH: 2, label: 'Desk' },
-    chair:     { w: 1, h: 1, color: '#666666', blockW: 0, blockH: 0, label: 'Chair' },
-    plant:     { w: 1, h: 1, color: '#228B22', blockW: 1, blockH: 1, label: 'Plant' },
-    bookshelf: { w: 1, h: 2, color: '#654321', blockW: 1, blockH: 2, label: 'Bookshelf' },
-    cooler:    { w: 1, h: 2, color: '#4682B4', blockW: 1, blockH: 2, label: 'Cooler' },
+    desk:      { w: 2, h: 2, color: '#8B6914', blockW: 2, blockH: 2, label: 'Desk', role: 'desk' },
+    chair:     { w: 1, h: 1, color: '#666666', blockW: 0, blockH: 0, label: 'Chair', role: 'chair' },
+    plant:     { w: 1, h: 1, color: '#228B22', blockW: 1, blockH: 1, label: 'Plant', role: 'none' },
+    bookshelf: { w: 1, h: 2, color: '#654321', blockW: 1, blockH: 2, label: 'Bookshelf', role: 'none' },
+    cooler:    { w: 1, h: 2, color: '#4682B4', blockW: 1, blockH: 2, label: 'Cooler', role: 'none' },
 };
 
 // Floor colors (fallback when tileset not loaded)
@@ -289,6 +310,7 @@ let gridRows = 10;
 let tiles = [];      // tiles[row][col] = string key (e.g. 'floorA', 'wall')
 let furniture = [];  // [{id, type, col, row}]
 let selectedVariant = null; // active floor/wall variant key when painting
+let currentLayer = 0;      // active z-layer for furniture placement
 let nextId = 1;
 
 let tool = 'select';
@@ -314,6 +336,7 @@ let tilesetReady = false;
 
 // Tile positions in tileset (col, row in 16x16 grid)
 // Keep in sync with TILESET_TILE_MAP in tools/sprite_converter.py
+// Each entry may also have `src` (data URL of cropped sprite) for per-item rendering
 const TILESET_TILES = {
     floorA: { col: 1, row: 13 },
     floorB: { col: 2, row: 13 },
@@ -327,11 +350,58 @@ const TILESET_FURN = {
     cooler:    { tiles: [[9,16],[9,17]], cols: 1, rows: 2 },
 };
 
+// Cache of Image objects keyed by data URL for per-item sprite rendering
+const spriteImgCache = {};
+function getSpriteImg(src) {
+    if (!src) return null;
+    if (spriteImgCache[src]) return spriteImgCache[src];
+    const img = new Image();
+    img.src = src;
+    spriteImgCache[src] = img;
+    return img;
+}
+
+// Crop a sprite from the current tilesetImg and return a data URL
+function cropTileSprite(col, row, cols, rows) {
+    if (!tilesetReady) return null;
+    const c = document.createElement('canvas');
+    c.width = cols * 16; c.height = rows * 16;
+    const cx = c.getContext('2d');
+    cx.drawImage(tilesetImg, col * 16, row * 16, cols * 16, rows * 16, 0, 0, cols * 16, rows * 16);
+    return c.toDataURL();
+}
+
+function cropFurnSprite(tiles, cols, rows) {
+    if (!tilesetReady) return null;
+    const c = document.createElement('canvas');
+    c.width = cols * 16; c.height = rows * 16;
+    const cx = c.getContext('2d');
+    for (let i = 0; i < tiles.length; i++) {
+        const [tc, tr] = tiles[i];
+        const lc = i % cols, lr = Math.floor(i / cols);
+        cx.drawImage(tilesetImg, tc * 16, tr * 16, 16, 16, lc * 16, lr * 16, 16, 16);
+    }
+    return c.toDataURL();
+}
+
+function captureBuiltinSprites() {
+    // Capture src for built-in items that don't already have one
+    for (const key of Object.keys(TILESET_TILES)) {
+        const t = TILESET_TILES[key];
+        if (!t.src) t.src = cropTileSprite(t.col, t.row, 1, 1);
+    }
+    for (const key of Object.keys(TILESET_FURN)) {
+        const spec = TILESET_FURN[key];
+        if (!spec.src) spec.src = cropFurnSprite(spec.tiles, spec.cols, spec.rows);
+    }
+}
+
 function loadTileset() {
     const img = new Image();
     img.onload = function() {
         tilesetImg = img;
         tilesetReady = true;
+        captureBuiltinSprites();
         render();
     };
     img.onerror = function() {
@@ -341,22 +411,35 @@ function loadTileset() {
     img.src = '../Office Tileset/Office Tileset All 16x16.png';
 }
 
-function drawTilesetTile(x, y, tileCol, tileRow) {
+function drawTilesetTile(x, y, tileEntry) {
+    const sprImg = getSpriteImg(tileEntry.src);
+    if (sprImg && sprImg.complete) {
+        ctx.drawImage(sprImg, 0, 0, sprImg.width, sprImg.height, x, y, TS, TS);
+        return true;
+    }
     if (!tilesetReady) return false;
     ctx.drawImage(tilesetImg,
-        tileCol * 16, tileRow * 16, 16, 16,
+        tileEntry.col * 16, tileEntry.row * 16, 16, 16,
         x, y, TS, TS);
     return true;
 }
 
 function drawTilesetFurniture(f) {
     const spec = TILESET_FURN[f.type];
-    if (!spec || !tilesetReady) return false;
+    if (!spec) return false;
     const cat = FURN_CATALOG[f.type];
-    // Offset: if tileset sprite is taller than catalog footprint, draw upward
     const tilesetH = spec.rows;
     const catalogH = cat.h;
-    const yOffsetTiles = catalogH - tilesetH; // negative = draw above footprint
+    const yOffsetTiles = catalogH - tilesetH;
+    const sprImg = getSpriteImg(spec.src);
+    if (sprImg && sprImg.complete) {
+        const dx = f.col * TS;
+        const dy = (f.row + yOffsetTiles) * TS;
+        ctx.drawImage(sprImg, 0, 0, sprImg.width, sprImg.height,
+            dx, dy, spec.cols * TS, spec.rows * TS);
+        return true;
+    }
+    if (!tilesetReady) return false;
     for (let i = 0; i < spec.tiles.length; i++) {
         const [tc, tr] = spec.tiles[i];
         const localCol = i % spec.cols;
@@ -413,16 +496,22 @@ function tileAt(col, row) {
 
 // ── Furniture helpers ──────────────────────────────────────
 function furnAt(col, row) {
+    let best = null;
+    let bestZ = -1;
     for (const f of furniture) {
         const cat = FURN_CATALOG[f.type];
         if (col >= f.col && col < f.col + cat.w && row >= f.row && row < f.row + cat.h) {
-            return f;
+            if (f.z > bestZ) {
+                best = f;
+                bestZ = f.z;
+            }
         }
     }
-    return null;
+    return best;
 }
 
-function canPlace(type, col, row, ignoreId) {
+function canPlace(type, col, row, ignoreId, layer) {
+    if (layer === undefined) layer = currentLayer;
     const cat = FURN_CATALOG[type];
     // Bounds check
     if (col < 0 || row < 0 || col + cat.w > gridCols || row + cat.h > gridRows) return false;
@@ -432,9 +521,10 @@ function canPlace(type, col, row, ignoreId) {
             if (!isFloorTile(tiles[row + dr][col + dc])) return false;
         }
     }
-    // Check overlap with existing furniture
+    // Check overlap with existing furniture on the same layer
     for (const f of furniture) {
         if (ignoreId != null && f.id === ignoreId) continue;
+        if (f.z !== layer) continue;
         const fc = FURN_CATALOG[f.type];
         if (col < f.col + fc.w && col + cat.w > f.col &&
             row < f.row + fc.h && row + cat.h > f.row) {
@@ -444,8 +534,8 @@ function canPlace(type, col, row, ignoreId) {
     return true;
 }
 
-function addFurniture(type, col, row) {
-    const f = { id: nextId++, type, col, row };
+function addFurniture(type, col, row, z) {
+    const f = { id: nextId++, type, col, row, z: z ?? currentLayer };
     furniture.push(f);
     return f;
 }
@@ -457,58 +547,49 @@ function removeFurniture(id) {
 
 // ── Workstation detection ──────────────────────────────────
 function detectWorkstations() {
-    const desks = furniture.filter(f => f.type === 'desk');
-    const chairs = furniture.filter(f => f.type === 'chair');
+    const desks = furniture.filter(f => FURN_CATALOG[f.type]?.role === 'desk');
+    const chairs = furniture.filter(f => FURN_CATALOG[f.type]?.role === 'chair');
     const workstations = [];
 
     for (const desk of desks) {
-        // Find adjacent chairs
-        // Desk occupies (col, row) to (col+1, row+1) — 2x2
-        // Check positions around the desk for chairs
+        const dc = FURN_CATALOG[desk.type];
         const candidates = [];
+        const isAvailable = ch => !workstations.some(ws => ws.chairId === ch.id);
 
-        // Below desk
-        for (let dc = 0; dc < 2; dc++) {
-            const cc = desk.col + dc;
-            const cr = desk.row + 2;
-            const chair = chairs.find(ch =>
-                ch.col === cc && ch.row === cr &&
-                !workstations.some(ws => ws.chairId === ch.id)
-            );
-            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'UP' });
+        // Below desk (adjacent or overlapping bottom edge)
+        for (let c = 0; c < dc.w; c++) {
+            const cc = desk.col + c;
+            for (const cr of [desk.row + dc.h, desk.row + dc.h - 1]) {
+                const chair = chairs.find(ch => ch.col === cc && ch.row === cr && isAvailable(ch));
+                if (chair) { candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'UP' }); break; }
+            }
         }
 
-        // Above desk
-        for (let dc = 0; dc < 2; dc++) {
-            const cc = desk.col + dc;
-            const cr = desk.row - 1;
-            const chair = chairs.find(ch =>
-                ch.col === cc && ch.row === cr &&
-                !workstations.some(ws => ws.chairId === ch.id)
-            );
-            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'DOWN' });
+        // Above desk (adjacent or overlapping top edge)
+        for (let c = 0; c < dc.w; c++) {
+            const cc = desk.col + c;
+            for (const cr of [desk.row - 1, desk.row]) {
+                const chair = chairs.find(ch => ch.col === cc && ch.row === cr && isAvailable(ch));
+                if (chair) { candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'DOWN' }); break; }
+            }
         }
 
-        // Right of desk
-        for (let dr = 0; dr < 2; dr++) {
-            const cc = desk.col + 2;
-            const cr = desk.row + dr;
-            const chair = chairs.find(ch =>
-                ch.col === cc && ch.row === cr &&
-                !workstations.some(ws => ws.chairId === ch.id)
-            );
-            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'LEFT' });
+        // Right of desk (adjacent or overlapping right edge)
+        for (let r = 0; r < dc.h; r++) {
+            const cr = desk.row + r;
+            for (const cc of [desk.col + dc.w, desk.col + dc.w - 1]) {
+                const chair = chairs.find(ch => ch.col === cc && ch.row === cr && isAvailable(ch));
+                if (chair) { candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'LEFT' }); break; }
+            }
         }
 
-        // Left of desk
-        for (let dr = 0; dr < 2; dr++) {
-            const cc = desk.col - 1;
-            const cr = desk.row + dr;
-            const chair = chairs.find(ch =>
-                ch.col === cc && ch.row === cr &&
-                !workstations.some(ws => ws.chairId === ch.id)
-            );
-            if (chair) candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'RIGHT' });
+        // Left of desk (adjacent or overlapping left edge)
+        for (let r = 0; r < dc.h; r++) {
+            const cr = desk.row + r;
+            for (const cc of [desk.col - 1, desk.col]) {
+                const chair = chairs.find(ch => ch.col === cc && ch.row === cr && isAvailable(ch));
+                if (chair) { candidates.push({ chair, seatCol: cc, seatRow: cr, dir: 'RIGHT' }); break; }
+            }
         }
 
         // Take first candidate per desk
@@ -582,13 +663,13 @@ function render() {
             const tileKey = tiles[r][c];
             if (isWallTile(tileKey)) {
                 const t = TILESET_TILES[tileKey] || TILESET_TILES[DEFAULT_WALL];
-                if (!tilesetReady || !drawTilesetTile(x, y, t.col, t.row)) {
+                if (!drawTilesetTile(x, y, t)) {
                     ctx.fillStyle = CLR_WALL;
                     ctx.fillRect(x, y, TS, TS);
                 }
             } else {
                 const t = TILESET_TILES[tileKey] || TILESET_TILES[DEFAULT_FLOOR];
-                if (!tilesetReady || !drawTilesetTile(x, y, t.col, t.row)) {
+                if (!drawTilesetTile(x, y, t)) {
                     ctx.fillStyle = (r + c) % 2 === 0 ? CLR_FLOOR_ALT : CLR_FLOOR;
                     ctx.fillRect(x, y, TS, TS);
                 }
@@ -636,8 +717,9 @@ function render() {
         ctx.fillText(arrows[ws.facingDir], seatCX, seatCY - TS * 0.35);
     }
 
-    // Draw furniture
-    for (const f of furniture) {
+    // Draw furniture sorted by z-layer (lower layers first)
+    const sortedFurniture = [...furniture].sort((a, b) => a.z - b.z);
+    for (const f of sortedFurniture) {
         drawFurnitureItem(f, f.id === selectedId);
     }
 
@@ -681,8 +763,8 @@ function drawFurnitureItem(f, selected) {
     const x = f.col * TS, y = f.row * TS;
     const w = cat.w * TS, h = cat.h * TS;
 
-    // Try tileset rendering first
-    if (tilesetReady && drawTilesetFurniture(f)) {
+    // Try tileset rendering first (per-item src or global tileset)
+    if (drawTilesetFurniture(f)) {
         // Tileset rendered successfully
     } else {
         // Fallback: colored rectangles with details
@@ -830,7 +912,7 @@ canvas.addEventListener('mousemove', e => {
         if (f) {
             const newCol = col - dragOffCol;
             const newRow = row - dragOffRow;
-            if (canPlace(f.type, newCol, newRow, f.id)) {
+            if (canPlace(f.type, newCol, newRow, f.id, f.z)) {
                 if (!dragMoved) pushUndo();
                 f.col = newCol;
                 f.row = newRow;
@@ -935,7 +1017,17 @@ function selectVariant(key) {
 
 function renderTileVariantSwatch(key) {
     const t = TILESET_TILES[key];
-    if (!tilesetReady || !t) return null;
+    if (!t) return null;
+    const sprImg = getSpriteImg(t.src);
+    if (sprImg && sprImg.complete) {
+        const c = document.createElement('canvas');
+        c.width = 14; c.height = 14;
+        const cx = c.getContext('2d');
+        cx.imageSmoothingEnabled = false;
+        cx.drawImage(sprImg, 0, 0, sprImg.width, sprImg.height, 0, 0, 14, 14);
+        return c.toDataURL();
+    }
+    if (!tilesetReady) return null;
     const c = document.createElement('canvas');
     c.width = 14; c.height = 14;
     const cx = c.getContext('2d');
@@ -1001,6 +1093,16 @@ function buildVariantToolbar() {
 }
 buildVariantToolbar();
 
+// ── Layer control ──────────────────────────────────────────
+function setLayer(z) {
+    currentLayer = Math.max(0, z);
+    document.getElementById('layerDisplay').textContent = currentLayer;
+    document.getElementById('footLayer').textContent = currentLayer;
+}
+
+document.getElementById('btnLayerUp').addEventListener('click', () => setLayer(currentLayer + 1));
+document.getElementById('btnLayerDown').addEventListener('click', () => setLayer(currentLayer - 1));
+
 // ── Board switch ───────────────────────────────────────────
 document.getElementById('boardSelect').addEventListener('change', e => {
     switchBoard(e.target.value);
@@ -1065,13 +1167,29 @@ document.getElementById('btnPreview').addEventListener('click', () => {
 
 // ── JSON Import / Export ───────────────────────────────────
 document.getElementById('btnExport').addEventListener('click', () => {
+    const customItems = TILE_PICKER_ITEMS.filter(i => i.custom).map(i => {
+        const entry = { key: i.key, label: i.label, cols: i.cols, rows: i.rows, type: i.type };
+        if (i.type === 'furniture') {
+            const spec = TILESET_FURN[i.key];
+            entry.tiles = spec ? spec.tiles : Array(i.cols * i.rows).fill([0, 0]);
+            entry.role = FURN_CATALOG[i.key]?.role || 'none';
+            if (spec?.src) entry.src = spec.src;
+        } else {
+            const t = TILESET_TILES[i.key] || { col: 0, row: 0 };
+            entry.tilePos = { col: t.col, row: t.row };
+            if (t.src) entry.src = t.src;
+        }
+        return entry;
+    });
     const data = {
         version: 2,
         board,
         cols: gridCols,
         rows: gridRows,
         tiles: tiles,
-        furniture: furniture.map(f => ({ type: f.type, col: f.col, row: f.row })),
+        furniture: furniture.map(f => ({ type: f.type, col: f.col, row: f.row, z: f.z })),
+        customItems,
+        tileAssignments: { tiles: { ...TILESET_TILES }, furn: { ...TILESET_FURN } },
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -1104,10 +1222,59 @@ document.getElementById('fileInput').addEventListener('change', e => {
             }
             furniture = [];
             nextId = 1;
+            // Restore custom items from import
+            if (data.customItems) {
+                // Remove existing custom items
+                for (let i = TILE_PICKER_ITEMS.length - 1; i >= 0; i--) {
+                    if (TILE_PICKER_ITEMS[i].custom) {
+                        const k = TILE_PICKER_ITEMS[i].key;
+                        delete PICKER_KEY_TO_PYTHON[k];
+                        delete TILESET_FURN[k];
+                        delete FURN_CATALOG[k];
+                        delete TILESET_TILES[k];
+                        TILE_PICKER_ITEMS.splice(i, 1);
+                    }
+                }
+                // Register imported custom items
+                for (const ci of data.customItems) {
+                    if (!ci.key || TILE_PICKER_ITEMS.some(i => i.key === ci.key)) continue;
+                    TILE_PICKER_ITEMS.push({ key: ci.key, label: ci.label, cols: ci.cols || 1, rows: ci.rows || 1, type: ci.type || 'furniture', custom: true });
+                    PICKER_KEY_TO_PYTHON[ci.key] = ci.key.toUpperCase();
+                    if (ci.type === 'furniture') {
+                        const furnEntry = { tiles: ci.tiles || Array((ci.cols || 1) * (ci.rows || 1)).fill([0, 0]), cols: ci.cols || 1, rows: ci.rows || 1 };
+                        if (ci.src) furnEntry.src = ci.src;
+                        TILESET_FURN[ci.key] = furnEntry;
+                        FURN_CATALOG[ci.key] = { w: ci.cols || 1, h: ci.rows || 1, color: '#7f849c', blockW: ci.cols || 1, blockH: ci.rows || 1, label: ci.label, role: ci.role || 'none' };
+                    } else {
+                        const tileEntry = ci.tilePos || { col: 0, row: 0 };
+                        if (ci.src) tileEntry.src = ci.src;
+                        TILESET_TILES[ci.key] = tileEntry;
+                    }
+                }
+                saveCustomItems();
+            }
+            // Restore tileset coordinate assignments
+            if (data.tileAssignments) {
+                if (data.tileAssignments.tiles) {
+                    for (const [k, v] of Object.entries(data.tileAssignments.tiles)) {
+                        if (TILESET_TILES.hasOwnProperty(k)) {
+                            TILESET_TILES[k] = v;
+                        }
+                    }
+                }
+                if (data.tileAssignments.furn) {
+                    for (const [k, v] of Object.entries(data.tileAssignments.furn)) {
+                        if (TILESET_FURN.hasOwnProperty(k)) {
+                            TILESET_FURN[k] = v;
+                        }
+                    }
+                }
+            }
             for (const f of (data.furniture || [])) {
-                addFurniture(f.type, f.col, f.row);
+                if (FURN_CATALOG[f.type]) addFurniture(f.type, f.col, f.row, f.z ?? 0);
             }
             document.getElementById('boardSelect').value = board;
+            buildVariantToolbar();
             resizeCanvas();
             render();
             updateUI();
@@ -1246,18 +1413,19 @@ function generateOfficeStateCode(workstations) {
 
     // Standalone desks (not part of workstations)
     const wsDesks = new Set(workstations.map(ws => ws.deskId));
-    const standaloneDesks = furniture.filter(f => f.type === 'desk' && !wsDesks.has(f.id));
+    const standaloneDesks = furniture.filter(f => FURN_CATALOG[f.type]?.role === 'desk' && !wsDesks.has(f.id));
     for (const d of standaloneDesks) {
+        const dcat = FURN_CATALOG[d.type];
         lines.push(`    // Standalone desk at (${d.col}, ${d.row})`);
-        for (let dr = 0; dr < 2; dr++) {
-            for (let dc = 0; dc < 2; dc++) {
+        for (let dr = 0; dr < dcat.h; dr++) {
+            for (let dc = 0; dc < dcat.w; dc++) {
                 lines.push(`    _tiles[${d.row + dr}][${d.col + dc}] = TileType::BLOCKED;`);
             }
         }
     }
 
     // Decorative furniture blocking
-    const decor = furniture.filter(f => f.type !== 'desk' && f.type !== 'chair');
+    const decor = furniture.filter(f => FURN_CATALOG[f.type]?.role !== 'desk' && FURN_CATALOG[f.type]?.role !== 'chair');
     if (decor.length > 0) {
         lines.push('    // Mark decorative furniture as blocked');
         for (const f of decor) {
@@ -1282,67 +1450,223 @@ function generateRendererCode(workstations) {
     lines.push('void Renderer::drawFurniture() {');
 
     // Desks from workstations
-    if (workstations.length > 0) {
-        lines.push('    // Draw desks');
-        lines.push('    for (int i = 0; i < NUM_WORKSTATIONS; i++) {');
-        lines.push('        const auto& ws = WORKSTATIONS[i];');
-        lines.push('        int x = ws.deskCol * TILE_SIZE;');
-        lines.push('        int y = ws.deskRow * TILE_SIZE;');
-        lines.push('        drawRGB565Sprite(x, y, SPRITE_DESK, SPRITE_DESK_W, SPRITE_DESK_H);');
-        lines.push('    }');
-        lines.push('');
-        lines.push('    // Draw chairs at seat positions');
-        lines.push('    for (int i = 0; i < NUM_WORKSTATIONS; i++) {');
-        lines.push('        const auto& ws = WORKSTATIONS[i];');
-        lines.push('        int x = ws.seatCol * TILE_SIZE;');
-        lines.push('        int y = ws.seatRow * TILE_SIZE;');
-        lines.push('        drawRGB565Sprite(x, y, SPRITE_CHAIR, SPRITE_CHAIR_W, SPRITE_CHAIR_H);');
-        lines.push('    }');
+    for (const ws of workstations) {
+        const desk = furniture.find(f => f.id === ws.deskId);
+        const dName = desk ? 'SPRITE_' + (PICKER_KEY_TO_PYTHON[desk.type] || desk.type.toUpperCase()) : 'SPRITE_DESK';
+        lines.push(`    drawRGB565Sprite(${ws.deskCol} * TILE_SIZE, ${ws.deskRow} * TILE_SIZE, ${dName}, ${dName}_W, ${dName}_H);`);
+    }
+
+    // Chairs from workstations
+    for (const ws of workstations) {
+        const chair = furniture.find(f => f.id === ws.chairId);
+        const cName = chair ? 'SPRITE_' + (PICKER_KEY_TO_PYTHON[chair.type] || chair.type.toUpperCase()) : 'SPRITE_CHAIR';
+        lines.push(`    drawRGB565Sprite(${ws.seatCol} * TILE_SIZE, ${ws.seatRow} * TILE_SIZE, ${cName}, ${cName}_W, ${cName}_H);`);
     }
 
     // Standalone desks
     const wsDesks = new Set(workstations.map(ws => ws.deskId));
-    const standaloneDesks = furniture.filter(f => f.type === 'desk' && !wsDesks.has(f.id));
+    const standaloneDesks = furniture.filter(f => FURN_CATALOG[f.type]?.role === 'desk' && !wsDesks.has(f.id));
     for (const d of standaloneDesks) {
-        lines.push(`    drawRGB565Sprite(${d.col} * TILE_SIZE, ${d.row} * TILE_SIZE, SPRITE_DESK, SPRITE_DESK_W, SPRITE_DESK_H);`);
+        const name = 'SPRITE_' + (PICKER_KEY_TO_PYTHON[d.type] || d.type.toUpperCase());
+        lines.push(`    drawRGB565Sprite(${d.col} * TILE_SIZE, ${d.row} * TILE_SIZE, ${name}, ${name}_W, ${name}_H);`);
     }
 
     // Standalone chairs
     const wsChairs = new Set(workstations.map(ws => ws.chairId));
-    const standaloneChairs = furniture.filter(f => f.type === 'chair' && !wsChairs.has(f.id));
+    const standaloneChairs = furniture.filter(f => FURN_CATALOG[f.type]?.role === 'chair' && !wsChairs.has(f.id));
     for (const ch of standaloneChairs) {
-        lines.push(`    drawRGB565Sprite(${ch.col} * TILE_SIZE, ${ch.row} * TILE_SIZE, SPRITE_CHAIR, SPRITE_CHAIR_W, SPRITE_CHAIR_H);`);
+        const name = 'SPRITE_' + (PICKER_KEY_TO_PYTHON[ch.type] || ch.type.toUpperCase());
+        lines.push(`    drawRGB565Sprite(${ch.col} * TILE_SIZE, ${ch.row} * TILE_SIZE, ${name}, ${name}_W, ${name}_H);`);
     }
 
-    // Decorative furniture
+    // Decorative furniture (sorted by z-layer for correct stacking)
     lines.push('');
     lines.push('    // Static decorations');
-    const spriteMap = {
-        plant: { sprite: 'SPRITE_PLANT', w: 'SPRITE_PLANT_W', h: 'SPRITE_PLANT_H' },
-        bookshelf: { sprite: 'SPRITE_BOOKSHELF', w: 'SPRITE_BOOKSHELF_W', h: 'SPRITE_BOOKSHELF_H' },
-        cooler: { sprite: 'SPRITE_COOLER', w: 'SPRITE_COOLER_W', h: 'SPRITE_COOLER_H' },
-    };
-    const decor = furniture.filter(f => f.type !== 'desk' && f.type !== 'chair');
+    const decor = furniture.filter(f => FURN_CATALOG[f.type]?.role !== 'desk' && FURN_CATALOG[f.type]?.role !== 'chair').sort((a, b) => a.z - b.z);
     for (const f of decor) {
-        const sm = spriteMap[f.type];
-        if (sm) {
-            lines.push(`    drawRGB565Sprite(${f.col} * TILE_SIZE, ${f.row} * TILE_SIZE, ${sm.sprite}, ${sm.w}, ${sm.h});`);
-        }
+        const name = PICKER_KEY_TO_PYTHON[f.type] || f.type.toUpperCase();
+        const sprite = 'SPRITE_' + name;
+        lines.push(`    drawRGB565Sprite(${f.col} * TILE_SIZE, ${f.row} * TILE_SIZE, ${sprite}, ${sprite}_W, ${sprite}_H);`);
     }
 
     lines.push('}');
     return lines.join('\n');
 }
 
+function spriteToRGB565(img, w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0, w, h);
+    const data = cx.getImageData(0, 0, w, h).data;
+    const pixels = [];
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a < 128) {
+            pixels.push(0x0000); // black = transparent (firmware convention)
+        } else {
+            pixels.push(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+        }
+    }
+    return pixels;
+}
+
+function rgb565ArrayToC(name, pixels, w, h) {
+    const lines = [];
+    lines.push(`static const uint16_t ${name}[${w * h}] PROGMEM = {`);
+    for (let i = 0; i < pixels.length; i += 8) {
+        const chunk = pixels.slice(i, i + 8).map(v => '0x' + v.toString(16).toUpperCase().padStart(4, '0'));
+        lines.push('    ' + chunk.join(', ') + ',');
+    }
+    lines.push('};');
+    return lines.join('\n');
+}
+
+function generateTilesHeader() {
+    const lines = [];
+    lines.push('#ifndef SPRITES_TILES_H');
+    lines.push('#define SPRITES_TILES_H');
+    lines.push('');
+    lines.push('#include <Arduino.h>');
+    lines.push('#include <pgmspace.h>');
+    lines.push('');
+    lines.push('// =========================================================================');
+    lines.push('// Floor & Wall Tiles (RGB565, 16x16 each)');
+    lines.push('// Generated by tools/layout_editor.html -- DO NOT EDIT');
+    lines.push('// =========================================================================');
+    lines.push('');
+    lines.push('#define HAS_TILESET_TILES 1');
+    lines.push('');
+
+    // Floor/wall tiles
+    let generated = 0;
+    for (const item of TILE_PICKER_ITEMS.filter(i => isTileItem(i))) {
+        const t = TILESET_TILES[item.key];
+        if (!t) continue;
+        const pyKey = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
+        try {
+            const sprImg = getSpriteImg(t.src);
+            if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
+                lines.push(rgb565ArrayToC(pyKey, spriteToRGB565(sprImg, 16, 16), 16, 16));
+                generated++;
+            } else if (tilesetReady) {
+                const c = document.createElement('canvas');
+                c.width = 16; c.height = 16;
+                const cx = c.getContext('2d');
+                cx.drawImage(tilesetImg, t.col * 16, t.row * 16, 16, 16, 0, 0, 16, 16);
+                lines.push(rgb565ArrayToC(pyKey, spriteToRGB565(c, 16, 16), 16, 16));
+                generated++;
+            } else {
+                lines.push(`// ${pyKey}: no sprite data available`);
+            }
+        } catch (e) {
+            lines.push(`// ${pyKey}: error - ${e.message}`);
+        }
+        lines.push('');
+    }
+
+    if (generated === 0) {
+        lines.push('// WARNING: No tile sprites were generated.');
+        lines.push('// Load a tileset PNG or assign tiles in the Tile Picker first.');
+        lines.push('');
+    }
+
+    // Per-cell tile map: pointer to the correct tile sprite for each grid cell
+    lines.push('// =========================================================================');
+    lines.push('// Tile Map (per-cell floor/wall sprite lookup)');
+    lines.push('// =========================================================================');
+    lines.push('');
+    // Collect unique tile keys used in the grid
+    const usedKeys = new Set();
+    for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+            usedKeys.add(tiles[r][c]);
+        }
+    }
+    // Build key-to-C-name map
+    const tileKeyToCName = {};
+    for (const key of usedKeys) {
+        const item = TILE_PICKER_ITEMS.find(i => i.key === key);
+        if (item) {
+            tileKeyToCName[key] = PICKER_KEY_TO_PYTHON[key] || key.toUpperCase();
+        } else {
+            tileKeyToCName[key] = 'TILE_FLOOR_A'; // fallback
+        }
+    }
+    lines.push(`static const uint16_t* TILE_MAP[${gridRows}][${gridCols}] PROGMEM = {`);
+    for (let r = 0; r < gridRows; r++) {
+        const row = [];
+        for (let c = 0; c < gridCols; c++) {
+            row.push(tileKeyToCName[tiles[r][c]]);
+        }
+        lines.push('    { ' + row.join(', ') + ' },');
+    }
+    lines.push('};');
+    lines.push('');
+
+    // Furniture sprites
+    const furnItems = TILE_PICKER_ITEMS.filter(i => i.type === 'furniture');
+    if (furnItems.length > 0) {
+        lines.push('// =========================================================================');
+        lines.push('// Furniture Sprites (RGB565)');
+        lines.push('// =========================================================================');
+        lines.push('');
+        lines.push('#define HAS_TILESET_FURNITURE 1');
+        lines.push('');
+        for (const item of furnItems) {
+            const spec = TILESET_FURN[item.key];
+            if (!spec) continue;
+            const name = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
+            const w = spec.cols * 16, h = spec.rows * 16;
+            try {
+                let pixels = null;
+                const sprImg = getSpriteImg(spec.src);
+                if (sprImg && sprImg.complete && sprImg.naturalWidth > 0) {
+                    pixels = spriteToRGB565(sprImg, w, h);
+                } else if (tilesetReady) {
+                    const c = document.createElement('canvas');
+                    c.width = w; c.height = h;
+                    const cx = c.getContext('2d');
+                    for (let i = 0; i < spec.tiles.length; i++) {
+                        const [tc, tr] = spec.tiles[i];
+                        const lc = i % spec.cols, lr = Math.floor(i / spec.cols);
+                        cx.drawImage(tilesetImg, tc * 16, tr * 16, 16, 16, lc * 16, lr * 16, 16, 16);
+                    }
+                    pixels = spriteToRGB565(c, w, h);
+                }
+                if (pixels) {
+                    lines.push(`#define SPRITE_${name}_W ${w}`);
+                    lines.push(`#define SPRITE_${name}_H ${h}`);
+                    lines.push(rgb565ArrayToC('SPRITE_' + name, pixels, w, h));
+                } else {
+                    lines.push(`// SPRITE_${name}: no sprite data available`);
+                }
+            } catch (e) {
+                lines.push(`// SPRITE_${name}: error - ${e.message}`);
+            }
+            lines.push('');
+        }
+    }
+
+    lines.push('#endif // SPRITES_TILES_H');
+    return lines.join('\n');
+}
+
 function updateExportCode() {
     const workstations = detectWorkstations();
     let code;
-    switch (activeExportTab) {
-        case 'config':   code = generateConfigCode(workstations); break;
-        case 'office':   code = generateOfficeStateCode(workstations); break;
-        case 'renderer': code = generateRendererCode(workstations); break;
+    try {
+        switch (activeExportTab) {
+            case 'config':   code = generateConfigCode(workstations); break;
+            case 'office':   code = generateOfficeStateCode(workstations); break;
+            case 'renderer': code = generateRendererCode(workstations); break;
+            case 'tiles':    code = generateTilesHeader(); break;
+        }
+    } catch (e) {
+        code = '// Error generating ' + activeExportTab + ': ' + e.message;
+        console.error('Export generation error:', e);
     }
-    document.getElementById('exportCode').value = code;
+    document.getElementById('exportCode').value = code || '';
 }
 
 // ── UI updates ─────────────────────────────────────────────
@@ -1374,7 +1698,7 @@ function updateUI() {
         if (f) {
             const cat = FURN_CATALOG[f.type];
             selInfo.innerHTML = `<strong>${cat.label}</strong> at (${f.col}, ${f.row})<br>` +
-                `Size: ${cat.w}x${cat.h} tiles<br>` +
+                `Size: ${cat.w}x${cat.h} tiles &middot; Layer ${f.z}<br>` +
                 `<span style="color:#f38ba8;cursor:pointer;" onclick="deleteSelected()">Delete (Del)</span>`;
         } else {
             selInfo.textContent = 'Nothing selected';
@@ -1498,7 +1822,8 @@ function closeTilePicker() {
 function buildPickerItemList() {
     const list = document.getElementById('tpItemList');
     list.innerHTML = '';
-    for (const item of TILE_PICKER_ITEMS) {
+    const sortedItems = [...TILE_PICKER_ITEMS].sort((a, b) => a.label.localeCompare(b.label));
+    for (const item of sortedItems) {
         const el = document.createElement('div');
         el.className = 'tp-item' + (item.key === tpActiveItem ? ' active' : '');
         el.dataset.key = item.key;
@@ -1546,23 +1871,32 @@ function buildPickerItemList() {
     }
 }
 
-function drawItemPreview(ctx, item, scale) {
-    if (!tilesetReady) return;
+function drawItemPreview(pCtx, item, scale) {
     if (isTileItem(item)) {
         const t = TILESET_TILES[item.key];
-        if (t) {
-            ctx.drawImage(tilesetImg,
+        if (!t) return;
+        const sprImg = getSpriteImg(t.src);
+        if (sprImg && sprImg.complete) {
+            pCtx.drawImage(sprImg, 0, 0, sprImg.width, sprImg.height,
+                0, 0, item.cols * TP_TILE * scale, item.rows * TP_TILE * scale);
+        } else if (tilesetReady) {
+            pCtx.drawImage(tilesetImg,
                 t.col * TP_TILE, t.row * TP_TILE, TP_TILE, TP_TILE,
                 0, 0, item.cols * TP_TILE * scale, item.rows * TP_TILE * scale);
         }
     } else {
         const spec = TILESET_FURN[item.key];
-        if (spec) {
+        if (!spec) return;
+        const sprImg = getSpriteImg(spec.src);
+        if (sprImg && sprImg.complete) {
+            pCtx.drawImage(sprImg, 0, 0, sprImg.width, sprImg.height,
+                0, 0, spec.cols * TP_TILE * scale, spec.rows * TP_TILE * scale);
+        } else if (tilesetReady) {
             for (let i = 0; i < spec.tiles.length; i++) {
                 const [tc, tr] = spec.tiles[i];
                 const localCol = i % spec.cols;
                 const localRow = Math.floor(i / spec.cols);
-                ctx.drawImage(tilesetImg,
+                pCtx.drawImage(tilesetImg,
                     tc * TP_TILE, tr * TP_TILE, TP_TILE, TP_TILE,
                     localCol * TP_TILE * scale, localRow * TP_TILE * scale, TP_TILE * scale, TP_TILE * scale);
             }
@@ -1570,11 +1904,53 @@ function drawItemPreview(ctx, item, scale) {
     }
 }
 
+let tpEditingKey = null; // key of item being edited, null = add mode
+
 function selectPickerItem(key) {
     tpActiveItem = key;
     document.querySelectorAll('.tp-item').forEach(el =>
         el.classList.toggle('active', el.dataset.key === key));
+    const item = TILE_PICKER_ITEMS.find(i => i.key === key);
+    if (item && item.custom) {
+        populateItemForm(item);
+    } else {
+        clearItemForm();
+    }
     renderTilesetCanvas();
+}
+
+function populateItemForm(item) {
+    tpEditingKey = item.key;
+    document.getElementById('tpFormTitle').textContent = 'Edit Item';
+    document.getElementById('btnNewItem').textContent = 'Save';
+    document.getElementById('btnNewItemMode').style.display = '';
+    document.getElementById('tpNewName').value = item.label;
+    document.getElementById('tpNewType').value = item.type;
+    document.getElementById('tpNewType').disabled = true;
+    const isFurn = item.type === 'furniture';
+    document.getElementById('tpNewDimsRow').style.display = isFurn ? '' : 'none';
+    document.getElementById('tpNewRole').style.display = isFurn ? '' : 'none';
+    if (isFurn) {
+        document.getElementById('tpNewCols').value = item.cols;
+        document.getElementById('tpNewRows').value = item.rows;
+        const cat = FURN_CATALOG[item.key];
+        document.getElementById('tpNewRole').value = cat ? cat.role : 'none';
+    }
+}
+
+function clearItemForm() {
+    tpEditingKey = null;
+    document.getElementById('tpFormTitle').textContent = 'New Item';
+    document.getElementById('btnNewItem').textContent = 'Add';
+    document.getElementById('btnNewItemMode').style.display = 'none';
+    document.getElementById('tpNewName').value = '';
+    document.getElementById('tpNewType').value = 'furniture';
+    document.getElementById('tpNewType').disabled = false;
+    document.getElementById('tpNewCols').value = '1';
+    document.getElementById('tpNewRows').value = '1';
+    document.getElementById('tpNewRole').value = 'none';
+    document.getElementById('tpNewDimsRow').style.display = '';
+    document.getElementById('tpNewRole').style.display = 'none';
 }
 
 function renderTilesetCanvas() {
@@ -1728,7 +2104,8 @@ tpCanvas.addEventListener('click', e => {
     if (col < 0 || row < 0 || col + item.cols > tilesetCols || row + item.rows > tilesetRows) return;
 
     if (isTileItem(item)) {
-        TILESET_TILES[item.key] = { col, row };
+        const src = cropTileSprite(col, row, 1, 1);
+        TILESET_TILES[item.key] = { col, row, src };
     } else {
         const tileArr = [];
         for (let dr = 0; dr < item.rows; dr++) {
@@ -1736,7 +2113,8 @@ tpCanvas.addEventListener('click', e => {
                 tileArr.push([col + dc, row + dr]);
             }
         }
-        TILESET_FURN[item.key] = { tiles: tileArr, cols: item.cols, rows: item.rows };
+        const src = cropFurnSprite(tileArr, item.cols, item.rows);
+        TILESET_FURN[item.key] = { tiles: tileArr, cols: item.cols, rows: item.rows, src };
     }
 
     // Persist custom item tile assignments
@@ -1757,9 +2135,14 @@ function saveCustomItems() {
     const custom = TILE_PICKER_ITEMS.filter(i => i.custom).map(i => {
         const entry = { key: i.key, label: i.label, cols: i.cols, rows: i.rows, type: i.type };
         if (i.type === 'furniture') {
-            entry.tiles = TILESET_FURN[i.key] ? TILESET_FURN[i.key].tiles : Array(i.cols * i.rows).fill([0, 0]);
+            const spec = TILESET_FURN[i.key];
+            entry.tiles = spec ? spec.tiles : Array(i.cols * i.rows).fill([0, 0]);
+            entry.role = FURN_CATALOG[i.key]?.role || 'none';
+            if (spec?.src) entry.src = spec.src;
         } else {
-            entry.tilePos = TILESET_TILES[i.key] || { col: 0, row: 0 };
+            const t = TILESET_TILES[i.key] || { col: 0, row: 0 };
+            entry.tilePos = { col: t.col, row: t.row };
+            if (t.src) entry.src = t.src;
         }
         return entry;
     });
@@ -1781,12 +2164,16 @@ function loadCustomItems() {
             const itemType = item.type || 'furniture';
             if (itemType === 'furniture') {
                 TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: item.cols, rows: item.rows, type: 'furniture', custom: true });
-                TILESET_FURN[item.key] = { tiles: item.tiles || Array(item.cols * item.rows).fill([0, 0]), cols: item.cols, rows: item.rows };
+                const furnEntry = { tiles: item.tiles || Array(item.cols * item.rows).fill([0, 0]), cols: item.cols, rows: item.rows };
+                if (item.src) furnEntry.src = item.src;
+                TILESET_FURN[item.key] = furnEntry;
                 PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
-                FURN_CATALOG[item.key] = { w: item.cols, h: item.rows, color: '#7f849c', blockW: item.cols, blockH: item.rows, label: item.label };
+                FURN_CATALOG[item.key] = { w: item.cols, h: item.rows, color: '#7f849c', blockW: item.cols, blockH: item.rows, label: item.label, role: item.role || 'none' };
             } else {
                 TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: 1, rows: 1, type: itemType, custom: true });
-                TILESET_TILES[item.key] = item.tilePos || { col: 0, row: 0 };
+                const tileEntry = item.tilePos || { col: 0, row: 0 };
+                if (item.src) tileEntry.src = item.src;
+                TILESET_TILES[item.key] = tileEntry;
                 PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
             }
         }
@@ -1844,7 +2231,7 @@ function exportTileConfig() {
     return lines.join('\n');
 }
 
-function addNewItem() {
+function addOrUpdateItem() {
     const nameInput = document.getElementById('tpNewName');
     const colsInput = document.getElementById('tpNewCols');
     const rowsInput = document.getElementById('tpNewRows');
@@ -1852,6 +2239,46 @@ function addNewItem() {
     const name = nameInput.value.trim();
     if (!name) return;
 
+    // Edit mode — update existing custom item
+    if (tpEditingKey) {
+        const item = TILE_PICKER_ITEMS.find(i => i.key === tpEditingKey);
+        if (!item || !item.custom) return;
+        item.label = name;
+        if (item.type === 'furniture') {
+            const cols = Math.max(1, Math.min(6, parseInt(colsInput.value) || 1));
+            const rows = Math.max(1, Math.min(6, parseInt(rowsInput.value) || 1));
+            const role = document.getElementById('tpNewRole').value || 'none';
+            const cat = FURN_CATALOG[item.key];
+            if (cat) {
+                // If dimensions changed, resize tile array
+                if (cols !== item.cols || rows !== item.rows) {
+                    const spec = TILESET_FURN[item.key];
+                    const newTiles = Array(cols * rows).fill([0, 0]);
+                    // Copy existing tiles that still fit
+                    if (spec) {
+                        for (let r = 0; r < Math.min(rows, item.rows); r++) {
+                            for (let c = 0; c < Math.min(cols, item.cols); c++) {
+                                newTiles[r * cols + c] = spec.tiles[r * item.cols + c] || [0, 0];
+                            }
+                        }
+                    }
+                    TILESET_FURN[item.key] = { tiles: newTiles, cols, rows };
+                    cat.w = cols; cat.h = rows; cat.blockW = cols; cat.blockH = rows;
+                    item.cols = cols; item.rows = rows;
+                }
+                cat.label = name;
+                cat.role = role;
+            }
+        }
+        buildVariantToolbar();
+        saveCustomItems();
+        buildPickerItemList();
+        renderTilesetCanvas();
+        render();
+        return;
+    }
+
+    // Add mode — create new item
     const itemType = typeSelect.value;
     const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     if (!key) return;
@@ -1865,10 +2292,11 @@ function addNewItem() {
     if (itemType === 'furniture') {
         const cols = Math.max(1, Math.min(6, parseInt(colsInput.value) || 1));
         const rows = Math.max(1, Math.min(6, parseInt(rowsInput.value) || 1));
+        const role = document.getElementById('tpNewRole').value || 'none';
         TILE_PICKER_ITEMS.push({ key, label: name, cols, rows, type: 'furniture', custom: true });
         TILESET_FURN[key] = { tiles: Array(cols * rows).fill([0, 0]), cols, rows };
         PICKER_KEY_TO_PYTHON[key] = key.toUpperCase();
-        FURN_CATALOG[key] = { w: cols, h: rows, color: '#7f849c', blockW: cols, blockH: rows, label: name };
+        FURN_CATALOG[key] = { w: cols, h: rows, color: '#7f849c', blockW: cols, blockH: rows, label: name, role };
     } else {
         TILE_PICKER_ITEMS.push({ key, label: name, cols: 1, rows: 1, type: itemType, custom: true });
         TILESET_TILES[key] = { col: 0, row: 0 };
@@ -1882,9 +2310,7 @@ function addNewItem() {
     buildPickerItemList();
     renderTilesetCanvas();
 
-    nameInput.value = '';
-    colsInput.value = '1';
-    rowsInput.value = '1';
+    clearItemForm();
 }
 
 function deleteCustomItem(key) {
@@ -1925,13 +2351,16 @@ function deleteCustomItem(key) {
     render();
 }
 
-document.getElementById('btnNewItem').addEventListener('click', addNewItem);
+document.getElementById('btnNewItem').addEventListener('click', addOrUpdateItem);
 document.getElementById('tpNewName').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addNewItem();
+    if (e.key === 'Enter') addOrUpdateItem();
 });
+document.getElementById('btnNewItemMode').addEventListener('click', clearItemForm);
 // Hide W/H inputs when type is floor or wall
 document.getElementById('tpNewType').addEventListener('change', e => {
-    document.getElementById('tpNewDimsRow').style.display = e.target.value === 'furniture' ? '' : 'none';
+    const isFurn = e.target.value === 'furniture';
+    document.getElementById('tpNewDimsRow').style.display = isFurn ? '' : 'none';
+    document.getElementById('tpNewRole').style.display = isFurn ? '' : 'none';
 });
 
 document.getElementById('btnTilePicker').addEventListener('click', openTilePicker);
