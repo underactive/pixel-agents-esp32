@@ -76,14 +76,17 @@ void setup() {
     renderer.begin(tft);
     protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats);
 
+    // Seed random before spawning characters
+    randomSeed(analogRead(0) ^ millis());
+
+    // Spawn all 6 characters in social zones
+    office.spawnAllCharacters();
+
 #if defined(HAS_TOUCH)
     touchInput.begin();
 #endif
 
     lastFrameMs = millis();
-
-    // Seed random
-    randomSeed(analogRead(0) ^ millis());
 }
 
 // ── Main loop ───────────────────────────────────────────

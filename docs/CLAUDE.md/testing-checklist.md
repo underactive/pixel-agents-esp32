@@ -69,7 +69,8 @@
 
 ### Idle Scene (No Companion Connected)
 - [ ] Status bar shows red dot + "Disconnected"
-- [ ] Status bar shows "0 agents"
+- [ ] Status bar shows "0/6 active"
+- [ ] All 6 characters visible wandering in social zones
 - [ ] Floor tiles render with checkerboard pattern
 - [ ] Wall row (top) renders in different shade
 - [ ] Furniture visible: desks (2x2), chairs, plant, bookshelf, cooler (tileset artwork when generated with tileset)
@@ -77,16 +78,25 @@
 - [ ] Wall tiles render with tileset artwork when tiles.h is present
 - [ ] Floor/wall fall back to solid colors when built without tiles.h
 
+### Always-Visible Characters
+- [ ] On boot, all 6 characters appear in social zones (3 in break room, 3 in library)
+- [ ] Idle characters wander within their assigned social zone (not across the full map)
+- [ ] Status bar OVERVIEW shows "N/6 active" format (e.g., "2/6 active")
+- [ ] Starting a Claude Code session causes an idle character to walk to a desk
+- [ ] Ending a Claude Code session causes the character to walk back to its social zone
+- [ ] Agent going offline (disconnect) causes character to walk back to zone (not despawn)
+- [ ] Re-activating an agent while character walks back to zone redirects character to desk
+- [ ] All 6 agents active simultaneously -- all 6 characters seated at desks
+- [ ] All 6 agents go idle -- all 6 characters walk back to their zones
+
 ### Connected Scene (Companion Running)
 - [ ] Status bar shows green dot when companion sends heartbeats
 - [ ] Agent count updates as Claude Code sessions start/stop
-- [ ] Characters spawn with matrix column-reveal effect (green tint)
 - [ ] Characters walk smoothly between tiles (4-frame animation)
 - [ ] Characters sit at desks when typing/reading
 - [ ] Sitting offset visually places character on chair
 - [ ] LEFT-facing characters are horizontal flips (not separate sprites)
 - [ ] Speech bubbles appear above characters for permission/waiting states
-- [ ] Characters despawn with reverse matrix effect
 - [ ] Multiple characters depth-sort correctly (lower Y = further back)
 
 ### Stress Testing
