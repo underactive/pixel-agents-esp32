@@ -87,16 +87,18 @@ footer span.highlight { color: #f9e2af; }
 .tp-delete { position: absolute; right: 4px; top: 4px; width: 18px; height: 18px; border: none; background: transparent; color: #7f849c; font-size: 14px; line-height: 18px; text-align: center; padding: 0; cursor: pointer; border-radius: 3px; display: none; }
 .tp-item:hover .tp-delete { display: block; }
 .tp-delete:hover { background: #f38ba8; color: #1e1e2e; }
-.tp-new-furn { border-top: 1px solid #313244; margin-top: 8px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.tp-new-furn h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 2px; }
-.tp-new-furn input[type="text"] { width: 100%; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; }
-.tp-new-furn input[type="text"]:focus { outline: none; border-color: #cba6f7; }
+.tp-new-item { border-top: 1px solid #313244; margin-top: 8px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.tp-new-item h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 2px; }
+.tp-new-item input[type="text"] { width: 100%; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; }
+.tp-new-item input[type="text"]:focus { outline: none; border-color: #cba6f7; }
+.tp-new-item select { width: 100%; }
 .tp-new-dims { display: flex; gap: 8px; align-items: center; }
 .tp-new-dims label { font-size: 11px; color: #a6adc8; display: flex; align-items: center; gap: 4px; }
 .tp-new-dims input[type="number"] { width: 48px; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 6px; }
 .tp-new-dims input[type="number"]:focus { outline: none; border-color: #cba6f7; }
-#btnNewFurn { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
-#btnNewFurn:hover { background: #45475a; }
+#btnNewItem { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
+#btnNewItem:hover { background: #45475a; }
+.furn-swatch { image-rendering: pixelated; }
 </style>
 </head>
 <body>
@@ -136,8 +138,8 @@ footer span.highlight { color: #f9e2af; }
             </div>
         </div>
         <div>
-            <h3>Furniture</h3>
-            <div id="furnGrid" class="furn-grid"></div>
+            <h3 id="variantSectionTitle">Furniture</h3>
+            <div id="variantGrid" class="furn-grid"></div>
         </div>
         <div>
             <h3>Preview</h3>
@@ -220,14 +222,19 @@ footer span.highlight { color: #f9e2af; }
             <div class="tp-sidebar">
                 <h3>Items</h3>
                 <div id="tpItemList" class="tp-item-list"></div>
-                <div class="tp-new-furn">
-                    <h3>New Furniture</h3>
+                <div class="tp-new-item">
+                    <h3>New Item</h3>
                     <input id="tpNewName" type="text" placeholder="Name" maxlength="24">
-                    <div class="tp-new-dims">
+                    <select id="tpNewType">
+                        <option value="furniture">Furniture</option>
+                        <option value="floor">Floor</option>
+                        <option value="wall">Wall</option>
+                    </select>
+                    <div id="tpNewDimsRow" class="tp-new-dims">
                         <label>W<input id="tpNewCols" type="number" min="1" max="6" value="1"></label>
                         <label>H<input id="tpNewRows" type="number" min="1" max="6" value="1"></label>
                     </div>
-                    <button id="btnNewFurn">Add</button>
+                    <button id="btnNewItem">Add</button>
                 </div>
             </div>
             <div class="tp-main">
@@ -254,8 +261,8 @@ const BOARDS = {
     cyd:    { cols: 20, rows: 14, label: 'CYD' },
 };
 
-const TILE_FLOOR = 0;
-const TILE_WALL = 1;
+const DEFAULT_FLOOR = 'floorA';
+const DEFAULT_WALL = 'wall';
 
 const FURN_CATALOG = {
     desk:      { w: 2, h: 2, color: '#8B6914', blockW: 2, blockH: 2, label: 'Desk' },
@@ -279,8 +286,9 @@ const CLR_WS_LINE   = 'rgba(137,180,250,0.6)';
 let board = 'lilygo';
 let gridCols = 20;
 let gridRows = 10;
-let tiles = [];      // tiles[row][col] = TILE_FLOOR | TILE_WALL
+let tiles = [];      // tiles[row][col] = string key (e.g. 'floorA', 'wall')
 let furniture = [];  // [{id, type, col, row}]
+let selectedVariant = null; // active floor/wall variant key when painting
 let nextId = 1;
 
 let tool = 'select';
@@ -362,6 +370,15 @@ function drawTilesetFurniture(f) {
     return true;
 }
 
+// ── Tile type helpers ──────────────────────────────────────
+function tileCategory(key) {
+    const item = TILE_PICKER_ITEMS.find(i => i.key === key);
+    return item ? item.type : 'floor';
+}
+function isFloorTile(key) { return tileCategory(key) === 'floor'; }
+function isWallTile(key)  { return tileCategory(key) === 'wall'; }
+function isTileItem(item) { return item.type === 'floor' || item.type === 'wall'; }
+
 // ── Canvas ─────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -380,7 +397,11 @@ function initTiles() {
     for (let r = 0; r < gridRows; r++) {
         tiles[r] = [];
         for (let c = 0; c < gridCols; c++) {
-            tiles[r][c] = r === 0 ? TILE_WALL : TILE_FLOOR;
+            if (r === 0) {
+                tiles[r][c] = DEFAULT_WALL;
+            } else {
+                tiles[r][c] = (r + c) % 2 === 0 ? 'floorB' : DEFAULT_FLOOR;
+            }
         }
     }
 }
@@ -408,7 +429,7 @@ function canPlace(type, col, row, ignoreId) {
     // Check tile types (furniture needs floor)
     for (let dr = 0; dr < cat.h; dr++) {
         for (let dc = 0; dc < cat.w; dc++) {
-            if (tiles[row + dr][col + dc] !== TILE_FLOOR) return false;
+            if (!isFloorTile(tiles[row + dr][col + dc])) return false;
         }
     }
     // Check overlap with existing furniture
@@ -558,14 +579,16 @@ function render() {
     for (let r = 0; r < gridRows; r++) {
         for (let c = 0; c < gridCols; c++) {
             const x = c * TS, y = r * TS;
-            if (tiles[r][c] === TILE_WALL) {
-                if (!tilesetReady || !drawTilesetTile(x, y, TILESET_TILES.wall.col, TILESET_TILES.wall.row)) {
+            const tileKey = tiles[r][c];
+            if (isWallTile(tileKey)) {
+                const t = TILESET_TILES[tileKey] || TILESET_TILES[DEFAULT_WALL];
+                if (!tilesetReady || !drawTilesetTile(x, y, t.col, t.row)) {
                     ctx.fillStyle = CLR_WALL;
                     ctx.fillRect(x, y, TS, TS);
                 }
             } else {
-                const ft = (r + c) % 2 === 0 ? TILESET_TILES.floorB : TILESET_TILES.floorA;
-                if (!tilesetReady || !drawTilesetTile(x, y, ft.col, ft.row)) {
+                const t = TILESET_TILES[tileKey] || TILESET_TILES[DEFAULT_FLOOR];
+                if (!tilesetReady || !drawTilesetTile(x, y, t.col, t.row)) {
                     ctx.fillStyle = (r + c) % 2 === 0 ? CLR_FLOOR_ALT : CLR_FLOOR;
                     ctx.fillRect(x, y, TS, TS);
                 }
@@ -728,9 +751,9 @@ canvas.addEventListener('mousedown', e => {
         if (f) {
             pushUndo();
             removeFurniture(f.id);
-        } else if (tiles[row][col] === TILE_WALL) {
+        } else if (isWallTile(tiles[row][col])) {
             pushUndo();
-            tiles[row][col] = TILE_FLOOR;
+            tiles[row][col] = DEFAULT_FLOOR;
         }
         render();
         updateUI();
@@ -755,23 +778,23 @@ canvas.addEventListener('mousedown', e => {
         updateUI();
     } else if (tool === 'floor') {
         pushUndo();
-        tiles[row][col] = TILE_FLOOR;
+        tiles[row][col] = selectedVariant || DEFAULT_FLOOR;
         render();
     } else if (tool === 'wall') {
         pushUndo();
         // Remove any furniture on this tile first
         const f = furnAt(col, row);
-        if (f) removeFurniture(f.id);
-        tiles[row][col] = TILE_WALL;
+        if (f) { removeFurniture(f.id); updateUI(); }
+        tiles[row][col] = selectedVariant || DEFAULT_WALL;
         render();
     } else if (tool === 'erase') {
         const f = furnAt(col, row);
         if (f) {
             pushUndo();
             removeFurniture(f.id);
-        } else if (tiles[row][col] === TILE_WALL) {
+        } else if (isWallTile(tiles[row][col])) {
             pushUndo();
-            tiles[row][col] = TILE_FLOOR;
+            tiles[row][col] = DEFAULT_FLOOR;
         }
         render();
         updateUI();
@@ -817,21 +840,21 @@ canvas.addEventListener('mousemove', e => {
         }
     } else if (tool === 'floor') {
         if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
-            tiles[row][col] = TILE_FLOOR;
+            tiles[row][col] = selectedVariant || DEFAULT_FLOOR;
             render();
         }
     } else if (tool === 'wall') {
         if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
             const f = furnAt(col, row);
             if (f) removeFurniture(f.id);
-            tiles[row][col] = TILE_WALL;
+            tiles[row][col] = selectedVariant || DEFAULT_WALL;
             render();
         }
     } else if (tool === 'erase') {
         if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) {
             const f = furnAt(col, row);
             if (f) removeFurniture(f.id);
-            if (tiles[row][col] === TILE_WALL) tiles[row][col] = TILE_FLOOR;
+            if (isWallTile(tiles[row][col])) tiles[row][col] = DEFAULT_FLOOR;
             render();
             updateUI();
         }
@@ -880,7 +903,19 @@ function setTool(t) {
     ghostCol = ghostRow = -1;
     document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
     document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('footTool').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    // Auto-select first variant for floor/wall tools
+    if (t === 'floor' || t === 'wall') {
+        const typeFilter = t === 'floor' ? 'floor' : 'wall';
+        const variants = TILE_PICKER_ITEMS.filter(i => i.type === typeFilter);
+        selectedVariant = variants.length > 0 ? variants[0].key : (t === 'floor' ? DEFAULT_FLOOR : DEFAULT_WALL);
+        const variantItem = TILE_PICKER_ITEMS.find(i => i.key === selectedVariant);
+        const variantLabel = variantItem ? variantItem.label : selectedVariant;
+        document.getElementById('footTool').textContent = t.charAt(0).toUpperCase() + t.slice(1) + ' (' + variantLabel + ')';
+    } else {
+        selectedVariant = null;
+        document.getElementById('footTool').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    }
+    buildVariantToolbar();
     canvas.style.cursor = t === 'select' ? 'default' : 'crosshair';
     render();
 }
@@ -889,26 +924,82 @@ document.querySelectorAll('.tool-btn').forEach(b => {
     b.addEventListener('click', () => setTool(b.dataset.tool));
 });
 
-function buildFurnToolbar() {
-    const grid = document.getElementById('furnGrid');
+function selectVariant(key) {
+    selectedVariant = key;
+    const item = TILE_PICKER_ITEMS.find(i => i.key === key);
+    const label = item ? item.label : key;
+    document.getElementById('footTool').textContent = tool.charAt(0).toUpperCase() + tool.slice(1) + ' (' + label + ')';
+    document.querySelectorAll('#variantGrid .furn-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.variant === key));
+}
+
+function renderTileVariantSwatch(key) {
+    const t = TILESET_TILES[key];
+    if (!tilesetReady || !t) return null;
+    const c = document.createElement('canvas');
+    c.width = 14; c.height = 14;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = false;
+    cx.drawImage(tilesetImg, t.col * 16, t.row * 16, 16, 16, 0, 0, 14, 14);
+    return c.toDataURL();
+}
+
+function buildVariantToolbar() {
+    const grid = document.getElementById('variantGrid');
+    const title = document.getElementById('variantSectionTitle');
     grid.innerHTML = '';
-    for (const [key, cat] of Object.entries(FURN_CATALOG)) {
-        const btn = document.createElement('button');
-        btn.className = 'furn-btn';
-        btn.dataset.furn = key;
-        btn.innerHTML = `<span class="furn-swatch" style="background:${cat.color}"></span>${cat.label} <span class="furn-size">${cat.w}x${cat.h}</span>`;
-        btn.addEventListener('click', () => {
-            tool = 'place';
-            furnType = key;
-            document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
-            document.querySelectorAll('.furn-btn').forEach(x => x.classList.toggle('active', x.dataset.furn === furnType));
-            document.getElementById('footTool').textContent = 'Place ' + FURN_CATALOG[furnType].label;
-            canvas.style.cursor = 'crosshair';
-        });
-        grid.appendChild(btn);
+
+    if (tool === 'floor' || tool === 'wall') {
+        const isFloor = tool === 'floor';
+        title.textContent = isFloor ? 'Floor Variants' : 'Wall Variants';
+        const variants = TILE_PICKER_ITEMS.filter(i => i.type === tool);
+        for (const item of variants) {
+            const btn = document.createElement('button');
+            btn.className = 'furn-btn' + (item.key === selectedVariant ? ' active' : '');
+            btn.dataset.variant = item.key;
+            const swatch = document.createElement('span');
+            swatch.className = 'furn-swatch';
+            const dataUrl = renderTileVariantSwatch(item.key);
+            if (dataUrl) {
+                swatch.style.backgroundImage = `url(${dataUrl})`;
+                swatch.style.backgroundSize = 'cover';
+            } else {
+                swatch.style.background = isFloor ? CLR_FLOOR : CLR_WALL;
+            }
+            btn.appendChild(swatch);
+            btn.appendChild(document.createTextNode(item.label));
+            btn.addEventListener('click', () => selectVariant(item.key));
+            grid.appendChild(btn);
+        }
+    } else {
+        title.textContent = 'Furniture';
+        for (const [key, cat] of Object.entries(FURN_CATALOG)) {
+            const btn = document.createElement('button');
+            btn.className = 'furn-btn';
+            btn.dataset.furn = key;
+            const swatch = document.createElement('span');
+            swatch.className = 'furn-swatch';
+            swatch.style.background = cat.color;
+            btn.appendChild(swatch);
+            btn.appendChild(document.createTextNode(cat.label + ' '));
+            const size = document.createElement('span');
+            size.className = 'furn-size';
+            size.textContent = cat.w + 'x' + cat.h;
+            btn.appendChild(size);
+            btn.addEventListener('click', () => {
+                tool = 'place';
+                furnType = key;
+                selectedVariant = null;
+                document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+                document.querySelectorAll('.furn-btn').forEach(x => x.classList.toggle('active', x.dataset.furn === furnType));
+                document.getElementById('footTool').textContent = 'Place ' + FURN_CATALOG[furnType].label;
+                canvas.style.cursor = 'crosshair';
+            });
+            grid.appendChild(btn);
+        }
     }
 }
-buildFurnToolbar();
+buildVariantToolbar();
 
 // ── Board switch ───────────────────────────────────────────
 document.getElementById('boardSelect').addEventListener('change', e => {
@@ -929,7 +1020,7 @@ function switchBoard(b) {
     if (gridRows > oldRows) {
         for (let r = oldRows; r < gridRows; r++) {
             tiles[r] = [];
-            for (let c = 0; c < gridCols; c++) tiles[r][c] = TILE_FLOOR;
+            for (let c = 0; c < gridCols; c++) tiles[r][c] = (r + c) % 2 === 0 ? 'floorB' : DEFAULT_FLOOR;
         }
     } else if (gridRows < oldRows) {
         tiles.length = gridRows;
@@ -975,7 +1066,7 @@ document.getElementById('btnPreview').addEventListener('click', () => {
 // ── JSON Import / Export ───────────────────────────────────
 document.getElementById('btnExport').addEventListener('click', () => {
     const data = {
-        version: 1,
+        version: 2,
         board,
         cols: gridCols,
         rows: gridRows,
@@ -1005,7 +1096,12 @@ document.getElementById('fileInput').addEventListener('change', e => {
             board = data.board || 'lilygo';
             gridCols = data.cols || 20;
             gridRows = data.rows || 10;
-            tiles = data.tiles || [];
+            // Migrate v1 integer tiles to v2 string keys
+            if (!data.version || data.version < 2) {
+                tiles = (data.tiles || []).map(row => row.map(val => val === 1 ? DEFAULT_WALL : DEFAULT_FLOOR));
+            } else {
+                tiles = data.tiles || [];
+            }
             furniture = [];
             nextId = 1;
             for (const f of (data.furniture || [])) {
@@ -1087,7 +1183,7 @@ function generateOfficeStateCode(workstations) {
     for (let r = 0; r < gridRows; r++) {
         let allWall = true;
         for (let c = 0; c < gridCols; c++) {
-            if (tiles[r][c] !== TILE_WALL) { allWall = false; break; }
+            if (!isWallTile(tiles[r][c])) { allWall = false; break; }
         }
         if (allWall) wallRows.push(r);
     }
@@ -1111,7 +1207,7 @@ function generateOfficeStateCode(workstations) {
     for (let r = 0; r < gridRows; r++) {
         if (wallRows.includes(r)) continue;
         for (let c = 0; c < gridCols; c++) {
-            if (tiles[r][c] === TILE_WALL) {
+            if (isWallTile(tiles[r][c])) {
                 sparseWalls.push({ r, c });
             }
         }
@@ -1351,14 +1447,14 @@ function loadDefault() {
 
 // ── Tile Picker ────────────────────────────────────────────
 let TILE_PICKER_ITEMS = [
-    { key: 'floorA',    label: 'Floor A',    cols: 1, rows: 1, target: 'tile' },
-    { key: 'floorB',    label: 'Floor B',    cols: 1, rows: 1, target: 'tile' },
-    { key: 'wall',      label: 'Wall',       cols: 1, rows: 1, target: 'tile' },
-    { key: 'desk',      label: 'Desk',       cols: 2, rows: 2, target: 'furn' },
-    { key: 'chair',     label: 'Chair',      cols: 1, rows: 1, target: 'furn' },
-    { key: 'plant',     label: 'Plant',      cols: 1, rows: 2, target: 'furn' },
-    { key: 'bookshelf', label: 'Bookshelf',  cols: 1, rows: 2, target: 'furn' },
-    { key: 'cooler',    label: 'Cooler',     cols: 1, rows: 2, target: 'furn' },
+    { key: 'floorA',    label: 'Floor A',    cols: 1, rows: 1, type: 'floor' },
+    { key: 'floorB',    label: 'Floor B',    cols: 1, rows: 1, type: 'floor' },
+    { key: 'wall',      label: 'Wall',       cols: 1, rows: 1, type: 'wall' },
+    { key: 'desk',      label: 'Desk',       cols: 2, rows: 2, type: 'furniture' },
+    { key: 'chair',     label: 'Chair',      cols: 1, rows: 1, type: 'furniture' },
+    { key: 'plant',     label: 'Plant',      cols: 1, rows: 2, type: 'furniture' },
+    { key: 'bookshelf', label: 'Bookshelf',  cols: 1, rows: 2, type: 'furniture' },
+    { key: 'cooler',    label: 'Cooler',     cols: 1, rows: 2, type: 'furniture' },
 ];
 
 const TP_SCALE = 4;
@@ -1424,8 +1520,14 @@ function buildPickerItemList() {
         // Info
         const info = document.createElement('div');
         info.className = 'tp-item-info';
-        info.innerHTML = `<div class="tp-item-name">${item.label}</div>` +
-            `<div class="tp-item-dims">${item.cols}x${item.rows} tile${(item.cols * item.rows) > 1 ? 's' : ''}</div>`;
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'tp-item-name';
+        nameDiv.textContent = item.label;
+        const dimsDiv = document.createElement('div');
+        dimsDiv.className = 'tp-item-dims';
+        dimsDiv.textContent = `${item.cols}x${item.rows} tile${(item.cols * item.rows) > 1 ? 's' : ''}`;
+        info.appendChild(nameDiv);
+        info.appendChild(dimsDiv);
 
         el.appendChild(previewWrap);
         el.appendChild(info);
@@ -1435,7 +1537,7 @@ function buildPickerItemList() {
             del.className = 'tp-delete';
             del.textContent = '\u00d7';
             del.title = 'Delete';
-            del.addEventListener('click', e => { e.stopPropagation(); deleteCustomFurniture(item.key); });
+            del.addEventListener('click', e => { e.stopPropagation(); deleteCustomItem(item.key); });
             el.appendChild(del);
         }
 
@@ -1446,7 +1548,7 @@ function buildPickerItemList() {
 
 function drawItemPreview(ctx, item, scale) {
     if (!tilesetReady) return;
-    if (item.target === 'tile') {
+    if (isTileItem(item)) {
         const t = TILESET_TILES[item.key];
         if (t) {
             ctx.drawImage(tilesetImg,
@@ -1507,7 +1609,7 @@ function renderTilesetCanvas() {
 
     // Highlight currently assigned tiles for all items
     for (const item of TILE_PICKER_ITEMS) {
-        if (item.target === 'tile') {
+        if (isTileItem(item)) {
             const t = TILESET_TILES[item.key];
             if (t) {
                 tpCtx.strokeStyle = item.key === tpActiveItem ? '#cba6f7' : 'rgba(203,166,247,0.35)';
@@ -1625,20 +1727,20 @@ tpCanvas.addEventListener('click', e => {
     const tilesetRows = Math.floor(tilesetImg.height / TP_TILE);
     if (col < 0 || row < 0 || col + item.cols > tilesetCols || row + item.rows > tilesetRows) return;
 
-    if (item.target === 'tile') {
+    if (isTileItem(item)) {
         TILESET_TILES[item.key] = { col, row };
     } else {
-        const tiles = [];
+        const tileArr = [];
         for (let dr = 0; dr < item.rows; dr++) {
             for (let dc = 0; dc < item.cols; dc++) {
-                tiles.push([col + dc, row + dr]);
+                tileArr.push([col + dc, row + dr]);
             }
         }
-        TILESET_FURN[item.key] = { tiles, cols: item.cols, rows: item.rows };
+        TILESET_FURN[item.key] = { tiles: tileArr, cols: item.cols, rows: item.rows };
     }
 
-    // Persist custom furniture tile assignments
-    if (item.custom) saveCustomFurniture();
+    // Persist custom item tile assignments
+    if (item.custom) saveCustomItems();
 
     // Refresh item list previews and tileset canvas
     buildPickerItemList();
@@ -1651,30 +1753,48 @@ const PICKER_KEY_TO_PYTHON = {
     bookshelf: 'BOOKSHELF', cooler: 'COOLER',
 };
 
-function saveCustomFurniture() {
-    const custom = TILE_PICKER_ITEMS.filter(i => i.custom).map(i => ({
-        key: i.key, label: i.label, cols: i.cols, rows: i.rows,
-        tiles: TILESET_FURN[i.key] ? TILESET_FURN[i.key].tiles : Array(i.cols * i.rows).fill([0, 0]),
-    }));
-    localStorage.setItem('customFurniture', JSON.stringify(custom));
+function saveCustomItems() {
+    const custom = TILE_PICKER_ITEMS.filter(i => i.custom).map(i => {
+        const entry = { key: i.key, label: i.label, cols: i.cols, rows: i.rows, type: i.type };
+        if (i.type === 'furniture') {
+            entry.tiles = TILESET_FURN[i.key] ? TILESET_FURN[i.key].tiles : Array(i.cols * i.rows).fill([0, 0]);
+        } else {
+            entry.tilePos = TILESET_TILES[i.key] || { col: 0, row: 0 };
+        }
+        return entry;
+    });
+    localStorage.setItem('customItems', JSON.stringify(custom));
 }
 
-function loadCustomFurniture() {
-    const raw = localStorage.getItem('customFurniture');
+function loadCustomItems() {
+    let raw = localStorage.getItem('customItems');
+    let legacy = false;
+    if (!raw) {
+        raw = localStorage.getItem('customFurniture');
+        legacy = true;
+    }
     if (!raw) return;
     try {
         const custom = JSON.parse(raw);
         for (const item of custom) {
             if (TILE_PICKER_ITEMS.some(i => i.key === item.key)) continue;
-            TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: item.cols, rows: item.rows, target: 'furn', custom: true });
-            TILESET_FURN[item.key] = { tiles: item.tiles, cols: item.cols, rows: item.rows };
-            PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
-            FURN_CATALOG[item.key] = { w: item.cols, h: item.rows, color: '#7f849c', blockW: item.cols, blockH: item.rows, label: item.label };
+            const itemType = item.type || 'furniture';
+            if (itemType === 'furniture') {
+                TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: item.cols, rows: item.rows, type: 'furniture', custom: true });
+                TILESET_FURN[item.key] = { tiles: item.tiles || Array(item.cols * item.rows).fill([0, 0]), cols: item.cols, rows: item.rows };
+                PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
+                FURN_CATALOG[item.key] = { w: item.cols, h: item.rows, color: '#7f849c', blockW: item.cols, blockH: item.rows, label: item.label };
+            } else {
+                TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: 1, rows: 1, type: itemType, custom: true });
+                TILESET_TILES[item.key] = item.tilePos || { col: 0, row: 0 };
+                PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
+            }
         }
-        buildFurnToolbar();
+        buildVariantToolbar();
+        if (legacy) saveCustomItems();
     } catch (e) { /* ignore corrupt data */ }
 }
-loadCustomFurniture();
+loadCustomItems();
 
 function exportTileConfig() {
     const lines = [];
@@ -1683,7 +1803,7 @@ function exportTileConfig() {
     lines.push('# Python (sprite_converter.py) -- paste into TILESET_TILE_MAP');
     lines.push('TILESET_TILE_MAP = {');
     lines.push('    # Floor/wall tiles (16x16 each)');
-    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'tile')) {
+    for (const item of TILE_PICKER_ITEMS.filter(i => isTileItem(i))) {
         const t = TILESET_TILES[item.key];
         if (!t) continue;
         const pyKey = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
@@ -1691,7 +1811,7 @@ function exportTileConfig() {
     }
     lines.push('');
     lines.push('    # Furniture composites (multi-tile, listed L-R then T-B)');
-    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'furn')) {
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.type === 'furniture')) {
         const spec = TILESET_FURN[item.key];
         if (!spec) continue;
         const pyKey = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
@@ -1707,13 +1827,14 @@ function exportTileConfig() {
     // JS format
     lines.push('// JavaScript (layout_editor.html) -- paste into TILESET_TILES / TILESET_FURN');
     lines.push('const TILESET_TILES = {');
-    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'tile')) {
+    for (const item of TILE_PICKER_ITEMS.filter(i => isTileItem(i))) {
         const t = TILESET_TILES[item.key];
+        if (!t) continue;
         lines.push(`    ${item.key}: { col: ${t.col}, row: ${t.row} },`);
     }
     lines.push('};');
     lines.push('const TILESET_FURN = {');
-    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'furn')) {
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.type === 'furniture')) {
         const spec = TILESET_FURN[item.key];
         const tilesStr = spec.tiles.map(t => `[${t[0]},${t[1]}]`).join(',');
         lines.push(`    ${item.key}: { tiles: [${tilesStr}], cols: ${spec.cols}, rows: ${spec.rows} },`);
@@ -1723,15 +1844,15 @@ function exportTileConfig() {
     return lines.join('\n');
 }
 
-function addNewFurniture() {
+function addNewItem() {
     const nameInput = document.getElementById('tpNewName');
     const colsInput = document.getElementById('tpNewCols');
     const rowsInput = document.getElementById('tpNewRows');
+    const typeSelect = document.getElementById('tpNewType');
     const name = nameInput.value.trim();
     if (!name) return;
 
-    const cols = Math.max(1, Math.min(6, parseInt(colsInput.value) || 1));
-    const rows = Math.max(1, Math.min(6, parseInt(rowsInput.value) || 1));
+    const itemType = typeSelect.value;
     const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     if (!key) return;
 
@@ -1741,12 +1862,21 @@ function addNewFurniture() {
         return;
     }
 
-    TILE_PICKER_ITEMS.push({ key, label: name, cols, rows, target: 'furn', custom: true });
-    TILESET_FURN[key] = { tiles: Array(cols * rows).fill([0, 0]), cols, rows };
-    PICKER_KEY_TO_PYTHON[key] = key.toUpperCase();
-    FURN_CATALOG[key] = { w: cols, h: rows, color: '#7f849c', blockW: cols, blockH: rows, label: name };
-    buildFurnToolbar();
-    saveCustomFurniture();
+    if (itemType === 'furniture') {
+        const cols = Math.max(1, Math.min(6, parseInt(colsInput.value) || 1));
+        const rows = Math.max(1, Math.min(6, parseInt(rowsInput.value) || 1));
+        TILE_PICKER_ITEMS.push({ key, label: name, cols, rows, type: 'furniture', custom: true });
+        TILESET_FURN[key] = { tiles: Array(cols * rows).fill([0, 0]), cols, rows };
+        PICKER_KEY_TO_PYTHON[key] = key.toUpperCase();
+        FURN_CATALOG[key] = { w: cols, h: rows, color: '#7f849c', blockW: cols, blockH: rows, label: name };
+    } else {
+        TILE_PICKER_ITEMS.push({ key, label: name, cols: 1, rows: 1, type: itemType, custom: true });
+        TILESET_TILES[key] = { col: 0, row: 0 };
+        PICKER_KEY_TO_PYTHON[key] = key.toUpperCase();
+    }
+
+    buildVariantToolbar();
+    saveCustomItems();
 
     tpActiveItem = key;
     buildPickerItemList();
@@ -1757,32 +1887,51 @@ function addNewFurniture() {
     rowsInput.value = '1';
 }
 
-function deleteCustomFurniture(key) {
+function deleteCustomItem(key) {
     const idx = TILE_PICKER_ITEMS.findIndex(i => i.key === key);
     if (idx === -1 || !TILE_PICKER_ITEMS[idx].custom) return;
 
+    const item = TILE_PICKER_ITEMS[idx];
     TILE_PICKER_ITEMS.splice(idx, 1);
-    delete TILESET_FURN[key];
     delete PICKER_KEY_TO_PYTHON[key];
-    delete FURN_CATALOG[key];
-    buildFurnToolbar();
-    saveCustomFurniture();
 
-    if (furnType === key) {
-        furnType = null;
-        setTool('select');
+    if (item.type === 'furniture') {
+        delete TILESET_FURN[key];
+        delete FURN_CATALOG[key];
+        if (furnType === key) {
+            furnType = null;
+            setTool('select');
+        }
+    } else {
+        delete TILESET_TILES[key];
+        // Replace any grid tiles using this key with the appropriate default
+        const fallback = item.type === 'wall' ? DEFAULT_WALL : DEFAULT_FLOOR;
+        for (let r = 0; r < gridRows; r++) {
+            for (let c = 0; c < gridCols; c++) {
+                if (tiles[r][c] === key) tiles[r][c] = fallback;
+            }
+        }
+        if (selectedVariant === key) selectedVariant = null;
     }
+
+    buildVariantToolbar();
+    saveCustomItems();
 
     if (tpActiveItem === key) {
         tpActiveItem = TILE_PICKER_ITEMS[0].key;
     }
     buildPickerItemList();
     renderTilesetCanvas();
+    render();
 }
 
-document.getElementById('btnNewFurn').addEventListener('click', addNewFurniture);
+document.getElementById('btnNewItem').addEventListener('click', addNewItem);
 document.getElementById('tpNewName').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addNewFurniture();
+    if (e.key === 'Enter') addNewItem();
+});
+// Hide W/H inputs when type is floor or wall
+document.getElementById('tpNewType').addEventListener('change', e => {
+    document.getElementById('tpNewDimsRow').style.display = e.target.value === 'furniture' ? '' : 'none';
 });
 
 document.getElementById('btnTilePicker').addEventListener('click', openTilePicker);
