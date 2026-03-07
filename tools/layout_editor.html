@@ -203,7 +203,7 @@ const FURN_CATALOG = {
     cooler:    { w: 1, h: 2, color: '#4682B4', blockW: 1, blockH: 2, label: 'Cooler' },
 };
 
-// Floor colors (approximate RGB from RGB565)
+// Floor colors (fallback when tileset not loaded)
 const CLR_FLOOR     = '#424242';
 const CLR_FLOOR_ALT = '#454545';
 const CLR_WALL      = '#333333';
@@ -238,6 +238,68 @@ const MAX_UNDO = 50;
 
 let activeExportTab = 'config';
 
+// ── Tileset ───────────────────────────────────────────────
+let tilesetImg = null;   // Image element when loaded, null otherwise
+let tilesetReady = false;
+
+// Tile positions in tileset (col, row in 16x16 grid)
+// Keep in sync with TILESET_TILE_MAP in tools/sprite_converter.py
+const TILESET_TILES = {
+    floorA: { col: 1, row: 13 },
+    floorB: { col: 2, row: 13 },
+    wall:   { col: 0, row: 12 },
+};
+const TILESET_FURN = {
+    desk:      { tiles: [[1,0],[2,0],[1,1],[2,1]], cols: 2, rows: 2 },
+    chair:     { tiles: [[4,16]], cols: 1, rows: 1 },
+    plant:     { tiles: [[3,28],[3,29]], cols: 1, rows: 2 },
+    bookshelf: { tiles: [[11,8],[11,9]], cols: 1, rows: 2 },
+    cooler:    { tiles: [[9,16],[9,17]], cols: 1, rows: 2 },
+};
+
+function loadTileset() {
+    const img = new Image();
+    img.onload = function() {
+        tilesetImg = img;
+        tilesetReady = true;
+        render();
+    };
+    img.onerror = function() {
+        console.log('Tileset not found, using fallback colors');
+    };
+    // Try relative path from tools/ directory
+    img.src = '../Office Tileset/Office Tileset All 16x16.png';
+}
+
+function drawTilesetTile(x, y, tileCol, tileRow) {
+    if (!tilesetReady) return false;
+    ctx.drawImage(tilesetImg,
+        tileCol * 16, tileRow * 16, 16, 16,
+        x, y, TS, TS);
+    return true;
+}
+
+function drawTilesetFurniture(f) {
+    const spec = TILESET_FURN[f.type];
+    if (!spec || !tilesetReady) return false;
+    const cat = FURN_CATALOG[f.type];
+    // Offset: if tileset sprite is taller than catalog footprint, draw upward
+    const tilesetH = spec.rows;
+    const catalogH = cat.h;
+    const yOffsetTiles = catalogH - tilesetH; // negative = draw above footprint
+    for (let i = 0; i < spec.tiles.length; i++) {
+        const [tc, tr] = spec.tiles[i];
+        const localCol = i % spec.cols;
+        const localRow = Math.floor(i / spec.cols);
+        const dx = (f.col + localCol) * TS;
+        const dy = (f.row + localRow + yOffsetTiles) * TS;
+        ctx.drawImage(tilesetImg,
+            tc * 16, tr * 16, 16, 16,
+            dx, dy, TS, TS);
+    }
+    return true;
+}
+
 // ── Canvas ─────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -247,6 +309,7 @@ function resizeCanvas() {
     canvas.height = gridRows * TS;
     canvas.style.width = canvas.width + 'px';
     canvas.style.height = canvas.height + 'px';
+    ctx.imageSmoothingEnabled = false;
 }
 
 // ── Tile helpers ───────────────────────────────────────────
@@ -434,11 +497,17 @@ function render() {
         for (let c = 0; c < gridCols; c++) {
             const x = c * TS, y = r * TS;
             if (tiles[r][c] === TILE_WALL) {
-                ctx.fillStyle = CLR_WALL;
+                if (!tilesetReady || !drawTilesetTile(x, y, TILESET_TILES.wall.col, TILESET_TILES.wall.row)) {
+                    ctx.fillStyle = CLR_WALL;
+                    ctx.fillRect(x, y, TS, TS);
+                }
             } else {
-                ctx.fillStyle = (r + c) % 2 === 0 ? CLR_FLOOR_ALT : CLR_FLOOR;
+                const ft = (r + c) % 2 === 0 ? TILESET_TILES.floorB : TILESET_TILES.floorA;
+                if (!tilesetReady || !drawTilesetTile(x, y, ft.col, ft.row)) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? CLR_FLOOR_ALT : CLR_FLOOR;
+                    ctx.fillRect(x, y, TS, TS);
+                }
             }
-            ctx.fillRect(x, y, TS, TS);
         }
     }
 
@@ -527,53 +596,48 @@ function drawFurnitureItem(f, selected) {
     const x = f.col * TS, y = f.row * TS;
     const w = cat.w * TS, h = cat.h * TS;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(x + 2, y + 2, w, h);
+    // Try tileset rendering first
+    if (tilesetReady && drawTilesetFurniture(f)) {
+        // Tileset rendered successfully
+    } else {
+        // Fallback: colored rectangles with details
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(x + 2, y + 2, w, h);
+        ctx.fillStyle = cat.color;
+        ctx.fillRect(x, y, w, h);
 
-    // Body
-    ctx.fillStyle = cat.color;
-    ctx.fillRect(x, y, w, h);
-
-    // Details per type
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    if (f.type === 'desk') {
-        // Monitor suggestion
-        ctx.fillRect(x + w * 0.3, y + h * 0.15, w * 0.4, h * 0.25);
-        // Keyboard
-        ctx.fillRect(x + w * 0.2, y + h * 0.55, w * 0.6, h * 0.12);
-    } else if (f.type === 'bookshelf') {
-        // Shelf lines
-        for (let i = 1; i < cat.h * 2; i++) {
-            ctx.fillRect(x + 2, y + (h / (cat.h * 2)) * i - 1, w - 4, 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        if (f.type === 'desk') {
+            ctx.fillRect(x + w * 0.3, y + h * 0.15, w * 0.4, h * 0.25);
+            ctx.fillRect(x + w * 0.2, y + h * 0.55, w * 0.6, h * 0.12);
+        } else if (f.type === 'bookshelf') {
+            for (let i = 1; i < cat.h * 2; i++) {
+                ctx.fillRect(x + 2, y + (h / (cat.h * 2)) * i - 1, w - 4, 2);
+            }
+        } else if (f.type === 'cooler') {
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(x + w * 0.2, y + h * 0.1, w * 0.6, h * 0.4);
+        } else if (f.type === 'plant') {
+            ctx.fillStyle = 'rgba(0,100,0,0.3)';
+            ctx.beginPath();
+            ctx.arc(x + w * 0.5, y + h * 0.3, w * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x + w * 0.25, y + h * 0.65, w * 0.5, h * 0.3);
+        } else if (f.type === 'chair') {
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.beginPath();
+            ctx.arc(x + w * 0.5, y + h * 0.5, w * 0.3, 0, Math.PI * 2);
+            ctx.fill();
         }
-    } else if (f.type === 'cooler') {
-        // Jug shape
-        ctx.fillStyle = 'rgba(255,255,255,0.2)';
-        ctx.fillRect(x + w * 0.2, y + h * 0.1, w * 0.6, h * 0.4);
-    } else if (f.type === 'plant') {
-        // Leaves
-        ctx.fillStyle = 'rgba(0,100,0,0.3)';
-        ctx.beginPath();
-        ctx.arc(x + w * 0.5, y + h * 0.3, w * 0.35, 0, Math.PI * 2);
-        ctx.fill();
-        // Pot
-        ctx.fillStyle = '#8B4513';
-        ctx.fillRect(x + w * 0.25, y + h * 0.65, w * 0.5, h * 0.3);
-    } else if (f.type === 'chair') {
-        // Seat circle
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.beginPath();
-        ctx.arc(x + w * 0.5, y + h * 0.5, w * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-    }
 
-    // Label
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = `bold ${Math.min(TS * 0.28, 12)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(cat.label, x + w / 2, y + h / 2);
+        // Label (only for fallback mode)
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = `bold ${Math.min(TS * 0.28, 12)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cat.label, x + w / 2, y + h / 2);
+    }
 
     // Selection highlight
     if (selected) {
@@ -1216,6 +1280,7 @@ function loadDefault() {
 // ── Initialize ─────────────────────────────────────────────
 loadDefault();
 resizeCanvas();
+loadTileset();
 render();
 updateUI();
 </script>

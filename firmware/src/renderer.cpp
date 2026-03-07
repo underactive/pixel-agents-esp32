@@ -3,6 +3,10 @@
 #include "sprites/characters.h"
 #include "sprites/furniture.h"
 #include "sprites/bubbles.h"
+// WHY: tiles.h is only generated when the Office Tileset PNG is present (see sprite_converter.py)
+#if __has_include("sprites/tiles.h")
+#include "sprites/tiles.h"
+#endif
 
 // ── Drawing wrappers (apply _yOffset, dispatch to canvas or TFT) ──
 
@@ -174,12 +178,21 @@ void Renderer::drawFloor(const TileType* tiles) {
         for (int c = 0; c < GRID_COLS; c++) {
             int x = c * TILE_SIZE;
             int y = r * TILE_SIZE;
+#if defined(HAS_TILESET_TILES)
+            if (tiles[r * GRID_COLS + c] == TileType::WALL) {
+                drawRGB565Sprite(x, y, TILE_WALL, TILE_SIZE, TILE_SIZE);
+            } else {
+                const uint16_t* floorTile = ((r + c) % 2 == 0) ? TILE_FLOOR_B : TILE_FLOOR_A;
+                drawRGB565Sprite(x, y, floorTile, TILE_SIZE, TILE_SIZE);
+            }
+#else
             if (tiles[r * GRID_COLS + c] == TileType::WALL) {
                 gfxFillRect(x, y, TILE_SIZE, TILE_SIZE, COLOR_WALL);
             } else {
                 uint16_t floorColor = ((r + c) % 2 == 0) ? COLOR_FLOOR_ALT : COLOR_FLOOR;
                 gfxFillRect(x, y, TILE_SIZE, TILE_SIZE, floorColor);
             }
+#endif
         }
     }
 }

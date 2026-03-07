@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.1.0
+**Current Version:** 0.2.0
 **Status:** In development
 
 ---
@@ -430,6 +430,7 @@ Version string appears in 2 files:
 | `firmware/src/touch_input.h/.cpp` | XPT2046 touch driver (CYD only) |
 | `firmware/src/sprites/characters.h` | Generated character sprite data (PROGMEM) |
 | `firmware/src/sprites/furniture.h` | Generated furniture sprite data (PROGMEM) |
+| `firmware/src/sprites/tiles.h` | Generated floor/wall tile data from tileset (PROGMEM, optional) |
 | `firmware/src/sprites/bubbles.h` | Generated speech bubble sprite data (PROGMEM) |
 | `companion/` | Python bridge service |
 | `companion/pixel_agents_bridge.py` | JSONL watcher + serial sender |
