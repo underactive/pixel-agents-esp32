@@ -411,8 +411,8 @@ void Renderer::drawStatusBar(OfficeState& office) {
 
     switch (office.getStatusMode()) {
         case StatusMode::OVERVIEW: {
-            int agentCount = office.getCharacterCount();
-            snprintf(buf, sizeof(buf), "%d agent%s", agentCount, agentCount != 1 ? "s" : "");
+            int activeCount = office.getActiveAgentCount();
+            snprintf(buf, sizeof(buf), "%d/%d active", activeCount, MAX_AGENTS);
             gfxDrawString(buf, 12, y + 1);
             if (!office.isConnected()) {
                 gfxDrawString("Disconnected", SCREEN_W - 80, y + 1);

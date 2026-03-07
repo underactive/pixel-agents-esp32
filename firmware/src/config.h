@@ -126,6 +126,30 @@ static constexpr Workstation WORKSTATIONS[] = {
 };
 static constexpr int NUM_WORKSTATIONS = sizeof(WORKSTATIONS) / sizeof(WORKSTATIONS[0]);
 
+// ── Social Zones ───────────────────────────────────────
+// Where idle characters hang out when not working at a desk
+enum class SocialZone : uint8_t {
+    BREAK_ROOM = 0,  // upper-right open area
+    LIBRARY    = 1   // lower-right reading nook
+};
+
+// Break room: open floor between top furniture and desk rows
+static constexpr int ZONE_BREAK_COL_MIN = 10;
+static constexpr int ZONE_BREAK_COL_MAX = 18;
+static constexpr int ZONE_BREAK_ROW_MIN = 3;
+static constexpr int ZONE_BREAK_ROW_MAX = 4;
+
+// Library: reading nook area with seats
+static constexpr int ZONE_LIB_COL_MIN = 12;
+static constexpr int ZONE_LIB_COL_MAX = 19;
+#if defined(BOARD_CYD)
+static constexpr int ZONE_LIB_ROW_MIN = 8;
+static constexpr int ZONE_LIB_ROW_MAX = 13;
+#else
+static constexpr int ZONE_LIB_ROW_MIN = 8;
+static constexpr int ZONE_LIB_ROW_MAX = 9;
+#endif
+
 // ── Status Bar Modes ───────────────────────────────────
 static constexpr int STATUS_MODE_COUNT = 5;
 enum class StatusMode : uint8_t {

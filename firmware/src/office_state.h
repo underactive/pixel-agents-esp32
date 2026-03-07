@@ -32,6 +32,8 @@ struct Character {
     // State tracking
     bool isActive;
     int8_t seatIdx;           // index into WORKSTATIONS, -1 if none
+    int8_t agentId;           // assigned agent ID, -1 if unassigned
+    SocialZone homeZone;      // which social zone this character idles in
     char toolName[MAX_TOOL_NAME_LEN + 1];
 
     // Speech bubble
@@ -40,7 +42,7 @@ struct Character {
 
     // Spawn/despawn effect
     float effectTimer;
-    bool alive;               // false = slot is free
+    bool alive;               // true once spawnAllCharacters() is called
 };
 
 struct UsageStats {
@@ -56,9 +58,10 @@ public:
     void init();
     void update(float dt);
 
+    // Character lifecycle
+    void spawnAllCharacters();          // called once from setup()
+
     // Agent management
-    void addAgent(uint8_t id, CharState initialState);
-    void removeAgent(uint8_t id);
     void setAgentState(uint8_t id, CharState state, const char* toolName);
     void setAgentCount(uint8_t count);
 
@@ -75,7 +78,8 @@ public:
     // Accessors
     Character* getCharacters() { return _chars; }
     const Character* getCharacters() const { return _chars; }
-    int getCharacterCount() const;
+    int getActiveAgentCount() const;   // count of characters at TYPE/READ
+    int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
     bool isConnected() const { return _connected; }
     void setConnected(bool c) { _connected = c; }
@@ -94,14 +98,16 @@ private:
     UsageStats _usage = {};
 
     void initTileMap();
-    int findFreeSlot() const;
-    int findCharById(uint8_t id) const;
+    int findCharByAgentId(uint8_t agentId) const;
     int findFreeSeat() const;
+    int findOrAssignChar(uint8_t agentId);
 
     // Character update
     void updateCharacter(Character& ch, float dt);
     void startWalk(Character& ch, int8_t goalCol, int8_t goalRow);
     void startWander(Character& ch);
+    void startZoneWander(Character& ch);
+    void walkToZone(Character& ch);
     void snapToSeat(Character& ch);
 
     // BFS pathfinding
