@@ -17,6 +17,16 @@
 - [ ] Open `tools/layout_editor.html` without tileset image — falls back to colored rectangles
 - [ ] Tileset tiles render crisp (no anti-aliasing blur) at scaled sizes
 
+### Tile Picker
+- [ ] Click "Tile Picker" button — modal opens showing tileset at 4x scale with grid overlay
+- [ ] Item list shows 8 items (Floor A/B, Wall, Desk, Chair, Plant, Bookshelf, Cooler) with preview thumbnails
+- [ ] Clicking an item highlights it and changes the hover cursor size to match (e.g., 2x2 for Desk)
+- [ ] Hover cursor snaps to tile grid and does not extend beyond tileset edges for multi-tile items
+- [ ] Clicking on tileset updates the item's tile coordinates and refreshes its preview thumbnail
+- [ ] "Copy Config" copies Python and JS coordinate config to clipboard (or logs to console if clipboard unavailable)
+- [ ] Closing the modal re-renders the layout editor with updated tileset selections
+- [ ] Escape key closes the modal without affecting the layout editor's own Escape behavior
+
 ### Companion Script
 - [ ] `python3 companion/pixel_agents_bridge.py --help` — shows usage
 - [ ] Without ESP32: prints "No ESP32 serial port found." and retries
