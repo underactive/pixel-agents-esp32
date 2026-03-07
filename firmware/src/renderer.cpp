@@ -274,18 +274,17 @@ void Renderer::drawCharacter(const Character& ch) {
         flipH = true;
     }
 
-    int templateEnum = static_cast<int>(renderDir) * FRAMES_PER_DIR + localFrame;
-    if (templateEnum >= CHAR_TEMPLATE_COUNT) return;
-    const uint8_t* tmpl = CHAR_TEMPLATES[templateEnum];
+    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + localFrame;
+    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
 
-    if (ch.palette >= NUM_PALETTES) return;
-    const uint16_t* palette = CHAR_PALETTES[ch.palette];
+    int charIdx = ch.palette % NUM_PALETTES;
+    const uint16_t* sprite = CHAR_SPRITES[charIdx][frameIdx];
 
     int sittingOffset = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
     int drawX = (int)(ch.x) - CHAR_W / 2;
     int drawY = (int)(ch.y + sittingOffset) - CHAR_H;
 
-    drawIndexedSprite(drawX, drawY, tmpl, CHAR_W, CHAR_H, palette, flipH);
+    drawRGB565SpriteFlip(drawX, drawY, sprite, CHAR_W, CHAR_H, flipH);
 }
 
 void Renderer::drawSpawnEffect(const Character& ch) {
@@ -302,12 +301,11 @@ void Renderer::drawSpawnEffect(const Character& ch) {
         flipH = true;
     }
 
-    int templateEnum = static_cast<int>(renderDir) * FRAMES_PER_DIR + 1;
-    if (templateEnum >= CHAR_TEMPLATE_COUNT) return;
-    const uint8_t* tmpl = CHAR_TEMPLATES[templateEnum];
+    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + 1; // standing frame
+    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
 
-    if (ch.palette >= NUM_PALETTES) return;
-    const uint16_t* palette = CHAR_PALETTES[ch.palette];
+    int charIdx = ch.palette % NUM_PALETTES;
+    const uint16_t* sprite = CHAR_SPRITES[charIdx][frameIdx];
 
     int drawX = (int)(ch.x) - CHAR_W / 2;
     int drawY = (int)(ch.y) - CHAR_H;
@@ -317,17 +315,8 @@ void Renderer::drawSpawnEffect(const Character& ch) {
     for (int col = 0; col < revealCols && col < CHAR_W; col++) {
         int srcCol = flipH ? (CHAR_W - 1 - col) : col;
         for (int row = 0; row < CHAR_H; row++) {
-            uint8_t px = tmpl[row * CHAR_W + srcCol];
-            if (px == PX_TRANSPARENT) continue;
-
-            uint16_t color;
-            if (px == PX_EYES) {
-                color = 0xFFFF;
-            } else if (px >= 1 && px <= 5) {
-                color = palette[px - 1];
-            } else {
-                continue;
-            }
+            uint16_t color = sprite[row * CHAR_W + srcCol];
+            if (color == 0x0000) continue; // transparent
 
             // Green tint for matrix effect
             if (progress < 0.8f) {
@@ -547,27 +536,16 @@ int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
     return 1;
 }
 
-void Renderer::drawIndexedSprite(int x, int y, const uint8_t* tmpl, int w, int h,
-                                  const uint16_t* palette, bool flipH) {
+void Renderer::drawRGB565SpriteFlip(int x, int y, const uint16_t* data, int w, int h, bool flipH) {
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
             int srcCol = flipH ? (w - 1 - col) : col;
-            uint8_t px = tmpl[row * w + srcCol];
-            if (px == PX_TRANSPARENT) continue;
-
-            uint16_t color;
-            if (px == PX_EYES) {
-                color = 0xFFFF;
-            } else if (px >= 1 && px <= 5) {
-                color = palette[px - 1];
-            } else {
-                continue;
-            }
-
+            uint16_t px = data[row * w + srcCol];
+            if (px == 0x0000) continue; // transparent
             int dx = x + col;
             int dy = y + row;
             if (dx >= 0 && dx < SCREEN_W && dy >= 0 && dy < SCREEN_H) {
-                gfxDrawPixel(dx, dy, color);
+                gfxDrawPixel(dx, dy, px);
             }
         }
     }

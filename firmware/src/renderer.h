@@ -27,9 +27,8 @@ private:
     void drawSpawnEffect(const Character& ch);
 
     // Sprite rendering helpers
-    void drawIndexedSprite(int x, int y, const uint8_t* tmpl, int w, int h,
-                          const uint16_t* palette, bool flipH = false);
     void drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h);
+    void drawRGB565SpriteFlip(int x, int y, const uint16_t* data, int w, int h, bool flipH);
 
     // Get local frame index (0-6) for animation state
     int getFrameIndex(CharState state, uint8_t frame) const;

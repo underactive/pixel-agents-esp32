@@ -21,11 +21,10 @@ static constexpr int GRID_ROWS = 10;   // 170 / 16 = 10 (with 10px for status ba
 
 // ── Character Sprites ───────────────────────────────────
 static constexpr int CHAR_W = 16;
-static constexpr int CHAR_H = 24;
-static constexpr int NUM_PALETTES = 6;
-static constexpr int PALETTE_COLORS = 6;  // hair, skin, shirt, pants, shoes, eyes(white)
-static constexpr int FRAMES_PER_DIR = 7;  // walk1, walk2, walk3, type1, type2, read1, read2
-static constexpr int NUM_DIRS_STORED = 3; // DOWN, UP, RIGHT (LEFT = flip RIGHT)
+static constexpr int CHAR_H = 32;          // 16x32 frames (art bottom-aligned, top padded)
+static constexpr int NUM_PALETTES = 6;     // number of character variants
+static constexpr int FRAMES_PER_DIR = 7;   // walk1, walk2, walk3, type1, type2, read1, read2
+static constexpr int NUM_DIRS_STORED = 3;  // DOWN, UP, RIGHT (LEFT = flip RIGHT)
 
 // ── Template Pixel Values ───────────────────────────────
 static constexpr uint8_t PX_TRANSPARENT = 0;
