@@ -22,6 +22,7 @@ private:
     void drawFloor(const TileType* tiles);
     void drawFurniture();
     void drawCharacter(const Character& ch);
+    void drawDog(const Pet& pet);
     void drawBubble(const Character& ch);
     void drawStatusBar(OfficeState& office);
     void drawSpawnEffect(const Character& ch);
