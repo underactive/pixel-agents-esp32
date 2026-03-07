@@ -27,6 +27,23 @@
 - [ ] Closing the modal re-renders the layout editor with updated tileset selections
 - [ ] Escape key closes the modal without affecting the layout editor's own Escape behavior
 
+### Item Type Classification
+- [ ] Default layout shows checkerboard floor pattern (floorA/floorB alternating)
+- [ ] Click "Floor" tool — sidebar shows "Floor Variants" with Floor A, Floor B items
+- [ ] Select a floor variant — paint on grid places only that variant (no auto-checkerboard)
+- [ ] Click "Wall" tool — sidebar shows "Wall Variants" with Wall item
+- [ ] Click "Select" or pick furniture — sidebar reverts to "Furniture" list
+- [ ] Footer text includes variant name when floor/wall tool is active (e.g., "Floor (Floor A)")
+- [ ] Tile Picker "New Item" form shows type dropdown (Furniture/Floor/Wall)
+- [ ] Selecting "Floor" or "Wall" type hides W/H dimension inputs
+- [ ] Create custom floor item — appears in Floor Variants sidebar when Floor tool active
+- [ ] Assign tileset graphic to custom floor item — paint with it on grid
+- [ ] Delete custom floor/wall item — grid tiles revert to default, item removed from sidebar
+- [ ] Create custom wall variant — appears in Wall Variants when Wall tool active
+- [ ] Export JSON produces version 2 with string tile keys
+- [ ] Import a v1 JSON (integer tiles) — auto-migrated to string keys
+- [ ] Page reload — custom items persist from localStorage
+
 ### Companion Script
 - [ ] `python3 companion/pixel_agents_bridge.py --help` — shows usage
 - [ ] Without ESP32: prints "No ESP32 serial port found." and retries
