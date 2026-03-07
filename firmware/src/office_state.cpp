@@ -157,29 +157,22 @@ void OfficeState::initTileMap() {
     _tiles[12][3] = TileType::BLOCKED;
     // Computer G at col 7, row 12
     _tiles[12][7] = TileType::BLOCKED;
-    // Laptop B at col 2, rows 7-8
+    // Laptop B at col 2, rows 6-7
+    _tiles[6][2] = TileType::BLOCKED;
     _tiles[7][2] = TileType::BLOCKED;
-    _tiles[8][2] = TileType::BLOCKED;
-    // Computer B at col 7, rows 7-8
+    // Computer B at col 7, rows 6-7
+    _tiles[6][7] = TileType::BLOCKED;
+    _tiles[6][8] = TileType::BLOCKED;
     _tiles[7][7] = TileType::BLOCKED;
     _tiles[7][8] = TileType::BLOCKED;
-    _tiles[8][7] = TileType::BLOCKED;
-    _tiles[8][8] = TileType::BLOCKED;
-    // Computer F at col 7, rows 4-5
-    _tiles[4][7] = TileType::BLOCKED;
-    _tiles[4][8] = TileType::BLOCKED;
-    _tiles[5][7] = TileType::BLOCKED;
-    _tiles[5][8] = TileType::BLOCKED;
-    // Laptop E at col 2, row 5
-    _tiles[5][2] = TileType::BLOCKED;
-    // Plant Bottom Brown at col 10, row 13
-    _tiles[13][10] = TileType::BLOCKED;
+    // Plant Bottom Brown at col 9, row 13
+    _tiles[13][9] = TileType::BLOCKED;
     // Plant Bottom Brown at col 0, row 13
     _tiles[13][0] = TileType::BLOCKED;
     // Plant Top C at col 0, row 12
     _tiles[12][0] = TileType::BLOCKED;
-    // Plant Top D at col 10, row 12
-    _tiles[12][10] = TileType::BLOCKED;
+    // Plant Top D at col 9, row 12
+    _tiles[12][9] = TileType::BLOCKED;
     // Bookshelf A at col 12, rows 5-7
     _tiles[5][12] = TileType::BLOCKED;
     _tiles[5][13] = TileType::BLOCKED;
@@ -208,38 +201,10 @@ void OfficeState::initTileMap() {
     _tiles[6][19] = TileType::BLOCKED;
     _tiles[7][18] = TileType::BLOCKED;
     _tiles[7][19] = TileType::BLOCKED;
-    // Seat 1 at col 17, rows 8-9
-    _tiles[8][17] = TileType::BLOCKED;
-    _tiles[9][17] = TileType::BLOCKED;
-    // Seat 1 at col 15, rows 8-9
-    _tiles[8][15] = TileType::BLOCKED;
-    _tiles[9][15] = TileType::BLOCKED;
-    // Seat 2 at col 15, rows 12-13
-    _tiles[12][15] = TileType::BLOCKED;
-    _tiles[13][15] = TileType::BLOCKED;
-    // Seat 2 at col 17, rows 12-13
-    _tiles[12][17] = TileType::BLOCKED;
-    _tiles[13][17] = TileType::BLOCKED;
-    // Seat 3 at col 13, rows 9-10
-    _tiles[9][13] = TileType::BLOCKED;
-    _tiles[10][13] = TileType::BLOCKED;
-    // Seat 3 at col 13, rows 11-12
-    _tiles[11][13] = TileType::BLOCKED;
-    _tiles[12][13] = TileType::BLOCKED;
-    // Seat 4 at col 19, rows 9-10
-    _tiles[9][19] = TileType::BLOCKED;
-    _tiles[10][19] = TileType::BLOCKED;
-    // Seat 4 at col 19, rows 11-12
-    _tiles[11][19] = TileType::BLOCKED;
-    _tiles[12][19] = TileType::BLOCKED;
-    // Plant Top G at col 14, row 7
-    _tiles[7][14] = TileType::BLOCKED;
-    // Plant Bottom White at col 14, row 8
-    _tiles[8][14] = TileType::BLOCKED;
-    // Plant Top G at col 18, row 7
-    _tiles[7][18] = TileType::BLOCKED;
-    // Plant Bottom White at col 18, row 8
-    _tiles[8][18] = TileType::BLOCKED;
+    // Plant Top G at col 11, row 5
+    _tiles[5][11] = TileType::BLOCKED;
+    // Plant Bottom White at col 11, row 6
+    _tiles[6][11] = TileType::BLOCKED;
     // Plant Top 2 at col 18, row 12
     _tiles[12][18] = TileType::BLOCKED;
     // Plant Bottom White at col 18, row 13
@@ -275,18 +240,37 @@ void OfficeState::initTileMap() {
     _tiles[1][0] = TileType::BLOCKED;
     // Plant Bottom Brown at col 9, row 1
     _tiles[1][9] = TileType::BLOCKED;
-    // Boxes 1 at col 1, rows 1-2
-    _tiles[1][1] = TileType::BLOCKED;
-    _tiles[1][2] = TileType::BLOCKED;
+    // Table at col 19, rows 3-4
+    _tiles[3][19] = TileType::BLOCKED;
+    _tiles[4][19] = TileType::BLOCKED;
+    // Laptop C at col 6, rows 4-5
+    _tiles[4][6] = TileType::BLOCKED;
+    _tiles[5][6] = TileType::BLOCKED;
+    // Laptop D at col 3, rows 4-5
+    _tiles[4][3] = TileType::BLOCKED;
+    _tiles[5][3] = TileType::BLOCKED;
+    // Box at col 8, row 3
+    _tiles[3][8] = TileType::BLOCKED;
+    // Boxes 2 at col 6, rows 2-3
+    _tiles[2][6] = TileType::BLOCKED;
+    _tiles[2][7] = TileType::BLOCKED;
+    _tiles[3][6] = TileType::BLOCKED;
+    _tiles[3][7] = TileType::BLOCKED;
+    // Boxes 1 at col 1, rows 2-3
     _tiles[2][1] = TileType::BLOCKED;
     _tiles[2][2] = TileType::BLOCKED;
-    // Boxes 2 at col 4, rows 1-2
-    _tiles[1][4] = TileType::BLOCKED;
-    _tiles[1][5] = TileType::BLOCKED;
-    _tiles[2][4] = TileType::BLOCKED;
-    _tiles[2][5] = TileType::BLOCKED;
-    // Box at col 6, row 2
-    _tiles[2][6] = TileType::BLOCKED;
+    _tiles[3][1] = TileType::BLOCKED;
+    _tiles[3][2] = TileType::BLOCKED;
+    // Plant Top H at col 11, row 6
+    _tiles[6][11] = TileType::BLOCKED;
+    // Plant Bottom White at col 11, row 7
+    _tiles[7][11] = TileType::BLOCKED;
+    // Microwave at col 14, row 1
+    _tiles[1][14] = TileType::BLOCKED;
+    _tiles[1][15] = TileType::BLOCKED;
+    // Trash at col 11, rows 1-2
+    _tiles[1][11] = TileType::BLOCKED;
+    _tiles[2][11] = TileType::BLOCKED;
 }
 
 int OfficeState::findCharByAgentId(uint8_t agentId) const {
