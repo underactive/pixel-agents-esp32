@@ -11,7 +11,7 @@ __pycache__/
 .idea/
 
 # Assets
-Office Tileset/
+assets/Office Tileset/
 
 # Build artifacts
 *.o

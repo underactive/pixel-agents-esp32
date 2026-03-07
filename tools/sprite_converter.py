@@ -29,7 +29,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 FIRMWARE_SPRITES_DIR = PROJECT_ROOT / "firmware" / "src" / "sprites"
 VALIDATION_HTML_PATH = SCRIPT_DIR / "sprite_validation.html"
-TILESET_PATH = PROJECT_ROOT / "Office Tileset" / "Office Tileset All 16x16.png"
+TILESET_PATH = PROJECT_ROOT / "assets" / "Office Tileset" / "Office Tileset All 16x16.png"
 
 # ---------------------------------------------------------------------------
 # RGB565 conversion helpers
