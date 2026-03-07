@@ -160,6 +160,65 @@ enum class StatusMode : uint8_t {
     UPTIME      = 4,  // device uptime
 };
 
+// ── Dog Pet ────────────────────────────────────────────
+static constexpr int DOG_W = 32;
+static constexpr int DOG_H = 24;
+static constexpr float DOG_WALK_SPEED_PX_PER_SEC = 40.0f;
+static constexpr float DOG_WALK_FRAME_DURATION_SEC = 0.12f;
+
+// Behavior timing (seconds)
+static constexpr float DOG_FOLLOW_DURATION_SEC  = 20.0f * 60.0f;  // 20 min follow phase
+static constexpr float DOG_WANDER_DURATION_SEC  = 20.0f * 60.0f;  // 20 min wander phase
+static constexpr float DOG_PICK_TARGET_SEC      = 60.0f * 60.0f;  // pick new character every hour
+static constexpr float DOG_NAP_INTERVAL_SEC     = 4.0f * 60.0f * 60.0f;  // nap every 4 hours
+static constexpr float DOG_NAP_DURATION_SEC     = 30.0f * 60.0f;  // nap for 30 min
+static constexpr float DOG_FOLLOW_REPATHFIND_SEC = 8.0f;  // re-pathfind interval when following
+static constexpr int   DOG_FOLLOW_RADIUS        = 5;      // stay within 5 tiles of target
+static constexpr int   DOG_FOLLOW_HYSTERESIS    = 3;      // only re-path if target moved >3 tiles
+
+// Sprite frame indices (18 frames, 24x24)
+static constexpr int DOG_IDLE1_IDX        = 0;
+static constexpr int DOG_IDLE2_IDX        = 1;
+static constexpr int DOG_BLINK_IDX        = 2;
+static constexpr int DOG_SIT_IDX          = 3;
+static constexpr int DOG_HAPPY_IDX        = 4;
+static constexpr int DOG_DOWN_WALK_BASE   = 5;   // walk1=5, stand=6, walk3=7
+static constexpr int DOG_UP_WALK_BASE     = 8;   // walk1=8, stand=9, walk3=10
+static constexpr int DOG_RIGHT_WALK_BASE  = 11;  // walk1=11, stand=12, walk3=13
+static constexpr int DOG_TAIL1_IDX        = 14;
+static constexpr int DOG_TAIL2_IDX        = 15;
+static constexpr int DOG_NAP_IDX          = 16;
+static constexpr int DOG_SLEEP_Z_IDX      = 17;
+
+// Idle animation timing
+static constexpr float DOG_IDLE_FRAME_SEC       = 0.5f;   // breathing cycle speed
+static constexpr float DOG_BLINK_MIN_SEC        = 3.0f;   // min time between blinks
+static constexpr float DOG_BLINK_MAX_SEC        = 8.0f;   // max time between blinks
+static constexpr float DOG_BLINK_DURATION_SEC   = 0.15f;  // blink frame duration
+static constexpr float DOG_HAPPY_DURATION_SEC   = 3.0f;   // tongue-out duration
+static constexpr float DOG_HAPPY_CHANCE         = 0.1f;   // 10% chance per idle wander pause
+
+// Tail wag
+static constexpr float DOG_TAIL_WAG_DURATION_SEC  = 15.0f;   // max wag time
+static constexpr float DOG_TAIL_WAG_COOLDOWN_SEC  = 300.0f;  // 5 min cooldown
+static constexpr int   DOG_TAIL_WAG_PROXIMITY     = 1;       // within 1 tile triggers wag
+static constexpr float DOG_TAIL_FRAME_SEC         = 0.2f;    // tail wag animation speed
+
+// Nap Z animation
+static constexpr float DOG_NAP_Z_TOGGLE_SEC = 2.0f;  // alternate NAP/SLEEP_Z
+
+// Wander pause timing (seconds)
+static constexpr float DOG_WANDER_PAUSE_MIN_SEC = 2.0f;
+static constexpr float DOG_WANDER_PAUSE_MAX_SEC = 6.0f;
+static constexpr float DOG_WANDER_MOVE_MIN_SEC  = 3.0f;
+static constexpr float DOG_WANDER_MOVE_MAX_SEC  = 10.0f;
+
+enum class DogBehavior : uint8_t {
+    WANDER  = 0,
+    FOLLOW  = 1,
+    NAP     = 2
+};
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;

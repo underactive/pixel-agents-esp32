@@ -89,6 +89,19 @@
 - [ ] All 6 agents active simultaneously -- all 6 characters seated at desks
 - [ ] All 6 agents go idle -- all 6 characters walk back to their zones
 
+### French Bulldog Pet
+- [ ] Dog appears on screen after boot, positioned on a walkable floor tile
+- [ ] Dog walk animation cycles smoothly (4-frame cycle visible during movement)
+- [ ] Dog faces correct direction when moving (down, up, right, left-flip)
+- [ ] Dog stands still with standing frame when not walking
+- [ ] Dog nap sprite renders correctly (lying down pose)
+- [ ] Dog depth-sorts correctly with characters (behind higher-Y characters, in front of lower-Y)
+- [ ] Dog wanders to random tiles during WANDER phase (2-10s pauses between moves)
+- [ ] Dog follows a character during FOLLOW phase (stays within ~5 tiles)
+- [ ] Dog does not walk through walls or furniture (respects BFS pathfinding)
+- [ ] Dog walks smoothly between tiles (no teleporting or jittering)
+- [ ] `python3 tools/convert_dog.py` generates `firmware/src/sprites/dog.h` without errors
+
 ### Connected Scene (Companion Running)
 - [ ] Status bar shows green dot when companion sends heartbeats
 - [ ] Agent count updates as Claude Code sessions start/stop

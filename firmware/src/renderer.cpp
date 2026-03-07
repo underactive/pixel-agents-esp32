@@ -10,6 +10,7 @@
 #include "sprites/furniture.h"
 #endif
 #include "sprites/bubbles.h"
+#include "sprites/dog.h"
 
 // ── Drawing wrappers (apply _yOffset, dispatch to canvas or TFT) ──
 
@@ -135,37 +136,56 @@ void Renderer::drawScene(OfficeState& office) {
     // 3. Draw furniture
     drawFurniture();
 
-    // 4. Collect and depth-sort characters
+    // 4. Collect and depth-sort characters + dog
+    // Use index -1 to represent the dog in the sort
     Character* chars = office.getCharacters();
-    int indices[MAX_AGENTS];
+    const Pet& pet = office.getPet();
+    int indices[MAX_AGENTS + 1]; // +1 for dog
+    float sortY[MAX_AGENTS + 1];
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (chars[i].alive) {
-            indices[count++] = i;
+            indices[count] = i;
+            sortY[count] = chars[i].y;
+            count++;
         }
     }
+    // Add dog as index -1
+    indices[count] = -1;
+    sortY[count] = pet.y;
+    count++;
+
+    // Insertion sort by Y
     for (int i = 1; i < count; i++) {
-        int key = indices[i];
+        int keyIdx = indices[i];
+        float keyY = sortY[i];
         int j = i - 1;
-        while (j >= 0 && chars[indices[j]].y > chars[key].y) {
+        while (j >= 0 && sortY[j] > keyY) {
             indices[j + 1] = indices[j];
+            sortY[j + 1] = sortY[j];
             j--;
         }
-        indices[j + 1] = key;
+        indices[j + 1] = keyIdx;
+        sortY[j + 1] = keyY;
     }
 
-    // 5. Draw characters
+    // 5. Draw characters and dog in depth order
     for (int i = 0; i < count; i++) {
-        const Character& ch = chars[indices[i]];
-        if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
-            drawSpawnEffect(ch);
+        if (indices[i] == -1) {
+            drawDog(pet);
         } else {
-            drawCharacter(ch);
+            const Character& ch = chars[indices[i]];
+            if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
+                drawSpawnEffect(ch);
+            } else {
+                drawCharacter(ch);
+            }
         }
     }
 
-    // 6. Draw speech bubbles
+    // 6. Draw speech bubbles (skip dog index -1)
     for (int i = 0; i < count; i++) {
+        if (indices[i] < 0) continue;
         const Character& ch = chars[indices[i]];
         if (ch.bubbleType > 0) {
             drawBubble(ch);
@@ -285,6 +305,54 @@ void Renderer::drawCharacter(const Character& ch) {
     int drawY = (int)(ch.y + sittingOffset) - CHAR_H;
 
     drawRGB565SpriteFlip(drawX, drawY, sprite, CHAR_W, CHAR_H, flipH);
+}
+
+void Renderer::drawDog(const Pet& pet) {
+    int frameIdx;
+    bool flipH = false;
+
+    if (pet.behavior == DogBehavior::NAP) {
+        frameIdx = pet.showingZ ? DOG_SLEEP_Z_IDX : DOG_NAP_IDX;
+    } else if (pet.tailWagTimer > 0) {
+        // Tail wag (right-facing frames); flip if dog faces left
+        frameIdx = (pet.tailFrame % 2 == 0) ? DOG_TAIL1_IDX : DOG_TAIL2_IDX;
+        if (pet.dir == Dir::LEFT) flipH = true;
+    } else if (pet.isSitting) {
+        frameIdx = DOG_SIT_IDX;
+    } else if (pet.walking) {
+        // Walk cycle: [walk1, stand, walk3, stand]
+        static const int WALK_CYCLE[] = {0, 1, 2, 1};
+        int localFrame = WALK_CYCLE[pet.frame % 4];
+
+        Dir renderDir = pet.dir;
+        if (pet.dir == Dir::LEFT) {
+            renderDir = Dir::RIGHT;
+            flipH = true;
+        }
+        int dirBase;
+        switch (renderDir) {
+            case Dir::UP:    dirBase = DOG_UP_WALK_BASE;    break;
+            case Dir::RIGHT: dirBase = DOG_RIGHT_WALK_BASE; break;
+            default:         dirBase = DOG_DOWN_WALK_BASE;  break;
+        }
+        frameIdx = dirBase + localFrame;
+    } else {
+        // Idle: blink > happy > breathing
+        if (pet.isBlinking) {
+            frameIdx = DOG_BLINK_IDX;
+        } else if (pet.isHappy) {
+            frameIdx = DOG_HAPPY_IDX;
+        } else {
+            frameIdx = (pet.idleFrame == 0) ? DOG_IDLE1_IDX : DOG_IDLE2_IDX;
+        }
+    }
+
+    if (frameIdx < 0 || frameIdx >= DOG_FRAME_COUNT) frameIdx = DOG_IDLE1_IDX;
+
+    const uint16_t* sprite = (const uint16_t*)pgm_read_ptr(&DOG_SPRITES[frameIdx]);
+    int drawX = (int)(pet.x) - DOG_W / 2;
+    int drawY = (int)(pet.y) - DOG_H;
+    drawRGB565SpriteFlip(drawX, drawY, sprite, DOG_W, DOG_H, flipH);
 }
 
 void Renderer::drawSpawnEffect(const Character& ch) {
