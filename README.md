@@ -46,7 +46,28 @@ python3 tools/sprite_converter.py
 
 This creates C header files in `firmware/src/sprites/` from the built-in sprite definitions. Open `tools/sprite_validation.html` in a browser to visually verify the sprites.
 
-### 2. Build & Flash Firmware
+### 2. Customize the Office Layout (Optional)
+
+The layout editor lets you design the office floor plan, place furniture, assign tileset graphics, and export firmware-ready code.
+
+**Important:** The editor must be served via HTTP — opening the HTML file directly (`file://`) will cause canvas security errors when exporting tile sprites.
+
+```bash
+# From the project root:
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/tools/layout_editor.html` in your browser.
+
+The editor has four export tabs:
+- **config.h** — workstation positions
+- **office_state** — tile map and furniture blocking
+- **renderer** — `drawFurniture()` with all sprite draw calls
+- **tiles.h** — RGB565 sprite data for floor, wall, and furniture tiles
+
+Copy each tab's output into the corresponding firmware file, then build and flash.
+
+### 3. Build & Flash Firmware
 
 ```bash
 cd firmware
@@ -60,7 +81,7 @@ pio run -e cyd-2432s028r --target upload
 
 PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically on first build.
 
-### 3. Start the Companion Bridge
+### 4. Start the Companion Bridge
 
 ```bash
 cd companion
@@ -76,7 +97,7 @@ The bridge auto-detects the ESP32 serial port. To specify manually:
 python3 pixel_agents_bridge.py --port /dev/cu.usbmodemXXXX
 ```
 
-### 4. Use Claude Code
+### 5. Use Claude Code
 
 Start using Claude Code as normal. The display will show your agents in the office scene.
 
@@ -115,6 +136,7 @@ pixel-agents/
       sprites/           # Generated PROGMEM sprite data
         characters.h
         furniture.h
+        tiles.h          # Floor/wall/furniture from layout editor
         bubbles.h
   companion/             # Python bridge service
     pixel_agents_bridge.py
@@ -122,6 +144,7 @@ pixel-agents/
   tools/                 # Build tools
     sprite_converter.py
     sprite_validation.html  # Generated visual check
+    layout_editor.html      # Office layout editor (serve via HTTP)
 ```
 
 ## License
