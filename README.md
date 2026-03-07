@@ -125,6 +125,8 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 
 ```
 pixel-agents/
+  assets/                # External art assets (gitignored)
+    Office Tileset/      # 16x16 tileset used by sprite_converter
   firmware/              # ESP32 PlatformIO project
     platformio.ini
     src/
@@ -146,6 +148,12 @@ pixel-agents/
     sprite_validation.html  # Generated visual check
     layout_editor.html      # Office layout editor (serve via HTTP)
 ```
+
+## Office Assets
+
+The office tileset used in this project and available via the extension is [Office Interior Tileset (16x16)](https://donarg.itch.io/office-interior-tileset-16x16) by Donarg, available on itch.io for $2 USD.
+
+This is the only part of the project that is not freely available. The tileset is not included in this repository due to its license. To use Pixel Agents locally with the full set of office furniture and decorations, purchase the tileset, unzip the file and move the "Office Tileset" directory from the expanded zip into the `assets/` directory. Otherwise it will fallback to a default tileset.
 
 ## License
 
