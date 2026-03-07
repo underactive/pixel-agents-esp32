@@ -3,13 +3,19 @@
 ## Pre-Hardware (Desktop Verification)
 
 ### Sprite Converter
-- [ ] Run `python3 tools/sprite_converter.py` — generates all 4 output files without errors
+- [ ] Run `python3 tools/sprite_converter.py` — generates all 5 output files without errors (includes tiles.h when tileset present)
+- [ ] Run `python3 tools/sprite_converter.py --no-tileset` — generates 4 files without tiles.h, removes stale tiles.h if present
 - [ ] Open `tools/sprite_validation.html` in browser — all sprites render correctly at 4x zoom
 - [ ] Characters have distinct palettes (6 color sets visible)
 - [ ] Walk frames show progressive leg/arm motion
 - [ ] Type/Read frames show distinct poses
 - [ ] Furniture sprites are recognizable (desk, chair, plant, bookshelf, cooler)
 - [ ] Bubble sprites show "?" (permission) and "..." (waiting) icons
+
+### Layout Editor
+- [ ] Open `tools/layout_editor.html` in browser (via HTTP server) — tileset artwork renders for floor, walls, and furniture
+- [ ] Open `tools/layout_editor.html` without tileset image — falls back to colored rectangles
+- [ ] Tileset tiles render crisp (no anti-aliasing blur) at scaled sizes
 
 ### Companion Script
 - [ ] `python3 companion/pixel_agents_bridge.py --help` — shows usage
@@ -24,6 +30,10 @@
 
 ## Hardware Testing (Requires LILYGO T-Display S3)
 
+### Build Verification
+- [ ] Both board targets build with tiles.h present (tileset mode)
+- [ ] Both board targets build without tiles.h (fallback mode)
+
 ### Display Bootstrap
 - [ ] Upload firmware via PlatformIO — compiles and uploads without errors
 - [ ] Splash screen appears: "Pixel Agents" title, connection instructions
@@ -35,7 +45,10 @@
 - [ ] Status bar shows "0 agents"
 - [ ] Floor tiles render with checkerboard pattern
 - [ ] Wall row (top) renders in different shade
-- [ ] Furniture visible: desks (2x2), chairs, plant, bookshelf, cooler
+- [ ] Furniture visible: desks (2x2), chairs, plant, bookshelf, cooler (tileset artwork when generated with tileset)
+- [ ] Floor tiles render with tileset artwork (wood panel checkerboard) when tiles.h is present
+- [ ] Wall tiles render with tileset artwork when tiles.h is present
+- [ ] Floor/wall fall back to solid colors when built without tiles.h
 
 ### Connected Scene (Companion Running)
 - [ ] Status bar shows green dot when companion sends heartbeats

@@ -6,14 +6,19 @@ Converts the VS Code extension's sprite definitions into:
   - firmware/src/sprites/characters.h  (indexed templates + palettes)
   - firmware/src/sprites/furniture.h   (RGB565 PROGMEM arrays)
   - firmware/src/sprites/bubbles.h     (RGB565 PROGMEM arrays)
+  - firmware/src/sprites/tiles.h       (RGB565 floor/wall tiles from tileset)
   - tools/sprite_validation.html       (visual validation page)
 
-Usage:
-    python3 tools/sprite_converter.py
+When the Office Tileset PNG is present, furniture sprites and floor/wall tiles
+are extracted from it. Otherwise, hand-drawn fallback sprites are used.
 
-No external dependencies required.
+Usage:
+    python3 tools/sprite_converter.py [--no-tileset]
+
+Tileset extraction requires Pillow (pip install Pillow).
 """
 
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
@@ -24,6 +29,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 FIRMWARE_SPRITES_DIR = PROJECT_ROOT / "firmware" / "src" / "sprites"
 VALIDATION_HTML_PATH = SCRIPT_DIR / "sprite_validation.html"
+TILESET_PATH = PROJECT_ROOT / "Office Tileset" / "Office Tileset All 16x16.png"
 
 # ---------------------------------------------------------------------------
 # RGB565 conversion helpers
@@ -55,6 +61,162 @@ def hex_to_rgb565(hex_color: str) -> int:
 # because no sprite pixel uses pure black -- the darkest color is #111111
 # which maps to a non-zero RGB565 value.
 TRANSPARENT_RGB565 = 0x0000
+
+# ---------------------------------------------------------------------------
+# Office Tileset extraction
+# ---------------------------------------------------------------------------
+
+# Tile positions in the 16x16 grid (col, row) within the 256x512 spritesheet.
+# Each tile is 16x16 pixels. Multi-tile sprites list tiles left-to-right,
+# top-to-bottom.
+
+TILESET_TILE_MAP = {
+    # Floor/wall tiles (16x16 each)
+    "TILE_FLOOR_A": [(1, 13)],             # tan wood floor
+    "TILE_FLOOR_B": [(2, 13)],             # lighter variant for checkerboard
+    "TILE_WALL":    [(0, 12)],             # tan wall panel
+
+    # Furniture composites (multi-tile, listed L-R then T-B)
+    "DESK": {                              # 32x32 (2x2 tiles)
+        "tiles": [(1, 0), (2, 0),
+                  (1, 1), (2, 1)],
+        "tile_cols": 2, "tile_rows": 2,
+    },
+    "CHAIR": {                             # 16x16 (1x1 tile)
+        "tiles": [(4, 16)],
+        "tile_cols": 1, "tile_rows": 1,
+    },
+    "BOOKSHELF": {                         # 16x32 (1x2 tiles) -- dark bookshelf with books
+        "tiles": [(11, 8),
+                  (11, 9)],
+        "tile_cols": 1, "tile_rows": 2,
+    },
+    "PLANT": {                             # 16x32 (1x2 tiles) -- brown pot plant
+        "tiles": [(3, 28),
+                  (3, 29)],
+        "tile_cols": 1, "tile_rows": 2,
+    },
+    "COOLER": {                            # 16x32 (1x2 tiles) -- water cooler
+        "tiles": [(9, 16),
+                  (9, 17)],
+        "tile_cols": 1, "tile_rows": 2,
+    },
+    "PC": {                                # 16x16 (1x1 tile) -- small monitor
+        "tiles": [(12, 20)],
+        "tile_cols": 1, "tile_rows": 1,
+    },
+    "LAMP": {                              # 16x16 (1x1 tile) -- clock (repurposed)
+        "tiles": [(0, 20)],
+        "tile_cols": 1, "tile_rows": 1,
+    },
+    "WHITEBOARD": {                        # 32x16 (2x1 tiles) -- data dashboard
+        "tiles": [(7, 26), (8, 26)],
+        "tile_cols": 2, "tile_rows": 1,
+    },
+}
+
+
+def _load_tileset() -> "Optional[Image.Image]":
+    """Try to load the Office Tileset PNG. Returns None if unavailable."""
+    if not TILESET_PATH.exists():
+        return None
+    try:
+        from PIL import Image
+        with Image.open(TILESET_PATH) as raw:
+            return raw.convert("RGBA")
+    except ImportError:
+        print("  WARNING: Pillow not installed, skipping tileset extraction")
+        return None
+    except Exception as e:
+        print(f"  WARNING: Failed to load tileset: {e}")
+        return None
+
+
+def _extract_tile_rgb565(img: "Image.Image", col: int, row: int) -> List[int]:
+    """Extract a single 16x16 tile from the tileset as flat RGB565 list."""
+    tile = img.crop((col * 16, row * 16, (col + 1) * 16, (row + 1) * 16))
+    pixels = list(tile.tobytes())
+    pixels = [(pixels[i], pixels[i+1], pixels[i+2], pixels[i+3]) for i in range(0, len(pixels), 4)]
+    result: List[int] = []
+    for r, g, b, a in pixels:
+        if a < 128:
+            result.append(TRANSPARENT_RGB565)
+        else:
+            result.append(rgb_to_rgb565(r, g, b))
+    return result
+
+
+def _extract_composite_rgb565(img: "Image.Image", tile_specs: List[Tuple[int, int]],
+                               tile_cols: int, tile_rows: int) -> Tuple[List[int], int, int]:
+    """Extract a multi-tile composite sprite as flat RGB565 list.
+
+    Returns (flat_data, pixel_width, pixel_height).
+    """
+    w = tile_cols * 16
+    h = tile_rows * 16
+    result = [TRANSPARENT_RGB565] * (w * h)
+
+    for idx, (col, row) in enumerate(tile_specs):
+        tile_c = idx % tile_cols
+        tile_r = idx // tile_cols
+        tile_data = _extract_tile_rgb565(img, col, row)
+
+        for py in range(16):
+            for px in range(16):
+                dest_x = tile_c * 16 + px
+                dest_y = tile_r * 16 + py
+                result[dest_y * w + dest_x] = tile_data[py * 16 + px]
+
+    return result, w, h
+
+
+def _extract_tileset_furniture(img: "Image.Image") -> Dict[str, dict]:
+    """Extract furniture sprites from tileset, matching FURNITURE_SPRITES format."""
+    sprites: Dict[str, dict] = {}
+
+    for name, spec in TILESET_TILE_MAP.items():
+        if name.startswith("TILE_"):
+            continue  # floor/wall tiles handled separately
+
+        tiles = spec["tiles"]
+        tc = spec["tile_cols"]
+        tr = spec["tile_rows"]
+        flat_data, w, h = _extract_composite_rgb565(img, tiles, tc, tr)
+
+        # Convert to 2D hex color array to match fallback format
+        rows_2d: List[List[str]] = []
+        for y in range(h):
+            row: List[str] = []
+            for x in range(w):
+                val = flat_data[y * w + x]
+                if val == TRANSPARENT_RGB565:
+                    row.append("")
+                else:
+                    # Convert RGB565 back to hex for 2D format compatibility
+                    r5 = (val >> 11) & 0x1F
+                    g6 = (val >> 5) & 0x3F
+                    b5 = val & 0x1F
+                    r8 = (r5 << 3) | (r5 >> 2)
+                    g8 = (g6 << 2) | (g6 >> 4)
+                    b8 = (b5 << 3) | (b5 >> 2)
+                    row.append(f"#{r8:02X}{g8:02X}{b8:02X}")
+            rows_2d.append(row)
+
+        sprites[name] = {"data": rows_2d, "width": w, "height": h}
+
+    return sprites
+
+
+def _extract_tileset_tiles(img: "Image.Image") -> Dict[str, List[int]]:
+    """Extract floor/wall tiles from tileset as flat RGB565 lists."""
+    tiles: Dict[str, List[int]] = {}
+    for name, positions in TILESET_TILE_MAP.items():
+        if not name.startswith("TILE_"):
+            continue
+        col, row = positions[0]
+        tiles[name] = _extract_tile_rgb565(img, col, row)
+    return tiles
+
 
 # ---------------------------------------------------------------------------
 # Palette definitions (6 palettes from the extension)
@@ -1114,7 +1276,9 @@ def generate_characters_header() -> str:
     lines.append("enum CharTemplate {")
     template_names = list(CHAR_TEMPLATES_RAW.keys())
     for i, name in enumerate(template_names):
-        lines.append(f"    {name} = {i},")
+        # Use TPL_ prefix to avoid conflict with the array names
+        enum_name = name.replace("CHAR_", "TPL_", 1)
+        lines.append(f"    {enum_name} = {i},")
     lines.append(f"    CHAR_TEMPLATE_COUNT = {len(template_names)}")
     lines.append("};")
     lines.append("")
@@ -1237,21 +1401,37 @@ def generate_bubbles_header() -> str:
     return "\n".join(lines) + "\n"
 
 
+def generate_tiles_header(tile_data: Dict[str, List[int]]) -> str:
+    """Generate firmware/src/sprites/tiles.h with floor/wall tile data."""
+    lines: List[str] = []
+    lines.append("#ifndef SPRITES_TILES_H")
+    lines.append("#define SPRITES_TILES_H")
+    lines.append("")
+    lines.append("#include <Arduino.h>")
+    lines.append("#include <pgmspace.h>")
+    lines.append("")
+    lines.append("// =============================================================================")
+    lines.append("// Floor & Wall Tiles (RGB565, 16x16 each)")
+    lines.append("// Generated by tools/sprite_converter.py from Office Tileset -- DO NOT EDIT")
+    lines.append("// =============================================================================")
+    lines.append("")
+    lines.append("#define HAS_TILESET_TILES 1")
+    lines.append("")
+
+    for name, data in tile_data.items():
+        assert len(data) == 256, f"Tile {name} has {len(data)} pixels, expected 256 (16x16)"
+        lines.append(f"static const uint16_t {name}[256] PROGMEM = {{")
+        lines.append(_format_uint16_array(data))
+        lines.append("};")
+        lines.append("")
+
+    lines.append("#endif // SPRITES_TILES_H")
+    return "\n".join(lines) + "\n"
+
+
 # ===========================================================================
 # HTML validation page generator
 # ===========================================================================
-
-def _palette_to_css_colors(pal: dict) -> dict:
-    """Return dict mapping index -> CSS hex color for a palette."""
-    return {
-        0: None,  # transparent
-        1: pal["hair"],
-        2: pal["skin"],
-        3: pal["shirt"],
-        4: pal["pants"],
-        5: pal["shoes"],
-        6: EYES_COLOR,
-    }
 
 
 def generate_validation_html() -> str:
@@ -1458,9 +1638,40 @@ for (const [name, info] of Object.entries(bubbleSprites)) {{
 # ===========================================================================
 
 def main() -> None:
+    global FURNITURE_SPRITES
+
+    use_tileset = "--no-tileset" not in sys.argv
+
     # Ensure output directories exist
     FIRMWARE_SPRITES_DIR.mkdir(parents=True, exist_ok=True)
     SCRIPT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Try loading the Office Tileset
+    tileset_img = _load_tileset() if use_tileset else None
+    tile_data: Optional[Dict[str, List[int]]] = None
+    tileset_source = "fallback (hand-drawn)"
+
+    if tileset_img is not None:
+        try:
+            tileset_rel = TILESET_PATH.relative_to(PROJECT_ROOT)
+        except ValueError:
+            tileset_rel = TILESET_PATH
+        print(f"  Tileset found: {tileset_rel}")
+        # Override furniture sprites with tileset-extracted versions
+        tileset_furniture = _extract_tileset_furniture(tileset_img)
+        for name, info in tileset_furniture.items():
+            FURNITURE_SPRITES[name] = info
+        tileset_source = "Office Tileset"
+
+        # Extract floor/wall tiles
+        tile_data = _extract_tileset_tiles(tileset_img)
+        print(f"  Extracted {len(tileset_furniture)} furniture sprites + "
+              f"{len(tile_data)} floor/wall tiles from tileset")
+    else:
+        if use_tileset:
+            print("  Tileset not found, using fallback sprites")
+        else:
+            print("  Tileset disabled (--no-tileset), using fallback sprites")
 
     # Generate and write all files
     files_written: List[Tuple[Path, str]] = [
@@ -1469,6 +1680,16 @@ def main() -> None:
         (FIRMWARE_SPRITES_DIR / "bubbles.h", generate_bubbles_header()),
         (VALIDATION_HTML_PATH, generate_validation_html()),
     ]
+
+    tiles_h_path = FIRMWARE_SPRITES_DIR / "tiles.h"
+    if tile_data is not None:
+        files_written.append(
+            (tiles_h_path, generate_tiles_header(tile_data))
+        )
+    elif tiles_h_path.exists():
+        # Clean up stale tiles.h to avoid using outdated tileset data
+        tiles_h_path.unlink()
+        print(f"  removed stale {tiles_h_path.relative_to(PROJECT_ROOT)}")
 
     for path, content in files_written:
         path.write_text(content, encoding="utf-8")
@@ -1479,11 +1700,14 @@ def main() -> None:
     # Summary
     print()
     print("Sprite conversion complete.")
+    print(f"  Furniture source: {tileset_source}")
     print(f"  Character templates: {len(CHAR_TEMPLATES_RAW)} x {16}x{24} = "
           f"{len(CHAR_TEMPLATES_RAW) * 384:,} bytes")
     print(f"  Palettes: {len(PALETTES)} x {len(PALETTE_KEY_ORDER) + 1} colors")
     print(f"  Furniture sprites: {len(FURNITURE_SPRITES)}")
     print(f"  Bubble sprites: {len(BUBBLE_SPRITES)}")
+    if tile_data:
+        print(f"  Floor/wall tiles: {len(tile_data)}")
 
 
 if __name__ == "__main__":
