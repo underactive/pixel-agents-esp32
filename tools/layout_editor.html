@@ -58,6 +58,45 @@ canvas { image-rendering: pixelated; cursor: crosshair; }
 /* Status */
 footer { background: #181825; border-top: 1px solid #313244; padding: 4px 16px; font-size: 11px; color: #7f849c; display: flex; gap: 16px; flex-shrink: 0; }
 footer span.highlight { color: #f9e2af; }
+
+/* Tile Picker Modal */
+.tp-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.tp-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
+.tp-content { position: relative; background: #1e1e2e; border: 1px solid #45475a; border-radius: 8px; width: 90vw; height: 85vh; max-width: 1200px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.tp-header { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #313244; background: #181825; flex-shrink: 0; }
+.tp-header h2 { font-size: 14px; font-weight: 600; color: #cba6f7; }
+.tp-body { display: flex; flex: 1; overflow: hidden; }
+.tp-sidebar { width: 220px; border-right: 1px solid #313244; padding: 12px; overflow-y: auto; flex-shrink: 0; background: #181825; }
+.tp-sidebar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 8px; }
+.tp-item-list { display: flex; flex-direction: column; gap: 4px; }
+.tp-item { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; transition: background 0.15s; }
+.tp-item:hover { background: #313244; }
+.tp-item.active { background: #313244; border-color: #cba6f7; }
+.tp-item-preview { width: 32px; height: 32px; border: 1px solid #45475a; border-radius: 2px; background: #11111b; image-rendering: pixelated; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.tp-item-preview canvas { image-rendering: pixelated; }
+.tp-item-info { flex: 1; min-width: 0; }
+.tp-item-name { font-size: 12px; color: #cdd6f4; }
+.tp-item-dims { font-size: 10px; color: #7f849c; }
+.tp-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.tp-canvas-wrap { flex: 1; overflow: auto; padding: 16px; cursor: crosshair; }
+.tp-canvas-wrap canvas { image-rendering: pixelated; display: block; }
+.tp-preview-bar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-top: 1px solid #313244; background: #181825; flex-shrink: 0; min-height: 52px; }
+.tp-preview-box { width: 80px; height: 40px; border: 1px solid #45475a; border-radius: 2px; background: #11111b; image-rendering: pixelated; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.tp-preview-box canvas { image-rendering: pixelated; }
+.tp-item { position: relative; }
+.tp-delete { position: absolute; right: 4px; top: 4px; width: 18px; height: 18px; border: none; background: transparent; color: #7f849c; font-size: 14px; line-height: 18px; text-align: center; padding: 0; cursor: pointer; border-radius: 3px; display: none; }
+.tp-item:hover .tp-delete { display: block; }
+.tp-delete:hover { background: #f38ba8; color: #1e1e2e; }
+.tp-new-furn { border-top: 1px solid #313244; margin-top: 8px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.tp-new-furn h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a6adc8; margin-bottom: 2px; }
+.tp-new-furn input[type="text"] { width: 100%; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; }
+.tp-new-furn input[type="text"]:focus { outline: none; border-color: #cba6f7; }
+.tp-new-dims { display: flex; gap: 8px; align-items: center; }
+.tp-new-dims label { font-size: 11px; color: #a6adc8; display: flex; align-items: center; gap: 4px; }
+.tp-new-dims input[type="number"] { width: 48px; font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 6px; }
+.tp-new-dims input[type="number"]:focus { outline: none; border-color: #cba6f7; }
+#btnNewFurn { font-family: inherit; font-size: 12px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; cursor: pointer; }
+#btnNewFurn:hover { background: #45475a; }
 </style>
 </head>
 <body>
@@ -81,6 +120,8 @@ footer span.highlight { color: #f9e2af; }
     <div class="sep"></div>
     <button id="btnImport">Import JSON</button>
     <button id="btnExport">Export JSON</button>
+    <div class="sep"></div>
+    <button id="btnTilePicker">Tile Picker</button>
 </header>
 
 <div class="main">
@@ -96,28 +137,7 @@ footer span.highlight { color: #f9e2af; }
         </div>
         <div>
             <h3>Furniture</h3>
-            <div class="furn-grid">
-                <button class="furn-btn" data-furn="desk">
-                    <span class="furn-swatch" style="background:#8B6914"></span>
-                    Desk <span class="furn-size">2x2</span>
-                </button>
-                <button class="furn-btn" data-furn="chair">
-                    <span class="furn-swatch" style="background:#666"></span>
-                    Chair <span class="furn-size">1x1</span>
-                </button>
-                <button class="furn-btn" data-furn="plant">
-                    <span class="furn-swatch" style="background:#228B22"></span>
-                    Plant <span class="furn-size">1x1</span>
-                </button>
-                <button class="furn-btn" data-furn="bookshelf">
-                    <span class="furn-swatch" style="background:#654321"></span>
-                    Bookshelf <span class="furn-size">1x2</span>
-                </button>
-                <button class="furn-btn" data-furn="cooler">
-                    <span class="furn-swatch" style="background:#4682B4"></span>
-                    Water Cooler <span class="furn-size">1x2</span>
-                </button>
-            </div>
+            <div id="furnGrid" class="furn-grid"></div>
         </div>
         <div>
             <h3>Preview</h3>
@@ -180,6 +200,48 @@ footer span.highlight { color: #f9e2af; }
 </footer>
 
 <input type="file" id="fileInput" accept=".json" style="display:none">
+
+<!-- Tile Picker Modal -->
+<div id="tilePickerModal" class="tp-modal" style="display:none">
+    <div class="tp-backdrop"></div>
+    <div class="tp-content">
+        <div class="tp-header">
+            <h2>Tile Picker</h2>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+                <button id="btnLoadTileset">Load PNG...</button>
+                <span id="tpFileName" style="font-size:11px;color:#7f849c;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                <div class="sep"></div>
+                <button id="btnCopyTileConfig">Copy Config</button>
+                <button id="btnClosePicker">Close</button>
+            </div>
+        </div>
+        <input type="file" id="tpFileInput" accept=".png,image/png" style="display:none">
+        <div class="tp-body">
+            <div class="tp-sidebar">
+                <h3>Items</h3>
+                <div id="tpItemList" class="tp-item-list"></div>
+                <div class="tp-new-furn">
+                    <h3>New Furniture</h3>
+                    <input id="tpNewName" type="text" placeholder="Name" maxlength="24">
+                    <div class="tp-new-dims">
+                        <label>W<input id="tpNewCols" type="number" min="1" max="6" value="1"></label>
+                        <label>H<input id="tpNewRows" type="number" min="1" max="6" value="1"></label>
+                    </div>
+                    <button id="btnNewFurn">Add</button>
+                </div>
+            </div>
+            <div class="tp-main">
+                <div class="tp-canvas-wrap">
+                    <canvas id="tpCanvas"></canvas>
+                </div>
+                <div class="tp-preview-bar">
+                    <span id="tpHoverCoord" style="color:#7f849c;">Hover over tileset</span>
+                    <div id="tpPreviewBox" class="tp-preview-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 // ── Constants ──────────────────────────────────────────────
@@ -827,16 +889,26 @@ document.querySelectorAll('.tool-btn').forEach(b => {
     b.addEventListener('click', () => setTool(b.dataset.tool));
 });
 
-document.querySelectorAll('.furn-btn').forEach(b => {
-    b.addEventListener('click', () => {
-        tool = 'place';
-        furnType = b.dataset.furn;
-        document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
-        document.querySelectorAll('.furn-btn').forEach(x => x.classList.toggle('active', x.dataset.furn === furnType));
-        document.getElementById('footTool').textContent = 'Place ' + FURN_CATALOG[furnType].label;
-        canvas.style.cursor = 'crosshair';
-    });
-});
+function buildFurnToolbar() {
+    const grid = document.getElementById('furnGrid');
+    grid.innerHTML = '';
+    for (const [key, cat] of Object.entries(FURN_CATALOG)) {
+        const btn = document.createElement('button');
+        btn.className = 'furn-btn';
+        btn.dataset.furn = key;
+        btn.innerHTML = `<span class="furn-swatch" style="background:${cat.color}"></span>${cat.label} <span class="furn-size">${cat.w}x${cat.h}</span>`;
+        btn.addEventListener('click', () => {
+            tool = 'place';
+            furnType = key;
+            document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.furn-btn').forEach(x => x.classList.toggle('active', x.dataset.furn === furnType));
+            document.getElementById('footTool').textContent = 'Place ' + FURN_CATALOG[furnType].label;
+            canvas.style.cursor = 'crosshair';
+        });
+        grid.appendChild(btn);
+    }
+}
+buildFurnToolbar();
 
 // ── Board switch ───────────────────────────────────────────
 document.getElementById('boardSelect').addEventListener('change', e => {
@@ -1276,6 +1348,489 @@ function loadDefault() {
     resizeCanvas();
     selectedId = null;
 }
+
+// ── Tile Picker ────────────────────────────────────────────
+let TILE_PICKER_ITEMS = [
+    { key: 'floorA',    label: 'Floor A',    cols: 1, rows: 1, target: 'tile' },
+    { key: 'floorB',    label: 'Floor B',    cols: 1, rows: 1, target: 'tile' },
+    { key: 'wall',      label: 'Wall',       cols: 1, rows: 1, target: 'tile' },
+    { key: 'desk',      label: 'Desk',       cols: 2, rows: 2, target: 'furn' },
+    { key: 'chair',     label: 'Chair',      cols: 1, rows: 1, target: 'furn' },
+    { key: 'plant',     label: 'Plant',      cols: 1, rows: 2, target: 'furn' },
+    { key: 'bookshelf', label: 'Bookshelf',  cols: 1, rows: 2, target: 'furn' },
+    { key: 'cooler',    label: 'Cooler',     cols: 1, rows: 2, target: 'furn' },
+];
+
+const TP_SCALE = 4;
+const TP_TILE = 16;
+const TP_TS = TP_TILE * TP_SCALE; // 64px per tile on picker canvas
+let tpActiveItem = null; // key of currently selected picker item
+let tpHoverCol = -1, tpHoverRow = -1;
+
+const tpCanvas = document.getElementById('tpCanvas');
+const tpCtx = tpCanvas.getContext('2d');
+
+function openTilePicker() {
+    if (!tilesetReady) {
+        // Try loading again in case the user navigated
+        const img = new Image();
+        img.onload = function() {
+            tilesetImg = img;
+            tilesetReady = true;
+            openTilePicker();
+        };
+        img.onerror = function() {
+            console.warn('Tile Picker: could not load tileset image.');
+        };
+        img.src = '../Office Tileset/Office Tileset All 16x16.png';
+        return;
+    }
+    document.getElementById('tilePickerModal').style.display = 'flex';
+    tpActiveItem = TILE_PICKER_ITEMS[0].key;
+    document.getElementById('tpFileName').textContent = tilesetReady ? 'Office Tileset All 16x16.png' : '';
+    buildPickerItemList();
+    renderTilesetCanvas();
+}
+
+function closeTilePicker() {
+    document.getElementById('tilePickerModal').style.display = 'none';
+    tpHoverCol = -1;
+    tpHoverRow = -1;
+    render(); // re-render layout with updated tile selections
+}
+
+function buildPickerItemList() {
+    const list = document.getElementById('tpItemList');
+    list.innerHTML = '';
+    for (const item of TILE_PICKER_ITEMS) {
+        const el = document.createElement('div');
+        el.className = 'tp-item' + (item.key === tpActiveItem ? ' active' : '');
+        el.dataset.key = item.key;
+
+        // Preview thumbnail
+        const previewWrap = document.createElement('div');
+        previewWrap.className = 'tp-item-preview';
+        const previewCanvas = document.createElement('canvas');
+        const thumbScale = Math.min(30 / (item.cols * TP_TILE), 30 / (item.rows * TP_TILE));
+        previewCanvas.width = item.cols * TP_TILE * thumbScale;
+        previewCanvas.height = item.rows * TP_TILE * thumbScale;
+        previewCanvas.style.width = previewCanvas.width + 'px';
+        previewCanvas.style.height = previewCanvas.height + 'px';
+        const pCtx = previewCanvas.getContext('2d');
+        pCtx.imageSmoothingEnabled = false;
+        drawItemPreview(pCtx, item, thumbScale);
+        previewWrap.appendChild(previewCanvas);
+
+        // Info
+        const info = document.createElement('div');
+        info.className = 'tp-item-info';
+        info.innerHTML = `<div class="tp-item-name">${item.label}</div>` +
+            `<div class="tp-item-dims">${item.cols}x${item.rows} tile${(item.cols * item.rows) > 1 ? 's' : ''}</div>`;
+
+        el.appendChild(previewWrap);
+        el.appendChild(info);
+
+        if (item.custom) {
+            const del = document.createElement('button');
+            del.className = 'tp-delete';
+            del.textContent = '\u00d7';
+            del.title = 'Delete';
+            del.addEventListener('click', e => { e.stopPropagation(); deleteCustomFurniture(item.key); });
+            el.appendChild(del);
+        }
+
+        el.addEventListener('click', () => selectPickerItem(item.key));
+        list.appendChild(el);
+    }
+}
+
+function drawItemPreview(ctx, item, scale) {
+    if (!tilesetReady) return;
+    if (item.target === 'tile') {
+        const t = TILESET_TILES[item.key];
+        if (t) {
+            ctx.drawImage(tilesetImg,
+                t.col * TP_TILE, t.row * TP_TILE, TP_TILE, TP_TILE,
+                0, 0, item.cols * TP_TILE * scale, item.rows * TP_TILE * scale);
+        }
+    } else {
+        const spec = TILESET_FURN[item.key];
+        if (spec) {
+            for (let i = 0; i < spec.tiles.length; i++) {
+                const [tc, tr] = spec.tiles[i];
+                const localCol = i % spec.cols;
+                const localRow = Math.floor(i / spec.cols);
+                ctx.drawImage(tilesetImg,
+                    tc * TP_TILE, tr * TP_TILE, TP_TILE, TP_TILE,
+                    localCol * TP_TILE * scale, localRow * TP_TILE * scale, TP_TILE * scale, TP_TILE * scale);
+            }
+        }
+    }
+}
+
+function selectPickerItem(key) {
+    tpActiveItem = key;
+    document.querySelectorAll('.tp-item').forEach(el =>
+        el.classList.toggle('active', el.dataset.key === key));
+    renderTilesetCanvas();
+}
+
+function renderTilesetCanvas() {
+    if (!tilesetReady) return;
+    const tilesetCols = Math.floor(tilesetImg.width / TP_TILE);
+    const tilesetRows = Math.floor(tilesetImg.height / TP_TILE);
+
+    tpCanvas.width = tilesetCols * TP_TS;
+    tpCanvas.height = tilesetRows * TP_TS;
+    tpCanvas.style.width = tpCanvas.width + 'px';
+    tpCanvas.style.height = tpCanvas.height + 'px';
+    tpCtx.imageSmoothingEnabled = false;
+
+    // Draw tileset at scale
+    tpCtx.drawImage(tilesetImg, 0, 0, tpCanvas.width, tpCanvas.height);
+
+    // Grid lines
+    tpCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+    tpCtx.lineWidth = 1;
+    for (let r = 0; r <= tilesetRows; r++) {
+        tpCtx.beginPath();
+        tpCtx.moveTo(0, r * TP_TS + 0.5);
+        tpCtx.lineTo(tpCanvas.width, r * TP_TS + 0.5);
+        tpCtx.stroke();
+    }
+    for (let c = 0; c <= tilesetCols; c++) {
+        tpCtx.beginPath();
+        tpCtx.moveTo(c * TP_TS + 0.5, 0);
+        tpCtx.lineTo(c * TP_TS + 0.5, tpCanvas.height);
+        tpCtx.stroke();
+    }
+
+    // Highlight currently assigned tiles for all items
+    for (const item of TILE_PICKER_ITEMS) {
+        if (item.target === 'tile') {
+            const t = TILESET_TILES[item.key];
+            if (t) {
+                tpCtx.strokeStyle = item.key === tpActiveItem ? '#cba6f7' : 'rgba(203,166,247,0.35)';
+                tpCtx.lineWidth = item.key === tpActiveItem ? 3 : 1;
+                tpCtx.strokeRect(t.col * TP_TS + 1, t.row * TP_TS + 1, TP_TS - 2, TP_TS - 2);
+            }
+        } else {
+            const spec = TILESET_FURN[item.key];
+            if (spec && spec.tiles.length > 0) {
+                const [tc0, tr0] = spec.tiles[0];
+                tpCtx.strokeStyle = item.key === tpActiveItem ? '#a6e3a1' : 'rgba(166,227,161,0.35)';
+                tpCtx.lineWidth = item.key === tpActiveItem ? 3 : 1;
+                tpCtx.strokeRect(tc0 * TP_TS + 1, tr0 * TP_TS + 1,
+                    item.cols * TP_TS - 2, item.rows * TP_TS - 2);
+            }
+        }
+    }
+
+    // Draw hover cursor
+    if (tpHoverCol >= 0 && tpHoverRow >= 0 && tpActiveItem) {
+        const item = TILE_PICKER_ITEMS.find(i => i.key === tpActiveItem);
+        if (item) {
+            tpCtx.fillStyle = 'rgba(203,166,247,0.2)';
+            tpCtx.fillRect(tpHoverCol * TP_TS, tpHoverRow * TP_TS,
+                item.cols * TP_TS, item.rows * TP_TS);
+            tpCtx.strokeStyle = '#cba6f7';
+            tpCtx.lineWidth = 2;
+            tpCtx.setLineDash([4, 4]);
+            tpCtx.strokeRect(tpHoverCol * TP_TS + 1, tpHoverRow * TP_TS + 1,
+                item.cols * TP_TS - 2, item.rows * TP_TS - 2);
+            tpCtx.setLineDash([]);
+        }
+    }
+}
+
+function tpScreenToTile(e) {
+    const rect = tpCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    return { col: Math.floor(x / TP_TS), row: Math.floor(y / TP_TS) };
+}
+
+tpCanvas.addEventListener('mousemove', e => {
+    const { col, row } = tpScreenToTile(e);
+    const tilesetCols = tilesetReady ? Math.floor(tilesetImg.width / TP_TILE) : 16;
+    const tilesetRows = tilesetReady ? Math.floor(tilesetImg.height / TP_TILE) : 32;
+    const item = tpActiveItem ? TILE_PICKER_ITEMS.find(i => i.key === tpActiveItem) : null;
+    const iCols = item ? item.cols : 1;
+    const iRows = item ? item.rows : 1;
+
+    let newCol = -1, newRow = -1;
+    if (col >= 0 && col + iCols <= tilesetCols && row >= 0 && row + iRows <= tilesetRows) {
+        newCol = col;
+        newRow = row;
+    }
+
+    if (newCol === tpHoverCol && newRow === tpHoverRow) return; // dirty check
+    tpHoverCol = newCol;
+    tpHoverRow = newRow;
+
+    if (newCol >= 0) {
+        document.getElementById('tpHoverCoord').textContent = `Tile (${col}, ${row})`;
+        updateHoverPreview(col, row);
+    } else {
+        document.getElementById('tpHoverCoord').textContent = 'Hover over tileset';
+    }
+    renderTilesetCanvas();
+});
+
+tpCanvas.addEventListener('mouseleave', () => {
+    tpHoverCol = -1;
+    tpHoverRow = -1;
+    document.getElementById('tpHoverCoord').textContent = 'Hover over tileset';
+    renderTilesetCanvas();
+    // Clear preview
+    const box = document.getElementById('tpPreviewBox');
+    box.innerHTML = '';
+});
+
+function updateHoverPreview(col, row) {
+    if (!tilesetReady || !tpActiveItem) return;
+    const item = TILE_PICKER_ITEMS.find(i => i.key === tpActiveItem);
+    if (!item) return;
+
+    const box = document.getElementById('tpPreviewBox');
+    box.innerHTML = '';
+    const pCanvas = document.createElement('canvas');
+    // Preview box is 80x40 CSS pixels, leave 1px border each side
+    const pScale = Math.min(78 / (item.cols * TP_TILE), 38 / (item.rows * TP_TILE));
+    pCanvas.width = item.cols * TP_TILE * pScale;
+    pCanvas.height = item.rows * TP_TILE * pScale;
+    pCanvas.style.width = pCanvas.width + 'px';
+    pCanvas.style.height = pCanvas.height + 'px';
+    const pCtx = pCanvas.getContext('2d');
+    pCtx.imageSmoothingEnabled = false;
+
+    for (let dr = 0; dr < item.rows; dr++) {
+        for (let dc = 0; dc < item.cols; dc++) {
+            pCtx.drawImage(tilesetImg,
+                (col + dc) * TP_TILE, (row + dr) * TP_TILE, TP_TILE, TP_TILE,
+                dc * TP_TILE * pScale, dr * TP_TILE * pScale, TP_TILE * pScale, TP_TILE * pScale);
+        }
+    }
+    box.appendChild(pCanvas);
+}
+
+tpCanvas.addEventListener('click', e => {
+    const { col, row } = tpScreenToTile(e);
+    if (!tpActiveItem || !tilesetReady) return;
+
+    const item = TILE_PICKER_ITEMS.find(i => i.key === tpActiveItem);
+    if (!item) return;
+
+    const tilesetCols = Math.floor(tilesetImg.width / TP_TILE);
+    const tilesetRows = Math.floor(tilesetImg.height / TP_TILE);
+    if (col < 0 || row < 0 || col + item.cols > tilesetCols || row + item.rows > tilesetRows) return;
+
+    if (item.target === 'tile') {
+        TILESET_TILES[item.key] = { col, row };
+    } else {
+        const tiles = [];
+        for (let dr = 0; dr < item.rows; dr++) {
+            for (let dc = 0; dc < item.cols; dc++) {
+                tiles.push([col + dc, row + dr]);
+            }
+        }
+        TILESET_FURN[item.key] = { tiles, cols: item.cols, rows: item.rows };
+    }
+
+    // Persist custom furniture tile assignments
+    if (item.custom) saveCustomFurniture();
+
+    // Refresh item list previews and tileset canvas
+    buildPickerItemList();
+    renderTilesetCanvas();
+});
+
+const PICKER_KEY_TO_PYTHON = {
+    floorA: 'TILE_FLOOR_A', floorB: 'TILE_FLOOR_B', wall: 'TILE_WALL',
+    desk: 'DESK', chair: 'CHAIR', plant: 'PLANT',
+    bookshelf: 'BOOKSHELF', cooler: 'COOLER',
+};
+
+function saveCustomFurniture() {
+    const custom = TILE_PICKER_ITEMS.filter(i => i.custom).map(i => ({
+        key: i.key, label: i.label, cols: i.cols, rows: i.rows,
+        tiles: TILESET_FURN[i.key] ? TILESET_FURN[i.key].tiles : Array(i.cols * i.rows).fill([0, 0]),
+    }));
+    localStorage.setItem('customFurniture', JSON.stringify(custom));
+}
+
+function loadCustomFurniture() {
+    const raw = localStorage.getItem('customFurniture');
+    if (!raw) return;
+    try {
+        const custom = JSON.parse(raw);
+        for (const item of custom) {
+            if (TILE_PICKER_ITEMS.some(i => i.key === item.key)) continue;
+            TILE_PICKER_ITEMS.push({ key: item.key, label: item.label, cols: item.cols, rows: item.rows, target: 'furn', custom: true });
+            TILESET_FURN[item.key] = { tiles: item.tiles, cols: item.cols, rows: item.rows };
+            PICKER_KEY_TO_PYTHON[item.key] = item.key.toUpperCase();
+            FURN_CATALOG[item.key] = { w: item.cols, h: item.rows, color: '#7f849c', blockW: item.cols, blockH: item.rows, label: item.label };
+        }
+        buildFurnToolbar();
+    } catch (e) { /* ignore corrupt data */ }
+}
+loadCustomFurniture();
+
+function exportTileConfig() {
+    const lines = [];
+
+    // Python format
+    lines.push('# Python (sprite_converter.py) -- paste into TILESET_TILE_MAP');
+    lines.push('TILESET_TILE_MAP = {');
+    lines.push('    # Floor/wall tiles (16x16 each)');
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'tile')) {
+        const t = TILESET_TILES[item.key];
+        if (!t) continue;
+        const pyKey = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
+        lines.push(`    "${pyKey}": [(${t.col}, ${t.row})],`);
+    }
+    lines.push('');
+    lines.push('    # Furniture composites (multi-tile, listed L-R then T-B)');
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'furn')) {
+        const spec = TILESET_FURN[item.key];
+        if (!spec) continue;
+        const pyKey = PICKER_KEY_TO_PYTHON[item.key] || item.key.toUpperCase();
+        const tilesStr = spec.tiles.map(t => `(${t[0]}, ${t[1]})`).join(', ');
+        lines.push(`    "${pyKey}": {`);
+        lines.push(`        "tiles": [${tilesStr}],`);
+        lines.push(`        "tile_cols": ${spec.cols}, "tile_rows": ${spec.rows},`);
+        lines.push(`    },`);
+    }
+    lines.push('}');
+    lines.push('');
+
+    // JS format
+    lines.push('// JavaScript (layout_editor.html) -- paste into TILESET_TILES / TILESET_FURN');
+    lines.push('const TILESET_TILES = {');
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'tile')) {
+        const t = TILESET_TILES[item.key];
+        lines.push(`    ${item.key}: { col: ${t.col}, row: ${t.row} },`);
+    }
+    lines.push('};');
+    lines.push('const TILESET_FURN = {');
+    for (const item of TILE_PICKER_ITEMS.filter(i => i.target === 'furn')) {
+        const spec = TILESET_FURN[item.key];
+        const tilesStr = spec.tiles.map(t => `[${t[0]},${t[1]}]`).join(',');
+        lines.push(`    ${item.key}: { tiles: [${tilesStr}], cols: ${spec.cols}, rows: ${spec.rows} },`);
+    }
+    lines.push('};');
+
+    return lines.join('\n');
+}
+
+function addNewFurniture() {
+    const nameInput = document.getElementById('tpNewName');
+    const colsInput = document.getElementById('tpNewCols');
+    const rowsInput = document.getElementById('tpNewRows');
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    const cols = Math.max(1, Math.min(6, parseInt(colsInput.value) || 1));
+    const rows = Math.max(1, Math.min(6, parseInt(rowsInput.value) || 1));
+    const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (!key) return;
+
+    if (TILE_PICKER_ITEMS.some(i => i.key === key)) {
+        nameInput.style.borderColor = '#f38ba8';
+        setTimeout(() => nameInput.style.borderColor = '', 1500);
+        return;
+    }
+
+    TILE_PICKER_ITEMS.push({ key, label: name, cols, rows, target: 'furn', custom: true });
+    TILESET_FURN[key] = { tiles: Array(cols * rows).fill([0, 0]), cols, rows };
+    PICKER_KEY_TO_PYTHON[key] = key.toUpperCase();
+    FURN_CATALOG[key] = { w: cols, h: rows, color: '#7f849c', blockW: cols, blockH: rows, label: name };
+    buildFurnToolbar();
+    saveCustomFurniture();
+
+    tpActiveItem = key;
+    buildPickerItemList();
+    renderTilesetCanvas();
+
+    nameInput.value = '';
+    colsInput.value = '1';
+    rowsInput.value = '1';
+}
+
+function deleteCustomFurniture(key) {
+    const idx = TILE_PICKER_ITEMS.findIndex(i => i.key === key);
+    if (idx === -1 || !TILE_PICKER_ITEMS[idx].custom) return;
+
+    TILE_PICKER_ITEMS.splice(idx, 1);
+    delete TILESET_FURN[key];
+    delete PICKER_KEY_TO_PYTHON[key];
+    delete FURN_CATALOG[key];
+    buildFurnToolbar();
+    saveCustomFurniture();
+
+    if (furnType === key) {
+        furnType = null;
+        setTool('select');
+    }
+
+    if (tpActiveItem === key) {
+        tpActiveItem = TILE_PICKER_ITEMS[0].key;
+    }
+    buildPickerItemList();
+    renderTilesetCanvas();
+}
+
+document.getElementById('btnNewFurn').addEventListener('click', addNewFurniture);
+document.getElementById('tpNewName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addNewFurniture();
+});
+
+document.getElementById('btnTilePicker').addEventListener('click', openTilePicker);
+document.getElementById('btnClosePicker').addEventListener('click', closeTilePicker);
+document.querySelector('.tp-backdrop').addEventListener('click', closeTilePicker);
+
+document.getElementById('btnLoadTileset').addEventListener('click', () => {
+    document.getElementById('tpFileInput').click();
+});
+document.getElementById('tpFileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+            tilesetImg = img;
+            tilesetReady = true;
+            document.getElementById('tpFileName').textContent = file.name;
+            buildPickerItemList();
+            renderTilesetCanvas();
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+});
+document.getElementById('btnCopyTileConfig').addEventListener('click', () => {
+    const config = exportTileConfig();
+    navigator.clipboard.writeText(config).then(() => {
+        const btn = document.getElementById('btnCopyTileConfig');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy Config', 1500);
+    }).catch(() => {
+        console.log(config);
+        const btn = document.getElementById('btnCopyTileConfig');
+        btn.textContent = 'Logged to console';
+        setTimeout(() => btn.textContent = 'Copy Config', 2000);
+    });
+});
+
+// WHY: capture phase so this fires before the layout editor's own Escape handler
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('tilePickerModal').style.display !== 'none') {
+        closeTilePicker();
+        e.stopPropagation();
+    }
+}, true);
 
 // ── Initialize ─────────────────────────────────────────────
 loadDefault();
