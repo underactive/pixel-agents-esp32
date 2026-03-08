@@ -79,6 +79,9 @@
 - [ ] Screen fades to black (backlight dims), then fades back in showing the office scene
 - [ ] Office scene renders correctly after fade-in (characters visible, status bar active)
 - [ ] CYD: splash layout accommodates taller screen (320x240), more log lines visible
+- [ ] Footer text with version string appears centered at bottom of splash screen in gray
+- [ ] Requesting screenshot during splash captures splash screen content (title, character, log, footer)
+- [ ] Serial messages (heartbeat, agent updates) received during fade transition are not lost
 
 ### Idle Scene (No Companion Connected)
 - [ ] Status bar shows red dot + "Disconnected"

@@ -821,6 +821,18 @@ void Renderer::sendScreenshot() {
 }
 
 void Renderer::sendSplashScreenshot(Splash& splash) {
+    // Direct mode: no buffer — send empty response
+    if (_directMode || !_canvas) {
+        uint8_t hdr[12];
+        hdr[0] = SCREENSHOT_SYNC1;
+        hdr[1] = SCREENSHOT_SYNC2;
+        memset(&hdr[2], 0, 10);
+        Serial.write(hdr, 12);
+        uint8_t end[4] = {0, 0, 0, 0};
+        Serial.write(end, 4);
+        return;
+    }
+
     // Re-draw splash content into sprite buffer for capture
     sendScreenshotHeader(SCREEN_W, SCREEN_H);
 

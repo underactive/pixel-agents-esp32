@@ -35,7 +35,7 @@ void Splash::drawFooter() {
     _tft->setTextSize(1);
     _tft->setTextColor(COLOR_SPLASH_FOOTER, TFT_BLACK);
     _tft->setTextDatum(TC_DATUM);
-    _tft->drawString("v0.7.0 (c) 2026 TARS Industrial Technical Solutions", SCREEN_W / 2, SPLASH_FOOTER_Y + _drawYOffset);
+    _tft->drawString(SPLASH_VERSION_STR, SCREEN_W / 2, SPLASH_FOOTER_Y + _drawYOffset);
     _tft->setTextDatum(TL_DATUM);
 }
 
@@ -43,7 +43,7 @@ void Splash::clearCharArea() {
     int charW = CHAR_W * SPLASH_CHAR_SCALE;
     int charH = CHAR_H * SPLASH_CHAR_SCALE;
     int x = (SCREEN_W - charW) / 2;
-    _tft->fillRect(x, SPLASH_CHAR_Y, charW, charH, TFT_BLACK);
+    _tft->fillRect(x, SPLASH_CHAR_Y + _drawYOffset, charW, charH, TFT_BLACK);
 }
 
 void Splash::drawCharFrame() {
@@ -85,7 +85,7 @@ void Splash::addLog(const char* msg) {
     }
 
     // Draw just the new line
-    int lineY = SPLASH_LOG_Y + (_logCount - 1) * SPLASH_LOG_LINE_H;
+    int lineY = SPLASH_LOG_Y + (_logCount - 1) * SPLASH_LOG_LINE_H + _drawYOffset;
     _tft->setTextFont(1);
     _tft->setTextSize(1);
     _tft->setTextColor(COLOR_SPLASH_LOG, TFT_BLACK);
