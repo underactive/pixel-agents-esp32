@@ -65,13 +65,15 @@ class BleTransport:
         return self._run_coro(self._scan_async(), timeout=SCAN_TIMEOUT_SEC + 5)
 
     async def _scan_async(self) -> Optional[str]:
-        print(f"Scanning for BLE device '{self._device_name}'...")
-        devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT_SEC)
+        print(f"Scanning for BLE device (NUS service)...")
+        devices = await BleakScanner.discover(
+            timeout=SCAN_TIMEOUT_SEC,
+            service_uuids=[NUS_SERVICE_UUID]
+        )
         for d in devices:
-            if d.name and d.name == self._device_name:
-                print(f"Found {d.name} at {d.address}")
-                return d.address
-        print(f"Device '{self._device_name}' not found.")
+            print(f"Found NUS device at {d.address} (name={d.name})")
+            return d.address
+        print("No NUS device found.")
         return None
 
     def connect(self, address: Optional[str] = None) -> bool:
