@@ -118,6 +118,8 @@ void Protocol::dispatch() {
             if (_bufIdx < 3) break;
             AgentUpdate upd;
             upd.agentId = _buf[0];
+            // WHY: Bound at DESPAWN(6), not ACTIVITY(7) — ACTIVITY is firmware-only idle
+            // behavior, never sent over the wire. Companion only sends OFFLINE..DESPAWN.
             if (_buf[1] > static_cast<uint8_t>(CharState::DESPAWN)) break;
             upd.state = static_cast<CharState>(_buf[1]);
             uint8_t toolLen = _buf[2];

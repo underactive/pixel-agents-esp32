@@ -36,6 +36,12 @@ struct Character {
     SocialZone homeZone;      // which social zone this character idles in
     char toolName[MAX_TOOL_NAME_LEN + 1];
 
+    // Idle activities
+    IdleActivity idleActivity;   // current or pending activity (NONE when wandering)
+    Dir activityDir;              // intended facing direction at activity destination
+    float activityTimer;          // countdown while performing activity
+    bool activityCooldown;        // force normal wander before next activity
+
     // Speech bubble
     uint8_t bubbleType;       // 0=none, 1=permission, 2=waiting
     float bubbleTimer;
@@ -169,6 +175,12 @@ private:
     void startZoneWander(Character& ch);
     void walkToZone(Character& ch);
     void snapToSeat(Character& ch);
+
+    // Idle activities
+    void startIdleActivity(Character& ch);
+    void pickActivityTarget(Character& ch, IdleActivity activity);
+    bool isInteractionPointFree(int8_t col, int8_t row, int excludeIdx) const;
+    int findSocializeTarget(int charIdx);
 
     // BFS pathfinding
     bool findPath(int8_t fromCol, int8_t fromRow, int8_t toCol, int8_t toRow,

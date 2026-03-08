@@ -44,6 +44,10 @@ void OfficeState::spawnAllCharacters() {
         ch.wanderLimit = (uint8_t)randomInt(WANDER_MOVES_MIN, WANDER_MOVES_MAX);
         ch.pathLen = 0;
         ch.pathIdx = 0;
+        ch.idleActivity = IdleActivity::NONE;
+        ch.activityDir = Dir::DOWN;
+        ch.activityTimer = 0;
+        ch.activityCooldown = false;
         ch.bubbleType = 0;
         ch.bubbleTimer = 0;
         ch.effectTimer = 0;
@@ -304,7 +308,8 @@ int OfficeState::findOrAssignChar(uint8_t agentId) {
     // Second: find an idle character not assigned to any agent
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (_chars[i].alive && _chars[i].agentId < 0 &&
-            (_chars[i].state == CharState::IDLE || _chars[i].state == CharState::WALK)) {
+            (_chars[i].state == CharState::IDLE || _chars[i].state == CharState::WALK ||
+             _chars[i].state == CharState::ACTIVITY)) {
             _chars[i].agentId = (int8_t)agentId;
             return i;
         }
@@ -344,6 +349,9 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
         ch.toolName[0] = '\0';
         ch.bubbleType = 0;
         ch.bubbleTimer = 0;
+        ch.idleActivity = IdleActivity::NONE;
+        ch.activityTimer = 0;
+        ch.activityCooldown = false;
         // Release seat
         ch.seatIdx = -1;
         walkToZone(ch);
@@ -354,6 +362,11 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
     if (idx < 0) return;
 
     Character& ch = _chars[idx];
+
+    // Clear any idle activity state (agent preemption)
+    ch.idleActivity = IdleActivity::NONE;
+    ch.activityTimer = 0;
+    ch.activityCooldown = false;
 
     // Store tool name
     if (toolName && toolName[0] != '\0') {
@@ -549,9 +562,14 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
             // Wander timer
             ch.wanderTimer -= dt;
             if (ch.wanderTimer <= 0) {
-                // Unassigned characters wander within their home zone
+                // Unassigned characters may do idle activities or wander in zone
                 if (ch.agentId < 0) {
-                    startZoneWander(ch);
+                    if (!ch.activityCooldown && randomRange(0, 1.0f) < ACTIVITY_CHANCE) {
+                        startIdleActivity(ch);
+                    } else {
+                        startZoneWander(ch);
+                        ch.activityCooldown = false;  // cooldown served
+                    }
                 } else {
                     startWander(ch);
                 }
@@ -582,6 +600,13 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
                     } else {
                         ch.state = CharState::IDLE;
                     }
+                } else if (ch.idleActivity != IdleActivity::NONE) {
+                    // Arrived at activity destination — restore intended facing direction
+                    ch.state = CharState::ACTIVITY;
+                    ch.dir = ch.activityDir;
+                    ch.activityTimer = randomRange(ACTIVITY_DURATION_MIN_SEC, ACTIVITY_DURATION_MAX_SEC);
+                    ch.frame = 0;
+                    ch.frameTimer = 0;
                 } else {
                     ch.state = CharState::IDLE;
                     ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC);
@@ -621,6 +646,41 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
                 ch.y = toY;
                 ch.pathIdx++;
                 ch.moveProgress = 0;
+            }
+            break;
+        }
+
+        case CharState::ACTIVITY: {
+            // If agent became active, cancel activity immediately
+            if (ch.isActive) {
+                ch.state = CharState::IDLE;
+                ch.idleActivity = IdleActivity::NONE;
+                ch.activityTimer = 0;
+                ch.frame = 0;
+                ch.frameTimer = 0;
+                break;
+            }
+
+            // Animate reading activity (2-frame cycle)
+            if (ch.idleActivity == IdleActivity::READING) {
+                if (ch.frameTimer >= READ_ACTIVITY_FRAME_SEC) {
+                    ch.frameTimer -= READ_ACTIVITY_FRAME_SEC;
+                    ch.frame = (ch.frame + 1) % 2;
+                }
+            }
+            // COFFEE/WATER/SOCIALIZING: standing frame, no animation
+
+            // Count down activity duration
+            ch.activityTimer -= dt;
+            if (ch.activityTimer <= 0) {
+                ch.state = CharState::IDLE;
+                ch.idleActivity = IdleActivity::NONE;
+                ch.activityTimer = 0;
+                ch.activityCooldown = true;
+                ch.frame = 0;
+                ch.frameTimer = 0;
+                ch.wanderTimer = randomRange(ACTIVITY_COOLDOWN_SEC, ACTIVITY_COOLDOWN_SEC + WANDER_PAUSE_MIN_SEC);
+                walkToZone(ch);
             }
             break;
         }
@@ -688,6 +748,7 @@ void OfficeState::startZoneWander(Character& ch) {
 }
 
 void OfficeState::walkToZone(Character& ch) {
+    ch.idleActivity = IdleActivity::NONE;
     int colMin, colMax, rowMin, rowMax;
     if (ch.homeZone == SocialZone::BREAK_ROOM) {
         colMin = ZONE_BREAK_COL_MIN; colMax = ZONE_BREAK_COL_MAX;
@@ -732,6 +793,138 @@ void OfficeState::snapToSeat(Character& ch) {
     ch.x = ws.seatCol * TILE_SIZE + TILE_SIZE / 2.0f;
     ch.y = ws.seatRow * TILE_SIZE + TILE_SIZE / 2.0f;
     ch.dir = ws.facingDir;
+}
+
+// ── Idle Activity Logic ──────────────────────────────────
+
+void OfficeState::startIdleActivity(Character& ch) {
+    // Roll random activity: READING 30%, COFFEE 20%, WATER 20%, SOCIALIZING 30%
+    float roll = randomRange(0, 1.0f);
+    IdleActivity activity;
+    if (roll < 0.30f) {
+        activity = IdleActivity::READING;
+    } else if (roll < 0.50f) {
+        activity = IdleActivity::COFFEE;
+    } else if (roll < 0.70f) {
+        activity = IdleActivity::WATER;
+    } else {
+        activity = IdleActivity::SOCIALIZING;
+    }
+    pickActivityTarget(ch, activity);
+}
+
+void OfficeState::pickActivityTarget(Character& ch, IdleActivity activity) {
+    int charIdx = -1;
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (&_chars[i] == &ch) { charIdx = i; break; }
+    }
+
+    if (activity == IdleActivity::SOCIALIZING) {
+        // Find another idle/unassigned character to socialize with
+        int target = findSocializeTarget(charIdx);
+        if (target < 0) {
+            // No target available, fall back to zone wander
+            startZoneWander(ch);
+            return;
+        }
+        // Walk to a tile adjacent to the target
+        const Character& other = _chars[target];
+        // Try tiles around the target's current position
+        static const int8_t DX[] = {0, 0, 1, -1};
+        static const int8_t DY[] = {1, -1, 0, 0};
+        for (int attempt = 0; attempt < 8; attempt++) {
+            int d = randomInt(0, 3);
+            int8_t col = other.tileCol + DX[d];
+            int8_t row = other.tileRow + DY[d];
+            if (isWalkable(col, row) && isInteractionPointFree(col, row, charIdx)) {
+                ch.idleActivity = IdleActivity::SOCIALIZING;
+                // Compute facing direction toward target (stored for restore after walk)
+                int dc = other.tileCol - col;
+                int dr = other.tileRow - row;
+                if (dc > 0) ch.activityDir = Dir::RIGHT;
+                else if (dc < 0) ch.activityDir = Dir::LEFT;
+                else if (dr > 0) ch.activityDir = Dir::DOWN;
+                else ch.activityDir = Dir::UP;
+                startWalk(ch, col, row);
+                if (ch.state != CharState::WALK) {
+                    ch.idleActivity = IdleActivity::NONE;
+                }
+                return;
+            }
+        }
+        // Couldn't find adjacent tile, fall back
+        startZoneWander(ch);
+        return;
+    }
+
+    // Furniture-based activities: READING, COFFEE, WATER
+    const InteractionPoint* points;
+    int numPoints;
+    switch (activity) {
+        case IdleActivity::READING:
+            points = READING_POINTS;
+            numPoints = NUM_READING_POINTS;
+            break;
+        case IdleActivity::COFFEE:
+            points = COFFEE_POINTS;
+            numPoints = NUM_COFFEE_POINTS;
+            break;
+        case IdleActivity::WATER:
+            points = WATER_POINTS;
+            numPoints = NUM_WATER_POINTS;
+            break;
+        default:
+            startZoneWander(ch);
+            return;
+    }
+
+    // Try random interaction points
+    for (int attempt = 0; attempt < numPoints * 2; attempt++) {
+        int idx = randomInt(0, numPoints - 1);
+        const auto& pt = points[idx];
+        if (isWalkable(pt.col, pt.row) && isInteractionPointFree(pt.col, pt.row, charIdx)) {
+            ch.idleActivity = activity;
+            ch.activityDir = pt.facingDir;
+            startWalk(ch, pt.col, pt.row);
+            if (ch.state != CharState::WALK) {
+                ch.idleActivity = IdleActivity::NONE;
+            }
+            return;
+        }
+    }
+
+    // All points occupied, fall back to zone wander
+    startZoneWander(ch);
+}
+
+bool OfficeState::isInteractionPointFree(int8_t col, int8_t row, int excludeIdx) const {
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (i == excludeIdx) continue;
+        if (!_chars[i].alive) continue;
+        // Check if standing on this tile
+        if (_chars[i].tileCol == col && _chars[i].tileRow == row) return false;
+        // Check if walking to this tile (last node in path)
+        if (_chars[i].state == CharState::WALK && _chars[i].pathLen > 0) {
+            const PathNode& dest = _chars[i].path[_chars[i].pathLen - 1];
+            if (dest.col == col && dest.row == row) return false;
+        }
+    }
+    return true;
+}
+
+int OfficeState::findSocializeTarget(int charIdx) {
+    int candidates[MAX_AGENTS];
+    int count = 0;
+    for (int i = 0; i < MAX_AGENTS; i++) {
+        if (i == charIdx) continue;
+        if (!_chars[i].alive) continue;
+        if (_chars[i].agentId >= 0) continue;  // skip assigned chars
+        if (_chars[i].state == CharState::IDLE || _chars[i].state == CharState::ACTIVITY) {
+            candidates[count++] = i;
+        }
+    }
+    if (count == 0) return -1;
+    return candidates[randomInt(0, count - 1)];
 }
 
 bool OfficeState::isWalkable(int8_t col, int8_t row) const {

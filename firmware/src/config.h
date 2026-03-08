@@ -45,6 +45,13 @@ static constexpr float WANDER_PAUSE_MAX_SEC = 20.0f;
 static constexpr int   WANDER_MOVES_MIN = 3;
 static constexpr int   WANDER_MOVES_MAX = 6;
 
+// ── Idle Activity Timing ───────────────────────────────
+static constexpr float ACTIVITY_DURATION_MIN_SEC = 4.0f;
+static constexpr float ACTIVITY_DURATION_MAX_SEC = 10.0f;
+static constexpr float ACTIVITY_CHANCE = 0.40f;           // 40% of wander triggers become activities
+static constexpr float ACTIVITY_COOLDOWN_SEC = 3.0f;      // min wander pause after activity
+static constexpr float READ_ACTIVITY_FRAME_SEC = 0.4f;    // slightly slower read animation for bookshelf
+
 // ── Rendering ───────────────────────────────────────────
 static constexpr int TARGET_FPS = 15;
 static constexpr int FRAME_MS = 1000 / TARGET_FPS;  // ~66ms
@@ -76,13 +83,23 @@ static constexpr int MAX_STATUS_TEXT_LEN = 32;
 
 // ── Character States ────────────────────────────────────
 enum class CharState : uint8_t {
-    OFFLINE = 0,
-    IDLE    = 1,
-    WALK    = 2,
-    TYPE    = 3,
-    READ    = 4,
-    SPAWN   = 5,
-    DESPAWN = 6
+    OFFLINE  = 0,
+    IDLE     = 1,
+    WALK     = 2,
+    TYPE     = 3,
+    READ     = 4,
+    SPAWN    = 5,
+    DESPAWN  = 6,
+    ACTIVITY = 7   // performing an idle activity (reading, coffee, etc.)
+};
+
+// ── Idle Activities ────────────────────────────────────
+enum class IdleActivity : uint8_t {
+    NONE        = 0,
+    READING     = 1,
+    COFFEE      = 2,
+    WATER       = 3,
+    SOCIALIZING = 4
 };
 
 // ── Directions ──────────────────────────────────────────
@@ -92,6 +109,30 @@ enum class Dir : uint8_t {
     RIGHT = 2,
     LEFT  = 3
 };
+
+// ── Idle Activity Interaction Points ───────────────────
+struct InteractionPoint {
+    int8_t col, row;
+    Dir facingDir;
+};
+
+// Reading: row 8 below bookshelves at rows 5-7
+static constexpr InteractionPoint READING_POINTS[] = {
+    {14, 8, Dir::UP}, {15, 8, Dir::UP}, {16, 8, Dir::UP}, {17, 8, Dir::UP}
+};
+static constexpr int NUM_READING_POINTS = sizeof(READING_POINTS) / sizeof(READING_POINTS[0]);
+
+// Coffee: row 3 below coffee maker at rows 0-1
+static constexpr InteractionPoint COFFEE_POINTS[] = {
+    {16, 3, Dir::UP}, {17, 3, Dir::UP}
+};
+static constexpr int NUM_COFFEE_POINTS = sizeof(COFFEE_POINTS) / sizeof(COFFEE_POINTS[0]);
+
+// Water: row 3 below water cooler at rows 0-2
+static constexpr InteractionPoint WATER_POINTS[] = {
+    {12, 3, Dir::UP}
+};
+static constexpr int NUM_WATER_POINTS = sizeof(WATER_POINTS) / sizeof(WATER_POINTS[0]);
 
 // ── Tile Types ──────────────────────────────────────────
 enum class TileType : uint8_t {

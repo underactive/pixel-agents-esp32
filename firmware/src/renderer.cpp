@@ -302,7 +302,15 @@ void Renderer::drawFurniture() {
 }
 
 void Renderer::drawCharacter(const Character& ch) {
-    int localFrame = getFrameIndex(ch.state, ch.frame);
+    // WHY: ACTIVITY frame selection is split here and in getFrameIndex() because
+    // non-READING activities need a standing pose (frame 1) that bypasses the
+    // state→frame mapping, while READING reuses the READ animation via getFrameIndex().
+    int localFrame;
+    if (ch.state == CharState::ACTIVITY && ch.idleActivity != IdleActivity::READING) {
+        localFrame = 1;  // standing pose for coffee/water/socializing
+    } else {
+        localFrame = getFrameIndex(ch.state, ch.frame);
+    }
     if (localFrame < 0) return;
 
     Dir renderDir = ch.dir;
@@ -558,7 +566,8 @@ void Renderer::drawStatusBar(OfficeState& office) {
                     case CharState::TYPE:    stateStr = "TYP"; break;
                     case CharState::READ:    stateStr = "RD";  break;
                     case CharState::IDLE:    stateStr = "IDL"; break;
-                    case CharState::WALK:    stateStr = "WLK"; break;
+                    case CharState::WALK:     stateStr = "WLK"; break;
+                    case CharState::ACTIVITY: stateStr = "ACT"; break;
                     case CharState::SPAWN:   stateStr = "SPN"; break;
                     case CharState::DESPAWN: stateStr = "DSP"; break;
                     default:                 stateStr = "?";   break;
@@ -608,6 +617,8 @@ int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
             return 3 + (frame % 2);
         case CharState::READ:
             return 5 + (frame % 2);
+        case CharState::ACTIVITY:
+            return 5 + (frame % 2);  // READ frames (used for READING activity)
         case CharState::IDLE:
             return 1;
         default:
