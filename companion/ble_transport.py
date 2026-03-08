@@ -24,6 +24,9 @@ NUS_TX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # Notify from this (ESP32 
 SCAN_TIMEOUT_SEC = 10.0
 CONNECT_TIMEOUT_SEC = 10.0
 
+# Manufacturer data company ID (must match firmware BLE_MFG_COMPANY_ID)
+MFG_COMPANY_ID = 0xFFFF
+
 
 class BleTransport:
     """BLE transport using Nordic UART Service.
@@ -62,19 +65,54 @@ class BleTransport:
 
     def scan(self) -> Optional[str]:
         """Scan for the PixelAgents device. Returns BLE address or None."""
-        return self._run_coro(self._scan_async(), timeout=SCAN_TIMEOUT_SEC + 5)
+        devices = self.scan_devices()
+        if devices:
+            addr, name, pin = devices[0]
+            return addr
+        return None
 
-    async def _scan_async(self) -> Optional[str]:
-        print(f"Scanning for BLE device (NUS service)...")
+    def scan_devices(self) -> list:
+        """Scan for NUS devices. Returns list of (address, name, pin) tuples."""
+        return self._run_coro(self._scan_devices_async(), timeout=SCAN_TIMEOUT_SEC + 5)
+
+    async def _scan_devices_async(self) -> list:
+        print("Scanning for BLE devices (NUS service)...")
         devices = await BleakScanner.discover(
             timeout=SCAN_TIMEOUT_SEC,
-            service_uuids=[NUS_SERVICE_UUID]
+            service_uuids=[NUS_SERVICE_UUID],
+            return_adv=True
         )
-        for d in devices:
-            print(f"Found NUS device at {d.address} (name={d.name})")
-            return d.address
-        print("No NUS device found.")
-        return None
+        results = []
+        for addr, (device, adv_data) in devices.items():
+            pin = self._extract_pin(adv_data)
+            name = adv_data.local_name or device.name or "Unknown"
+            pin_str = f", PIN={pin}" if pin else ""
+            print(f"  Found: {name} at {addr}{pin_str}")
+            results.append((addr, name, pin))
+        if not results:
+            print("No NUS devices found.")
+        return results
+
+    @staticmethod
+    def _extract_pin(adv_data) -> Optional[int]:
+        """Extract PIN from manufacturer data in advertisement."""
+        mfg = adv_data.manufacturer_data
+        if not mfg:
+            return None
+        payload = mfg.get(MFG_COMPANY_ID)
+        if payload is None or len(payload) < 2:
+            return None
+        return (payload[0] << 8) | payload[1]
+
+    def connect_by_pin(self, pin: int) -> bool:
+        """Scan for NUS devices and connect to the one matching the given PIN."""
+        devices = self.scan_devices()
+        for addr, name, dev_pin in devices:
+            if dev_pin == pin:
+                print(f"PIN {pin} matched: {name} at {addr}")
+                return self.connect(address=addr)
+        print(f"No device found with PIN {pin}")
+        return False
 
     def connect(self, address: Optional[str] = None) -> bool:
         """Scan (if no address given) and connect to the device."""

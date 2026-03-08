@@ -184,8 +184,25 @@
 - [ ] `--ble-name` flag with wrong name — prints "Device 'WrongName' not found."
 - [ ] Boot splash shows "BLE advertising" log line (CYD only)
 
+### BLE PIN Pairing (CYD)
+- [ ] CYD boot splash shows "PIN: XXXX" in white text, centered, between log area and footer
+- [ ] PIN is a 4-digit number (1000-9999)
+- [ ] Rebooting CYD generates a different PIN (verify across 3+ reboots)
+- [ ] `--transport ble` scan output lists each device with its PIN (e.g., "Found: PixelAgents at XX:XX, PIN=1234")
+- [ ] `--ble-pin 1234` connects to the device advertising PIN 1234
+- [ ] `--ble-pin 9999` with no matching device prints "No device found with PIN 9999" and retries
+- [ ] `--ble-pin 0` or `--ble-pin 99999` — prints error about valid range and exits
+- [ ] Interactive mode (no --ble-pin, tty): prompts "Enter PIN from device display:", entering correct PIN connects
+- [ ] Interactive mode: entering wrong PIN prints error and does not connect
+- [ ] Interactive mode: entering non-numeric input prints "Invalid PIN." and does not connect
+- [ ] Non-interactive mode (no --ble-pin, no tty): connects to first NUS device without prompting
+- [ ] Two CYDs in range: each shows a different PIN; `--ble-pin` connects to the correct one
+- [ ] Screenshot during splash (CYD) captures PIN text in saved image
+- [ ] PIN logged to serial output: "[BLE] PIN: XXXX" visible in serial monitor
+- [ ] BLE reconnect after disconnect reuses entered PIN without re-prompting
+
 ### Companion BLE Script
-- [ ] `python3 companion/pixel_agents_bridge.py --transport ble --help` — shows transport/ble-name options
+- [ ] `python3 companion/pixel_agents_bridge.py --transport ble --help` — shows transport/ble-name/ble-pin options
 - [ ] Without ESP32 in range: prints scan failure and retries after 2 seconds
 - [ ] Ctrl+C exits cleanly, BLE event loop shut down
 
