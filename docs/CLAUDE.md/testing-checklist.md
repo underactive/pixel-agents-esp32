@@ -171,6 +171,24 @@
 - [ ] Companion with stdin not a TTY (e.g., `< /dev/null`) — runs normally without keyboard input, no crash
 - [ ] Ctrl+C exits companion cleanly, terminal is restored to normal mode
 
+### BLE Transport (CYD)
+- [ ] `python3 companion/pixel_agents_bridge.py --transport ble` — scans for "PixelAgents" device
+- [ ] BLE connects to CYD — prints "BLE connected to XX:XX:XX:XX:XX:XX"
+- [ ] Status bar shows green dot when companion sends heartbeats over BLE
+- [ ] Agent state updates work over BLE (characters walk to desks, sit, return)
+- [ ] Usage stats display correctly when received over BLE
+- [ ] BLE disconnect — companion prints "BLE disconnected." and rescans
+- [ ] BLE reconnect — companion resends full state (agent count, usage stats)
+- [ ] Screenshot shortcut ('s') is disabled over BLE with explanatory message
+- [ ] Simultaneous serial + BLE — both transports process messages without corruption
+- [ ] `--ble-name` flag with wrong name — prints "Device 'WrongName' not found."
+- [ ] Boot splash shows "BLE advertising" log line (CYD only)
+
+### Companion BLE Script
+- [ ] `python3 companion/pixel_agents_bridge.py --transport ble --help` — shows transport/ble-name options
+- [ ] Without ESP32 in range: prints scan failure and retries after 2 seconds
+- [ ] Ctrl+C exits cleanly, BLE event loop shut down
+
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes
 - [ ] Rapid state changes (TYPE→IDLE→TYPE) — smooth transitions
