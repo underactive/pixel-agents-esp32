@@ -273,7 +273,7 @@ Environment files / define sources:
 1. **Hardware not yet tested** -- Code written against datasheet specs, needs hardware verification
 2. **JSONL format not a public API** -- Claude Code transcript format may change between versions
 3. **No WiFi mode** -- USB serial or BLE only (no WiFi/WebSocket)
-4. **No OTA updates** -- Must flash via USB
+4. **No wireless OTA updates** -- Must flash via USB (browser-based flasher available at `tools/firmware_update.html`)
 5. **CYD has no PSRAM** -- Renderer uses fallback modes (half-buffer or direct-draw) which may have visual artifacts
 
 ---
@@ -487,6 +487,7 @@ Version string appears in 4 files:
 | `tools/convert_dog.py` | Dog pet PNG sprite sheet --> C header generator |
 | `tools/sprite_validation.html` | Visual sprite verification (browser, generated) |
 | `tools/layout_editor.html` | Office layout visual editor (generates C code) |
+| `tools/firmware_update.html` | Browser-based firmware flasher (Web Serial + esptool-js) |
 | `run_companion.py` | Cross-platform companion launcher (auto-creates venv, installs deps) |
 | `CLAUDE.md` | This file |
 | `CHANGELOG.md` | User-facing changelog (Keep a Changelog format) |

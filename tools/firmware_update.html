@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Agents — Firmware Update</title>
+<style>
+  :root {
+    --bg-base: #1e1e2e;
+    --bg-surface: #181825;
+    --bg-overlay: #313244;
+    --bg-hover: #45475a;
+    --text-primary: #cdd6f4;
+    --text-secondary: #a6adc8;
+    --text-dim: #6c7086;
+    --accent: #cba6f7;
+    --accent-hover: #b48ef0;
+    --green: #a6e3a1;
+    --red: #f38ba8;
+    --yellow: #f9e2af;
+    --blue: #89b4fa;
+    --border: #45475a;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 640px;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+  }
+
+  select, input[type="number"] {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  select:hover, input[type="number"]:hover {
+    border-color: var(--accent);
+  }
+
+  .select-wrapper {
+    position: relative;
+    margin-bottom: 0.75rem;
+  }
+
+  .select-wrapper::after {
+    content: '▾';
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    pointer-events: none;
+    margin-top: 0.9rem;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .row > * { flex: 1; }
+
+  .file-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .file-zone:hover, .file-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(203, 166, 247, 0.05);
+  }
+
+  .file-zone input { display: none; }
+
+  .file-zone-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .file-zone-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  .file-zone-text strong {
+    color: var(--accent);
+  }
+
+  .file-list {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-overlay);
+    border-radius: 4px;
+    margin-bottom: 0.35rem;
+  }
+
+  .file-item-name {
+    color: var(--text-primary);
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 0.8rem;
+  }
+
+  .file-item-size {
+    color: var(--text-dim);
+    font-size: 0.75rem;
+  }
+
+  .file-item-remove {
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0 0.25rem;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .file-item-remove:hover { color: var(--red); }
+
+  .file-item-offset {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .file-item-offset input {
+    width: 5.5rem;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    text-align: right;
+  }
+
+  .file-item-offset span {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    width: 100%;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg-base);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-danger {
+    background: var(--red);
+    color: var(--bg-base);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #e67a95;
+  }
+
+  .btn-secondary {
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  .btn-sm {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    width: auto;
+  }
+
+  .warning-box {
+    background: rgba(249, 226, 175, 0.08);
+    border: 1px solid rgba(249, 226, 175, 0.25);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--yellow);
+    line-height: 1.5;
+  }
+
+  .confirm-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .confirm-buttons .btn { width: auto; flex: 1; }
+
+  .progress-container {
+    margin: 1rem 0;
+  }
+
+  .progress-bar-track {
+    height: 8px;
+    background: var(--bg-overlay);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.2s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.35rem;
+  }
+
+  .terminal {
+    background: #11111b;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    font-family: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: 0.75rem;
+  }
+
+  .terminal-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .terminal-time {
+    color: var(--text-dim);
+    margin-right: 0.5em;
+    user-select: none;
+  }
+
+  .log-info { color: var(--text-secondary); }
+  .log-success { color: var(--green); }
+  .log-error { color: var(--red); }
+  .log-warn { color: var(--yellow); }
+
+  .terminal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.35rem;
+  }
+
+  .status-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+  }
+
+  .status-success {
+    background: rgba(166, 227, 161, 0.1);
+    border: 1px solid rgba(166, 227, 161, 0.25);
+    color: var(--green);
+  }
+
+  .status-error {
+    background: rgba(243, 139, 168, 0.1);
+    border: 1px solid rgba(243, 139, 168, 0.25);
+    color: var(--red);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--bg-hover);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .browser-warning {
+    background: rgba(243, 139, 168, 0.08);
+    border: 1px solid rgba(243, 139, 168, 0.25);
+    border-radius: var(--radius);
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .browser-warning a {
+    color: var(--blue);
+    text-decoration: underline;
+  }
+
+  .hidden { display: none !important; }
+
+  .info-text {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.35rem;
+    line-height: 1.4;
+  }
+
+  .chip-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    background: var(--bg-overlay);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--blue);
+    font-family: 'SF Mono', 'Consolas', monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Pixel Agents — Firmware Update</h1>
+  <p class="subtitle">Flash firmware to your ESP32 device via Web Serial</p>
+
+  <!-- Browser warning (shown if Web Serial not available) -->
+  <div id="browser-warning" class="browser-warning hidden">
+    Web Serial API is not available in this browser.<br>
+    Use <a href="https://www.google.com/chrome/" target="_blank">Chrome</a> or
+    <a href="https://www.microsoft.com/edge" target="_blank">Edge</a> (version 89+).
+  </div>
+
+  <!-- STATE: idle / parsed -->
+  <div id="setup-panel">
+    <!-- Board & mode selection -->
+    <div class="card">
+      <div class="card-title">Configuration</div>
+      <div class="row">
+        <div class="select-wrapper">
+          <label for="board-select">Board</label>
+          <select id="board-select">
+            <option value="cyd">CYD (ESP32-2432S028R)</option>
+            <option value="lilygo">LILYGO T-Display S3</option>
+          </select>
+        </div>
+        <div class="select-wrapper">
+          <label for="mode-select">Flash Mode</label>
+          <select id="mode-select">
+            <option value="update">Update Firmware Only</option>
+            <option value="full">Full Flash</option>
+          </select>
+        </div>
+      </div>
+      <div class="select-wrapper">
+        <label for="baud-select">Baud Rate</label>
+        <select id="baud-select">
+          <option value="115200">115200 (default)</option>
+          <option value="230400">230400</option>
+          <option value="460800">460800 (faster)</option>
+          <option value="921600">921600 (fastest)</option>
+        </select>
+      </div>
+      <p id="mode-hint" class="info-text"></p>
+    </div>
+
+    <!-- File picker -->
+    <div class="card">
+      <div class="card-title">Firmware Files</div>
+      <div id="file-zone" class="file-zone">
+        <div class="file-zone-icon">&#128190;</div>
+        <div class="file-zone-text">
+          <strong>Click to select</strong> or drag &amp; drop<br>.bin files
+        </div>
+        <input type="file" id="file-input" accept=".bin">
+      </div>
+      <div id="file-list" class="file-list hidden"></div>
+    </div>
+
+    <!-- Flash button -->
+    <button id="btn-flash" class="btn btn-primary" disabled>Start Flash</button>
+  </div>
+
+  <!-- STATE: confirm -->
+  <div id="confirm-panel" class="hidden">
+    <div class="warning-box">
+      <strong>Warning:</strong> Flashing will overwrite the firmware on your device.
+      Make sure you have selected the correct board and firmware files.
+      Do not disconnect the device during flashing.
+      <div id="confirm-summary" style="margin-top: 0.5rem;"></div>
+    </div>
+    <div class="confirm-buttons">
+      <button id="btn-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="btn-confirm" class="btn btn-danger">Confirm &amp; Flash</button>
+    </div>
+  </div>
+
+  <!-- STATE: connecting / flashing -->
+  <div id="progress-panel" class="hidden">
+    <div class="card">
+      <div class="card-title" id="progress-title">
+        <span class="spinner"></span> Connecting...
+      </div>
+      <div class="progress-container">
+        <div class="progress-bar-track">
+          <div id="progress-fill" class="progress-bar-fill"></div>
+        </div>
+        <div class="progress-label">
+          <span id="progress-status">Waiting for serial port...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+      </div>
+      <div id="terminal" class="terminal"></div>
+      <div class="terminal-actions">
+        <button id="btn-copy-log" class="btn btn-secondary btn-sm">Copy Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATE: complete -->
+  <div id="complete-panel" class="hidden">
+    <div class="status-banner status-success">
+      &#10003; Firmware flashed successfully! Device is rebooting.
+    </div>
+    <div id="complete-terminal-wrap" class="card">
+      <div class="card-title">Flash Log</div>
+      <div id="complete-terminal" class="terminal"></div>
+      <div class="terminal-actions">
+        <button id="btn-copy-log-done" class="btn btn-secondary btn-sm">Copy Log</button>
+      </div>
+    </div>
+    <button id="btn-done" class="btn btn-secondary" style="margin-top: 0.5rem;">Flash Another</button>
+  </div>
+
+  <!-- STATE: error -->
+  <div id="error-panel" class="hidden">
+    <div class="status-banner status-error">
+      &#10007; <span id="error-message">Flash failed.</span>
+    </div>
+    <div id="error-terminal-wrap" class="card">
+      <div class="card-title">Flash Log</div>
+      <div id="error-terminal" class="terminal"></div>
+      <div class="terminal-actions">
+        <button id="btn-copy-log-err" class="btn btn-secondary btn-sm">Copy Log</button>
+      </div>
+    </div>
+    <button id="btn-retry" class="btn btn-secondary" style="margin-top: 0.5rem;">Try Again</button>
+  </div>
+</div>
+
+<script>
+  // --- esptool-js loaded lazily via dynamic import (works on file:// and http://) ---
+  let ESPLoader = null;
+  let Transport = null;
+  let esptoolLoaded = false;
+  let esptoolLoadError = null;
+
+  const ESPTOOL_CDN_URL = 'https://unpkg.com/esptool-js@0.5.6/bundle.js';
+
+  async function loadEsptool() {
+    if (esptoolLoaded) return;
+    try {
+      const mod = await import(ESPTOOL_CDN_URL);
+      ESPLoader = mod.ESPLoader;
+      Transport = mod.Transport;
+      esptoolLoaded = true;
+    } catch (e) {
+      esptoolLoadError = e;
+      throw new Error(
+        'Failed to load esptool-js from CDN. Make sure you have internet access. ' +
+        'If opened via file://, use a local server instead: ' +
+        'python3 -m http.server 8000, then open http://localhost:8000/tools/firmware_update.html'
+      );
+    }
+  }
+
+  // --- Board configurations ---
+  const BOARDS = {
+    cyd: {
+      name: 'CYD (ESP32-2432S028R)',
+      chip: 'ESP32',
+      flashSize: '4MB',
+      bootloaderOffset: 0x1000,
+      partitionsOffset: 0x8000,
+      bootApp0Offset: 0xe000,
+      firmwareOffset: 0x10000,
+    },
+    lilygo: {
+      name: 'LILYGO T-Display S3',
+      chip: 'ESP32-S3',
+      flashSize: '16MB',
+      bootloaderOffset: 0x0,
+      partitionsOffset: 0x8000,
+      bootApp0Offset: 0xe000,
+      firmwareOffset: 0x10000,
+    },
+  };
+
+  // Files expected per flash mode
+  const FULL_FLASH_SLOTS = [
+    { key: 'bootloader', label: 'bootloader.bin', offsetKey: 'bootloaderOffset' },
+    { key: 'partitions', label: 'partitions.bin', offsetKey: 'partitionsOffset' },
+    { key: 'boot_app0',  label: 'boot_app0.bin',  offsetKey: 'bootApp0Offset' },
+    { key: 'firmware',   label: 'firmware.bin',    offsetKey: 'firmwareOffset' },
+  ];
+
+  // --- State ---
+  let state = 'idle';
+  let selectedBoard = 'cyd';
+  let flashMode = 'update';
+  let baudRate = 115200;
+  let files = []; // [{name, size, data (ArrayBuffer), address}]
+  let logStartTime = 0;
+  let logLines = [];
+  let terminalAutoScroll = true;
+  let flashing = false; // Guard against concurrent flash operations
+  let activeTransport = null; // Module-level ref for cleanup on page unload
+  let activePort = null;
+
+  // --- DOM refs ---
+  const $ = (id) => document.getElementById(id);
+  const panels = {
+    setup:    $('setup-panel'),
+    confirm:  $('confirm-panel'),
+    progress: $('progress-panel'),
+    complete: $('complete-panel'),
+    error:    $('error-panel'),
+  };
+
+  const boardSelect = $('board-select');
+  const modeSelect = $('mode-select');
+  const baudSelect = $('baud-select');
+  const modeHint = $('mode-hint');
+  const fileZone = $('file-zone');
+  const fileInput = $('file-input');
+  const fileListEl = $('file-list');
+  const btnFlash = $('btn-flash');
+  const btnCancel = $('btn-cancel');
+  const btnConfirm = $('btn-confirm');
+  const btnDone = $('btn-done');
+  const btnRetry = $('btn-retry');
+  const progressFill = $('progress-fill');
+  const progressStatus = $('progress-status');
+  const progressPct = $('progress-pct');
+  const progressTitle = $('progress-title');
+  const terminal = $('terminal');
+  const confirmSummary = $('confirm-summary');
+  const errorMessage = $('error-message');
+
+  // --- Web Serial check ---
+  if (!('serial' in navigator)) {
+    $('browser-warning').classList.remove('hidden');
+    panels.setup.classList.add('hidden');
+  }
+
+  // --- UI state machine ---
+  function setState(newState) {
+    state = newState;
+    Object.values(panels).forEach(p => p.classList.add('hidden'));
+    if (newState === 'idle' || newState === 'parsed') {
+      panels.setup.classList.remove('hidden');
+    } else if (newState === 'confirm') {
+      panels.confirm.classList.remove('hidden');
+    } else if (newState === 'connecting' || newState === 'flashing') {
+      panels.progress.classList.remove('hidden');
+    } else if (newState === 'complete') {
+      panels.complete.classList.remove('hidden');
+      // Move terminal log to complete panel
+      const ct = $('complete-terminal');
+      ct.innerHTML = terminal.innerHTML;
+    } else if (newState === 'error') {
+      panels.error.classList.remove('hidden');
+      const et = $('error-terminal');
+      et.innerHTML = terminal.innerHTML;
+    }
+  }
+
+  // --- Mode hint text ---
+  function updateModeHint() {
+    const board = BOARDS[selectedBoard];
+    if (flashMode === 'update') {
+      modeHint.textContent = `Flashes firmware.bin at 0x${board.firmwareOffset.toString(16).padStart(5, '0')}. Use for routine updates.`;
+    } else {
+      modeHint.textContent = `Flashes bootloader + partition table + firmware. Use for first-time flash or after partition table changes.`;
+    }
+  }
+
+  // --- File handling ---
+  function formatSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function guessFileSlot(name) {
+    const lower = name.toLowerCase();
+    if (lower.includes('bootloader')) return 'bootloader';
+    if (lower.includes('partitions')) return 'partitions';
+    if (lower.includes('boot_app0')) return 'boot_app0';
+    if (lower.includes('firmware')) return 'firmware';
+    return null;
+  }
+
+  function assignAddress(file) {
+    const board = BOARDS[selectedBoard];
+    if (flashMode === 'update') {
+      file.address = board.firmwareOffset;
+      return;
+    }
+    const slot = guessFileSlot(file.name);
+    if (slot) {
+      const slotDef = FULL_FLASH_SLOTS.find(s => s.key === slot);
+      file.address = board[slotDef.offsetKey];
+    } else {
+      // Default to firmware offset
+      file.address = board.firmwareOffset;
+    }
+  }
+
+  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (largest supported flash)
+
+  async function addFiles(fileHandles) {
+    for (const fh of fileHandles) {
+      if (!fh.name.endsWith('.bin')) continue;
+      if (fh.size > MAX_FILE_SIZE) {
+        alert(`File "${fh.name}" is too large (${formatSize(fh.size)}). Maximum is ${formatSize(MAX_FILE_SIZE)}.`);
+        continue;
+      }
+      const data = await fh.arrayBuffer();
+      const entry = { name: fh.name, size: data.byteLength, data };
+      assignAddress(entry);
+
+      // In update mode, replace any existing file; in full mode, replace by slot
+      if (flashMode === 'update') {
+        files = [entry];
+      } else {
+        const slot = guessFileSlot(fh.name);
+        if (slot) {
+          files = files.filter(f => guessFileSlot(f.name) !== slot);
+        }
+        files.push(entry);
+      }
+    }
+    renderFileList();
+    validateFiles();
+  }
+
+  function removeFile(index) {
+    files.splice(index, 1);
+    renderFileList();
+    validateFiles();
+  }
+
+  function renderFileList() {
+    if (files.length === 0) {
+      fileListEl.classList.add('hidden');
+      return;
+    }
+    fileListEl.classList.remove('hidden');
+    fileListEl.innerHTML = files.map((f, i) => `
+      <div class="file-item">
+        <span class="file-item-name">${escapeHtml(f.name)}</span>
+        <div class="file-item-offset">
+          <span>@ 0x${f.address.toString(16).padStart(5, '0')}</span>
+        </div>
+        <span class="file-item-size">${formatSize(f.size)}</span>
+        <span class="file-item-remove" data-index="${i}">&times;</span>
+      </div>
+    `).join('');
+
+    fileListEl.querySelectorAll('.file-item-remove').forEach(btn => {
+      btn.addEventListener('click', () => removeFile(parseInt(btn.dataset.index)));
+    });
+  }
+
+  function validateFiles() {
+    if (files.length === 0) {
+      btnFlash.disabled = true;
+      setState('idle');
+      return;
+    }
+    btnFlash.disabled = false;
+    setState('parsed');
+  }
+
+  // --- Terminal log ---
+  function resetLog() {
+    logStartTime = performance.now();
+    logLines = [];
+    terminal.innerHTML = '';
+    terminalAutoScroll = true;
+  }
+
+  function addLog(msg, level = 'info') {
+    const elapsed = ((performance.now() - logStartTime) / 1000).toFixed(1);
+    const line = { time: elapsed, msg, level };
+    logLines.push(line);
+    const div = document.createElement('div');
+    div.className = 'terminal-line';
+    div.innerHTML = `<span class="terminal-time">[${elapsed}s]</span><span class="log-${level}">${escapeHtml(msg)}</span>`;
+    terminal.appendChild(div);
+    if (terminalAutoScroll) {
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  }
+
+  function copyLog() {
+    const text = logLines.map(l => `[${l.time}s] ${l.msg}`).join('\n');
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+
+  terminal.addEventListener('scroll', () => {
+    const { scrollTop, scrollHeight, clientHeight } = terminal;
+    terminalAutoScroll = (scrollHeight - scrollTop - clientHeight) < 30;
+  });
+
+  function escapeHtml(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
+  }
+
+  // --- Progress ---
+  function setProgress(pct, statusText) {
+    progressFill.style.width = `${pct}%`;
+    progressPct.textContent = `${pct}%`;
+    if (statusText) progressStatus.textContent = statusText;
+  }
+
+  // --- Flash orchestration ---
+  async function doFlash() {
+    if (flashing) return;
+    flashing = true;
+    resetLog();
+    setState('connecting');
+
+    // Load esptool-js on first use
+    try {
+      await loadEsptool();
+    } catch (e) {
+      addLog(e.message, 'error');
+      errorMessage.textContent = e.message;
+      setState('error');
+      flashing = false;
+      return;
+    }
+    progressTitle.innerHTML = '<span class="spinner"></span> Connecting...';
+    setProgress(0, 'Requesting serial port...');
+
+    let port = null;
+    let transport = null;
+    let esploader = null;
+
+    try {
+      // 1. Request serial port
+      addLog('Requesting serial port...', 'info');
+      try {
+        port = await navigator.serial.requestPort();
+      } catch (e) {
+        if (e.name === 'NotAllowedError') {
+          throw new Error('Serial port selection was cancelled.');
+        }
+        throw e;
+      }
+      activePort = port;
+      addLog('Serial port selected.', 'success');
+
+      // 2. Create transport + loader
+      setProgress(2, 'Connecting to bootloader...');
+      addLog(`Board: ${BOARDS[selectedBoard].name}`, 'info');
+      addLog(`Baud rate: ${baudRate}`, 'info');
+
+      transport = new Transport(port, true);
+      activeTransport = transport;
+
+      const loaderTerminal = {
+        clean() {},
+        writeLine(data) {
+          if (data && data.trim()) addLog(data.trim(), 'info');
+        },
+        write(data) {
+          // Partial line output from esptool — ignore to avoid noise
+        },
+      };
+
+      esploader = new ESPLoader({
+        transport,
+        baudrate: baudRate,
+        terminal: loaderTerminal,
+        debugLogging: false,
+      });
+
+      // 3. Connect to bootloader (30s timeout)
+      addLog('Connecting to bootloader (hold BOOT if auto-reset fails)...', 'info');
+      const connectTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Bootloader connection timed out after 30s. Try holding BOOT and pressing RESET.')), 30000)
+      );
+      const chip = await Promise.race([esploader.main(), connectTimeout]);
+      addLog(`Detected chip: ${chip}`, 'success');
+
+      progressTitle.innerHTML = '<span class="spinner"></span> Flashing...';
+      setState('flashing');
+
+      // 4. Build file array
+      const fileArray = files.map(f => ({
+        data: binaryToEsptoolString(new Uint8Array(f.data)),
+        address: f.address,
+      }));
+
+      addLog(`Flashing ${files.length} file(s)...`, 'info');
+      files.forEach(f => {
+        addLog(`  ${f.name} (${formatSize(f.size)}) → 0x${f.address.toString(16).padStart(5, '0')}`, 'info');
+      });
+
+      // 5. Flash
+      setProgress(5, 'Erasing and writing flash...');
+
+      await esploader.writeFlash({
+        fileArray,
+        flashSize: BOARDS[selectedBoard].flashSize,
+        eraseAll: false,
+        compress: true,
+        flashMode: 'keep',
+        reportProgress: (fileIndex, written, total) => {
+          const filePct = total > 0 ? written / total : 0;
+          // Scale progress: 5% (connect) to 95% (flash done), distributed across files
+          const fileCount = files.length;
+          const perFileRange = 90 / fileCount;
+          const overallPct = Math.round(5 + (fileIndex * perFileRange) + (filePct * perFileRange));
+          const label = fileCount > 1
+            ? `Writing file ${fileIndex + 1}/${fileCount} (${Math.round(filePct * 100)}%)...`
+            : `Writing (${Math.round(filePct * 100)}%)...`;
+          setProgress(overallPct, label);
+        },
+      });
+
+      addLog('Flash write complete.', 'success');
+
+      // 6. Hard reset device into normal boot (not bootloader)
+      // RTS = EN (reset), DTR = GPIO0 (boot mode). DTR high + RTS pulse = normal boot.
+      setProgress(97, 'Resetting device...');
+      addLog('Resetting device...', 'info');
+      await transport.setRTS(true);   // Hold EN low (reset)
+      await transport.setDTR(false);  // GPIO0 high (normal boot, not bootloader)
+      await new Promise(r => setTimeout(r, 100));
+      await transport.setRTS(false);  // Release EN — chip boots
+      await new Promise(r => setTimeout(r, 50));
+
+      try {
+        await transport.disconnect();
+      } catch (e) {
+        // Ignore disconnect errors — device may have already reset
+      }
+      try {
+        await port.close();
+      } catch (e) {
+        // Ignore — port may already be released
+      }
+
+      setProgress(100, 'Complete!');
+      addLog('Flash complete! Device is rebooting.', 'success');
+      setState('complete');
+
+    } catch (err) {
+      const msg = err.message || String(err);
+      addLog(`Error: ${msg}`, 'error');
+      errorMessage.textContent = msg;
+
+      // Clean up transport and port on error
+      if (transport) {
+        try { await transport.disconnect(); } catch (_) {}
+      }
+      if (port) {
+        try { await port.close(); } catch (_) {}
+      }
+
+      setState('error');
+    } finally {
+      flashing = false;
+      activeTransport = null;
+      activePort = null;
+    }
+  }
+
+  // esptool-js expects file data as a binary string (each char = one byte)
+  function binaryToEsptoolString(uint8Array) {
+    // Process in chunks to avoid stack overflow, join at end to avoid O(n^2) concat
+    const parts = [];
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      parts.push(String.fromCharCode.apply(null, chunk));
+    }
+    return parts.join('');
+  }
+
+  // --- Reset to initial state ---
+  function resetAll() {
+    files = [];
+    renderFileList();
+    fileInput.value = '';
+    btnFlash.disabled = true;
+    $('complete-terminal').innerHTML = '';
+    $('error-terminal').innerHTML = '';
+    setState('idle');
+    updateModeHint();
+  }
+
+  // --- Event listeners ---
+  boardSelect.addEventListener('change', (e) => {
+    if (flashing) return;
+    selectedBoard = e.target.value;
+    // Re-assign addresses when board changes
+    files.forEach(f => assignAddress(f));
+    renderFileList();
+    validateFiles();
+    updateModeHint();
+  });
+
+  modeSelect.addEventListener('change', (e) => {
+    if (flashing) return;
+    flashMode = e.target.value;
+    // In update mode, keep only one file
+    if (flashMode === 'update' && files.length > 1) {
+      const fw = files.find(f => guessFileSlot(f.name) === 'firmware') || files[files.length - 1];
+      files = [fw];
+    }
+    files.forEach(f => assignAddress(f));
+    renderFileList();
+    validateFiles();
+    updateModeHint();
+    // Update file input multiple attribute
+    fileInput.multiple = (flashMode === 'full');
+  });
+
+  baudSelect.addEventListener('change', (e) => {
+    baudRate = parseInt(e.target.value);
+  });
+
+  // File zone click + drag-and-drop
+  fileZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) addFiles(Array.from(e.target.files));
+  });
+
+  fileZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileZone.classList.add('drag-over');
+  });
+  fileZone.addEventListener('dragleave', () => {
+    fileZone.classList.remove('drag-over');
+  });
+  fileZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) addFiles(Array.from(e.dataTransfer.files));
+  });
+
+  // Flash button → confirm
+  btnFlash.addEventListener('click', () => {
+    const board = BOARDS[selectedBoard];
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    confirmSummary.innerHTML = `
+      <strong>Board:</strong> ${escapeHtml(board.name)} <span class="chip-badge">${board.chip}</span><br>
+      <strong>Mode:</strong> ${flashMode === 'update' ? 'Update Firmware Only' : 'Full Flash'}<br>
+      <strong>Files:</strong> ${files.length} (${formatSize(totalSize)} total)<br>
+      <strong>Baud:</strong> ${baudRate}
+    `;
+    setState('confirm');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    validateFiles();
+  });
+
+  btnConfirm.addEventListener('click', () => {
+    doFlash();
+  });
+
+  btnDone.addEventListener('click', resetAll);
+  btnRetry.addEventListener('click', resetAll);
+
+  // Copy log buttons
+  $('btn-copy-log').addEventListener('click', copyLog);
+  $('btn-copy-log-done').addEventListener('click', copyLog);
+  $('btn-copy-log-err').addEventListener('click', copyLog);
+
+  // --- Cleanup on page unload ---
+  window.addEventListener('beforeunload', (e) => {
+    if (flashing) {
+      // Warn user and attempt cleanup
+      e.preventDefault();
+      if (activeTransport) {
+        try { activeTransport.disconnect(); } catch (_) {}
+      }
+      if (activePort) {
+        try { activePort.close(); } catch (_) {}
+      }
+    }
+  });
+
+  // --- Init ---
+  updateModeHint();
+</script>
+</body>
+</html>
