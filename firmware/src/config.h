@@ -253,6 +253,9 @@ static constexpr uint8_t LED_ACTIVE_MAX_BRIGHT = 255;
 #define BLE_DEVICE_NAME "PixelAgents"
 static constexpr int BLE_MTU = 128;
 static constexpr uint16_t BLE_RING_BUF_SIZE = 512;
+static constexpr uint16_t BLE_PIN_MIN = 1000;
+static constexpr uint16_t BLE_PIN_MAX = 9999;
+static constexpr uint16_t BLE_MFG_COMPANY_ID = 0xFFFF;  // BT SIG reserved for testing
 
 // ── Boot Splash Screen ───────────────────────────────────
 static constexpr int SPLASH_CHAR_SCALE = 2;
@@ -262,13 +265,14 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.8.0 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.9.0 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD)
 static constexpr int SPLASH_TITLE_Y = 15;
 static constexpr int SPLASH_CHAR_Y  = 48;
 static constexpr int SPLASH_LOG_Y   = 142;
 static constexpr int SPLASH_MAX_LOG_LINES = 7;
+static constexpr int SPLASH_PIN_Y   = 218;
 static constexpr int SPLASH_FOOTER_Y = 230;
 #else
 static constexpr int SPLASH_TITLE_Y = 8;

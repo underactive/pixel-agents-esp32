@@ -364,10 +364,11 @@ class PixelAgentsBridge:
     """Main bridge between Claude Code transcripts and ESP32 display."""
 
     def __init__(self, port: Optional[str] = None, transport: str = "serial",
-                 ble_name: str = "PixelAgents"):
+                 ble_name: str = "PixelAgents", ble_pin: Optional[int] = None):
         self.serial_port = port
         self.transport_mode = transport
         self.ble_name = ble_name
+        self.ble_pin = ble_pin
         self.ser: Optional[serial.Serial] = None
         self._ble = None  # BleTransport instance (lazy import)
         self.tracker = AgentTracker()
@@ -376,6 +377,13 @@ class PixelAgentsBridge:
         self.last_usage_send = 0.0
         self.last_usage_data: Optional[tuple] = None
         self.last_states: Dict[str, tuple] = {}  # project_key -> (state, tool)
+        self._last_count: int = -1
+
+    def _reset_session_state(self):
+        """Reset connection-scoped tracking state on connect/reconnect."""
+        self.last_states.clear()
+        self.last_usage_data = None
+        self._last_count = -1
 
     def _is_connected(self) -> bool:
         if self.transport_mode == "ble":
@@ -397,6 +405,7 @@ class PixelAgentsBridge:
 
         try:
             self.ser = serial.Serial(port, SERIAL_BAUD, timeout=0.1)
+            self._reset_session_state()
             print(f"Connected to {port}")
             return True
         except serial.SerialException as e:
@@ -404,16 +413,52 @@ class PixelAgentsBridge:
             return False
 
     def _connect_ble(self) -> bool:
-        """Connect to ESP32 via BLE."""
+        """Connect to ESP32 via BLE, using PIN for device selection."""
         if self._ble is None:
             from ble_transport import BleTransport
             self._ble = BleTransport(device_name=self.ble_name)
-        connected = self._ble.connect()
+
+        try:
+            pin = self.ble_pin
+            if pin is None and sys.stdin.isatty():
+                # Interactive mode: scan and prompt for PIN
+                devices = self._ble.scan_devices()
+                if not devices:
+                    return False
+                if len(devices) == 1 and devices[0][2] is None:
+                    # Single device without PIN — connect directly (legacy)
+                    connected = self._ble.connect(address=devices[0][0])
+                else:
+                    try:
+                        pin_input = input("Enter PIN from device display: ").strip()
+                        pin = int(pin_input)
+                    except (ValueError, EOFError):
+                        print("Invalid PIN.")
+                        return False
+                    # Find matching device from already-scanned results
+                    addr = None
+                    for d_addr, d_name, d_pin in devices:
+                        if d_pin == pin:
+                            print(f"PIN {pin} matched: {d_name} at {d_addr}")
+                            addr = d_addr
+                            break
+                    if addr is None:
+                        print(f"No device found with PIN {pin}")
+                        return False
+                    connected = self._ble.connect(address=addr)
+                    if connected:
+                        self.ble_pin = pin  # Persist for auto-reconnect
+            elif pin is not None:
+                connected = self._ble.connect_by_pin(pin)
+            else:
+                # Non-interactive, no PIN — connect to first device found
+                connected = self._ble.connect()
+        except Exception as e:
+            print(f"BLE connect error: {e}")
+            return False
+
         if connected:
-            # Reset tracking state so firmware gets a full resync
-            self.last_states.clear()
-            self.last_usage_data = None
-            self._last_count = -1
+            self._reset_session_state()
         return connected
 
     def send(self, data: bytes) -> bool:
@@ -622,7 +667,7 @@ class PixelAgentsBridge:
 
         # Send agent count only if it changed
         count = self.tracker.count()
-        if not hasattr(self, '_last_count') or self._last_count != count:
+        if self._last_count != count:
             self._last_count = count
             self.send(build_agent_count(count))
 
@@ -686,10 +731,15 @@ def main():
                         help="Transport mode: serial (default) or ble")
     parser.add_argument("--ble-name", type=str, default="PixelAgents",
                         help="BLE device name to scan for (default: PixelAgents)")
+    parser.add_argument("--ble-pin", type=int, default=None,
+                        help="BLE device PIN for multi-device pairing (prompted if omitted)")
     args = parser.parse_args()
 
+    if args.ble_pin is not None and not (1000 <= args.ble_pin <= 9999):
+        parser.error("--ble-pin must be a 4-digit number (1000-9999)")
+
     bridge = PixelAgentsBridge(port=args.port, transport=args.transport,
-                               ble_name=args.ble_name)
+                               ble_name=args.ble_name, ble_pin=args.ble_pin)
     try:
         bridge.run()
     except KeyboardInterrupt:

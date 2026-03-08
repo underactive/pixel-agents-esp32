@@ -13,6 +13,7 @@ void Splash::begin(TFT_eSPI& tft) {
     _lastAnimMs = millis();
     _connected = false;
     _complete = false;
+    _pinCode = 0;
     _logCount = 0;
 
     _tft->fillScreen(TFT_BLACK);
@@ -139,12 +140,32 @@ bool Splash::isActive() const {
     return !_complete;
 }
 
+void Splash::setPinCode(uint16_t pin) {
+    _pinCode = pin;
+    drawPinCode();
+}
+
+void Splash::drawPinCode() {
+#if defined(BOARD_CYD)
+    if (_pinCode == 0 || !_tft) return;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "PIN: %04u", _pinCode);
+    _tft->setTextFont(1);
+    _tft->setTextSize(2);
+    _tft->setTextColor(TFT_WHITE, TFT_BLACK);
+    _tft->setTextDatum(TC_DATUM);
+    _tft->drawString(buf, SCREEN_W / 2, SPLASH_PIN_Y + _drawYOffset);
+    _tft->setTextDatum(TL_DATUM);
+#endif
+}
+
 void Splash::drawTo(TFT_eSPI* target, int yOffset) {
     TFT_eSPI* saved = _tft;
     _tft = target;
     _drawYOffset = yOffset;
     drawTitle();
     drawFooter();
+    drawPinCode();
     drawCharFrame();
     redrawLogArea();
     _drawYOffset = 0;

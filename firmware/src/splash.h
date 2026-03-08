@@ -6,6 +6,7 @@ class Splash {
 public:
     void begin(TFT_eSPI& tft);
     void addLog(const char* msg);
+    void setPinCode(uint16_t pin);
     void tick();
     void onHeartbeat();
     bool isActive() const;
@@ -16,6 +17,7 @@ public:
 private:
     void drawTitle();
     void drawFooter();
+    void drawPinCode();
     void drawCharFrame();
     void clearCharArea();
     void redrawLogArea();
@@ -29,6 +31,7 @@ private:
     bool _complete = false;
 
     int _drawYOffset = 0;          // y offset for drawTo() capture
+    uint16_t _pinCode = 0;         // BLE pairing PIN (0 = not set)
 
     // Log line circular buffer
     char _logLines[SPLASH_MAX_LOG_LINES][40];
