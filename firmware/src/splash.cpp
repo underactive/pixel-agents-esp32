@@ -14,6 +14,7 @@ void Splash::begin(TFT_eSPI& tft) {
     _connected = false;
     _complete = false;
     _pinCode = 0;
+    _pinLogIdx = -1;
     _logCount = 0;
 
     _tft->fillScreen(TFT_BLACK);
@@ -70,16 +71,19 @@ void Splash::drawCharFrame() {
     }
 }
 
-void Splash::addLog(const char* msg) {
+void Splash::addLog(const char* msg, bool attachPin) {
     if (_logCount < SPLASH_MAX_LOG_LINES) {
         snprintf(_logLines[_logCount], sizeof(_logLines[0]), "> %s", msg);
+        if (attachPin && _pinCode != 0) _pinLogIdx = _logCount;
         _logCount++;
     } else {
         // Scroll: shift lines up, add new at bottom
+        if (_pinLogIdx >= 0) _pinLogIdx--;  // track scrolled PIN line
         for (int i = 0; i < SPLASH_MAX_LOG_LINES - 1; i++) {
             memcpy(_logLines[i], _logLines[i + 1], sizeof(_logLines[0]));
         }
         snprintf(_logLines[SPLASH_MAX_LOG_LINES - 1], sizeof(_logLines[0]), "> %s", msg);
+        if (attachPin && _pinCode != 0) _pinLogIdx = SPLASH_MAX_LOG_LINES - 1;
         // Redraw entire log area
         redrawLogArea();
         return;
@@ -92,6 +96,9 @@ void Splash::addLog(const char* msg) {
     _tft->setTextColor(COLOR_SPLASH_LOG, TFT_BLACK);
     _tft->setTextDatum(TL_DATUM);
     _tft->drawString(_logLines[_logCount - 1], 8, lineY);
+    if (_pinLogIdx == _logCount - 1) {
+        drawPinSuffix(_pinLogIdx);
+    }
 }
 
 void Splash::redrawLogArea() {
@@ -106,7 +113,11 @@ void Splash::redrawLogArea() {
 
     for (int i = 0; i < _logCount; i++) {
         int lineY = SPLASH_LOG_Y + i * SPLASH_LOG_LINE_H + _drawYOffset;
+        _tft->setTextColor(COLOR_SPLASH_LOG, TFT_BLACK);
         _tft->drawString(_logLines[i], 8, lineY);
+        if (i == _pinLogIdx) {
+            drawPinSuffix(i);
+        }
     }
 }
 
@@ -142,21 +153,18 @@ bool Splash::isActive() const {
 
 void Splash::setPinCode(uint16_t pin) {
     _pinCode = pin;
-    drawPinCode();
 }
 
-void Splash::drawPinCode() {
-#if defined(BOARD_CYD)
+void Splash::drawPinSuffix(int lineIdx) {
     if (_pinCode == 0 || !_tft) return;
-    char buf[16];
-    snprintf(buf, sizeof(buf), "PIN: %04u", _pinCode);
-    _tft->setTextFont(1);
-    _tft->setTextSize(2);
+    // Draw "[BLE PIN: XXXX]" in white after the green log text
+    const char* lineText = _logLines[lineIdx];
+    int greenWidth = _tft->textWidth(lineText);
+    int lineY = SPLASH_LOG_Y + lineIdx * SPLASH_LOG_LINE_H + _drawYOffset;
+    char buf[20];
+    snprintf(buf, sizeof(buf), " [BLE PIN: %04u]", _pinCode);
     _tft->setTextColor(TFT_WHITE, TFT_BLACK);
-    _tft->setTextDatum(TC_DATUM);
-    _tft->drawString(buf, SCREEN_W / 2, SPLASH_PIN_Y + _drawYOffset);
-    _tft->setTextDatum(TL_DATUM);
-#endif
+    _tft->drawString(buf, 8 + greenWidth, lineY);
 }
 
 void Splash::drawTo(TFT_eSPI* target, int yOffset) {
@@ -165,7 +173,6 @@ void Splash::drawTo(TFT_eSPI* target, int yOffset) {
     _drawYOffset = yOffset;
     drawTitle();
     drawFooter();
-    drawPinCode();
     drawCharFrame();
     redrawLogArea();
     _drawYOffset = 0;

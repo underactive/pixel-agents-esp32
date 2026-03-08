@@ -272,7 +272,6 @@ static constexpr int SPLASH_TITLE_Y = 15;
 static constexpr int SPLASH_CHAR_Y  = 48;
 static constexpr int SPLASH_LOG_Y   = 142;
 static constexpr int SPLASH_MAX_LOG_LINES = 7;
-static constexpr int SPLASH_PIN_Y   = 218;
 static constexpr int SPLASH_FOOTER_Y = 230;
 #else
 static constexpr int SPLASH_TITLE_Y = 8;
