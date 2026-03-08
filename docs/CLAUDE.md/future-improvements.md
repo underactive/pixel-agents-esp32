@@ -8,9 +8,13 @@
 ## Medium Priority
 - [ ] Touch input (CYD variant): tap character to show tool name, tap status bar to toggle info
 - [ ] OTA firmware updates: push new firmware over WiFi
+- [ ] Web config dashboard: ESP32 hosts a tiny AP/mDNS page for WiFi creds, dog color, brightness — no recompile
+- [ ] NTP time sync: accurate clock for uptime display and schedule-based night mode
 - [ ] Multiple display support: daisy-chain ESP32 boards for wider scenes
+- [ ] Multi-device sync: multiple displays showing same scene or different "rooms", one companion broadcasts to all
 - [ ] Sound effects: piezo buzzer for spawn/despawn events
 - [ ] Night mode: dimmer palette + reduced backlight on schedule
+- [ ] Remote status API: ESP32 exposes REST endpoint for external tools (Home Assistant, Stream Deck) to query agent state
 
 ## Low Priority
 - [ ] Theme system: swappable color palettes for floor/wall/furniture
@@ -19,3 +23,6 @@
 - [ ] Idle screensaver: characters do random activities when no real agents active
 - [ ] Statistics overlay: show total tool calls, active time, etc.
 - [ ] CYD board variant: alternative pin config and 240x320 layout
+- [ ] BLE phone companion: phone app forwards agent state over BLE without needing WiFi infrastructure
+- [ ] BLE proximity presence: detect phone via BLE to auto-dim/sleep display when away, wake on return
+- [ ] BLE mesh multi-board: synchronized animations across multiple boards via BLE mesh without WiFi
