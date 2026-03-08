@@ -29,6 +29,7 @@ void onAgentCount(uint8_t count) {
 }
 
 void onHeartbeat(uint32_t timestamp) {
+    (void)timestamp;
     office.onHeartbeat();
 }
 
@@ -116,7 +117,24 @@ void loop() {
     // Poll touch input
     TouchEvent te = touchInput.poll();
     if (te.tapped) {
-        if (office.hitTestStatusBar(te.y)) {
+        if (office.isMenuOpen()) {
+            // hitTestMenuItem returns: 0=dog toggle, 1-4=color,
+            // -1=outside menu (close), -2=inside menu no-op (keep open)
+            int item = office.hitTestMenuItem(te.x, te.y);
+            if (item == 0) {
+                // Toggle dog on/off
+                office.setDogEnabled(!office.getDogSettings().enabled);
+            } else if (item >= 1 && item <= DOG_COLOR_COUNT) {
+                // Select dog color (1=BLACK, 2=BROWN, 3=GRAY, 4=TAN)
+                office.setDogColor(static_cast<DogColor>(item - 1));
+            } else if (item == -1) {
+                // Tap outside menu -> close menu
+                office.closeMenu();
+            }
+            // item == -2: inside menu but not on actionable item, keep open
+        } else if (office.hitTestHamburger(te.x, te.y)) {
+            office.toggleMenu();
+        } else if (office.hitTestStatusBar(te.y)) {
             office.cycleStatusMode();
         } else {
             int hit = office.hitTestCharacter(te.x, te.y);

@@ -45,6 +45,54 @@ struct Character {
     bool alive;               // true once spawnAllCharacters() is called
 };
 
+struct Pet {
+    float x, y;              // pixel position (center)
+    int8_t tileCol, tileRow;
+    Dir dir;
+
+    // Pathfinding
+    PathNode path[64];
+    uint8_t pathLen;
+    uint8_t pathIdx;
+    float moveProgress;
+
+    // Walk/run animation
+    uint8_t frame;
+    float frameTimer;
+    bool walking;
+    bool isRunning;           // run uses faster speed + run frames
+
+    // Idle animation
+    uint8_t idleFrame;        // cycles through 8 idle frames
+    float idleFrameTimer;
+
+    // Sit (during FOLLOW near seated character)
+    bool isSitting;
+
+    // Pee (idle variant)
+    float peeTimer;           // time remaining in pee animation
+    bool isPeeing;
+
+    // Behavior FSM
+    DogBehavior behavior;
+    float phaseTimer;         // time remaining in current FOLLOW/WANDER phase
+    float napTimer;           // countdown to next nap
+    float napRemaining;       // time left napping
+    float targetPickTimer;    // countdown to pick new follow target
+    float repathTimer;        // re-pathfind interval during FOLLOW
+    int8_t followTarget;      // character index to follow, -1 if none
+    int8_t lastTargetCol;     // last known target tile (for hysteresis)
+    int8_t lastTargetRow;
+
+    // Wander
+    float wanderTimer;
+};
+
+struct DogSettings {
+    bool enabled;
+    DogColor color;
+};
+
 struct UsageStats {
     uint8_t currentPct;
     uint8_t weeklyPct;
@@ -78,6 +126,15 @@ public:
     // Accessors
     Character* getCharacters() { return _chars; }
     const Character* getCharacters() const { return _chars; }
+    const Pet& getPet() const { return _pet; }
+    DogSettings getDogSettings() const { return _dogSettings; }
+    void setDogEnabled(bool enabled);
+    void setDogColor(DogColor color);
+    bool isMenuOpen() const { return _menuOpen; }
+    void toggleMenu() { _menuOpen = !_menuOpen; }
+    void closeMenu() { _menuOpen = false; }
+    bool hitTestHamburger(int screenX, int screenY) const;
+    int hitTestMenuItem(int screenX, int screenY) const;
     int getActiveAgentCount() const;   // count of characters at TYPE/READ
     int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
@@ -91,11 +148,14 @@ public:
 
 private:
     Character _chars[MAX_AGENTS];
+    Pet _pet;
     TileType _tiles[GRID_ROWS][GRID_COLS];
     bool _connected = false;
     uint32_t _lastHeartbeatMs = 0;
     StatusMode _statusMode = StatusMode::OVERVIEW;
     UsageStats _usage = {};
+    DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };
+    bool _menuOpen = false;
 
     void initTileMap();
     int findCharByAgentId(uint8_t agentId) const;
@@ -114,6 +174,18 @@ private:
     bool findPath(int8_t fromCol, int8_t fromRow, int8_t toCol, int8_t toRow,
                   PathNode* outPath, uint8_t& outLen);
     bool isWalkable(int8_t col, int8_t row) const;
+
+    // Pet (dog)
+    void initPet();
+    void updatePet(float dt);
+    void petStartWalk(int8_t goalCol, int8_t goalRow);
+    void petWander();
+    void petFollowNear();
+    void petPickTarget();
+
+    // Settings persistence (NVS)
+    void loadSettings();
+    void saveSettings();
 
     // Random helpers
     float randomRange(float minVal, float maxVal);

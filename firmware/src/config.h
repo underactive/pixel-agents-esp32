@@ -160,11 +160,80 @@ enum class StatusMode : uint8_t {
     UPTIME      = 4,  // device uptime
 };
 
+// ── Dog Pet ────────────────────────────────────────────
+static constexpr int DOG_W = 25;
+static constexpr int DOG_H = 19;
+static constexpr float DOG_WALK_SPEED_PX_PER_SEC = 40.0f;
+static constexpr float DOG_RUN_SPEED_PX_PER_SEC  = 72.0f;
+static constexpr float DOG_WALK_FRAME_DURATION_SEC = 0.12f;
+static constexpr float DOG_RUN_FRAME_DURATION_SEC  = 0.08f;
+
+// Behavior timing (seconds)
+static constexpr float DOG_FOLLOW_DURATION_SEC  = 20.0f * 60.0f;  // 20 min follow phase
+static constexpr float DOG_WANDER_DURATION_SEC  = 20.0f * 60.0f;  // 20 min wander phase
+static constexpr float DOG_PICK_TARGET_SEC      = 60.0f * 60.0f;  // pick new character every hour
+static constexpr float DOG_NAP_INTERVAL_SEC     = 4.0f * 60.0f * 60.0f;  // nap every 4 hours
+static constexpr float DOG_NAP_DURATION_SEC     = 30.0f * 60.0f;  // nap for 30 min
+static constexpr float DOG_FOLLOW_REPATHFIND_SEC = 8.0f;  // re-pathfind interval when following
+static constexpr int   DOG_FOLLOW_RADIUS        = 5;      // stay within 5 tiles of target
+static constexpr int   DOG_FOLLOW_HYSTERESIS    = 3;      // only re-path if target moved >3 tiles
+
+// Sprite frame indices (23 frames, 25x19, side-view only)
+static constexpr int DOG_SIT_IDX      = 0;
+static constexpr int DOG_IDLE_BASE    = 1;    // frames 1-8 (8 idle frames)
+static constexpr int DOG_IDLE_COUNT   = 8;
+static constexpr int DOG_RUN_BASE     = 9;    // frames 9-16 (8 run frames)
+static constexpr int DOG_RUN_COUNT    = 8;
+static constexpr int DOG_PEE_IDX      = 17;
+static constexpr int DOG_LAYDOWN_IDX  = 18;
+static constexpr int DOG_WALK_BASE    = 19;   // frames 19-22 (4 walk frames)
+static constexpr int DOG_WALK_COUNT   = 4;
+
+// Idle animation timing
+static constexpr float DOG_IDLE_FRAME_SEC       = 0.3f;   // idle cycle speed
+
+// Pee behavior
+static constexpr float DOG_PEE_CHANCE           = 0.08f;  // 8% chance per idle pause
+static constexpr float DOG_PEE_DURATION_SEC     = 3.0f;   // pee animation duration
+
+// Run behavior
+static constexpr float DOG_RUN_CHANCE           = 0.15f;  // 15% chance walk becomes run
+
+// Wander pause timing (seconds)
+static constexpr float DOG_WANDER_PAUSE_MIN_SEC = 2.0f;
+static constexpr float DOG_WANDER_PAUSE_MAX_SEC = 6.0f;
+static constexpr float DOG_WANDER_MOVE_MIN_SEC  = 3.0f;
+static constexpr float DOG_WANDER_MOVE_MAX_SEC  = 10.0f;
+
+enum class DogBehavior : uint8_t {
+    WANDER  = 0,
+    FOLLOW  = 1,
+    NAP     = 2
+};
+
+// Order must match COLORS list in tools/convert_dog.py
+enum class DogColor : uint8_t { BLACK = 0, BROWN = 1, GRAY = 2, TAN = 3 };
+static constexpr int DOG_COLOR_COUNT = 4;
+static constexpr DogColor DOG_DEFAULT_COLOR = DogColor::BROWN;
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;
 static constexpr int TOUCH_CHAR_RADIUS_PX = 12;
 static constexpr float INFO_BUBBLE_DURATION_SEC = 3.0f;
+
+// Hamburger menu
+static constexpr int HAMBURGER_W = 7;
+static constexpr int HAMBURGER_H = 5;  // 3 bars of 1px + 2 gaps of 1px
+static constexpr int HAMBURGER_MARGIN = 4;
+static constexpr int MENU_W = 130;
+static constexpr int MENU_H = 70;
+static constexpr int MENU_ITEM_H = 20;
+static constexpr uint16_t COLOR_MENU_BG     = 0x2104;
+static constexpr uint16_t COLOR_MENU_BORDER = 0x7BEF;
+static constexpr int SWATCH_AREA_X = 42;   // left offset for swatches (past "Color:" label)
+static constexpr int SWATCH_W      = 16;   // each swatch width
+static constexpr int SWATCH_GAP    = 6;    // gap between swatches
 
 // CYD XPT2046 touch SPI pins (separate from display SPI)
 static constexpr int TOUCH_SPI_CLK  = 25;
