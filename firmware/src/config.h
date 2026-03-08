@@ -306,7 +306,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.8.1 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.8.2 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD)
 static constexpr int SPLASH_TITLE_Y = 15;

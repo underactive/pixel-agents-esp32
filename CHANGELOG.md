@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.2] - 2026-03-08
+
+- Add browser-based firmware flasher (`tools/firmware_update.html`) using Web Serial API + esptool-js
+- Support CYD and LILYGO boards with correct flash offsets per board
+- Two flash modes: "Update Firmware Only" (firmware.bin) and "Full Flash" (bootloader + partitions + boot_app0 + firmware)
+- Drag-and-drop file selection with auto-detection of file slot by name
+- Terminal log, progress bar, baud rate selection, and confirmation dialog
+- Add GitHub Actions CI/CD workflow for automated firmware builds and releases
+
 ## [0.8.1] - 2026-03-08
 
 - Add `run_companion.py` launcher script: auto-creates venv, installs deps, forwards CLI args
