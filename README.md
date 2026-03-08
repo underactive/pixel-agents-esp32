@@ -91,17 +91,16 @@ PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically 
 ### 4. Start the Companion Bridge
 
 ```bash
-cd companion
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python3 pixel_agents_bridge.py
+python3 run_companion.py
 ```
+
+The launcher auto-creates a virtual environment, installs dependencies, and runs the bridge. Subsequent runs skip setup and launch instantly.
 
 The bridge auto-detects the ESP32 serial port. To specify manually:
 
 ```bash
-python3 pixel_agents_bridge.py --port /dev/cu.usbmodemXXXX
+python3 run_companion.py --port /dev/cu.usbmodemXXXX
+python3 run_companion.py --transport ble --ble-pin 1234
 ```
 
 ### 5. Use Claude Code
@@ -202,6 +201,7 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 
 ```
 pixel-agents-esp32/
+  run_companion.py         # Companion launcher (auto-creates venv, installs deps)
   assets/                  # External art assets (gitignored)
     Office Tileset/        # 16x16 tileset used by sprite_converter
   firmware/                # ESP32 PlatformIO project

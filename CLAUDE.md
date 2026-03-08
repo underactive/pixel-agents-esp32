@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.8.0
+**Current Version:** 0.8.1
 **Status:** In development
 
 ---
@@ -487,6 +487,7 @@ Version string appears in 4 files:
 | `tools/convert_dog.py` | Dog pet PNG sprite sheet --> C header generator |
 | `tools/sprite_validation.html` | Visual sprite verification (browser, generated) |
 | `tools/layout_editor.html` | Office layout visual editor (generates C code) |
+| `run_companion.py` | Cross-platform companion launcher (auto-creates venv, installs deps) |
 | `CLAUDE.md` | This file |
 | `CHANGELOG.md` | User-facing changelog (Keep a Changelog format) |
 | `CLAUDE_TEMPLATE.md` | Template for CLAUDE.md (reference) |
@@ -501,8 +502,7 @@ Version string appears in 4 files:
 
 ### Prerequisites
 - PlatformIO CLI or VS Code extension
-- Python 3.8+
-- pyserial (`pip install pyserial`)
+- Python 3.8+ (dependencies installed automatically by `run_companion.py`)
 
 ### Quick Start
 ```bash
@@ -516,7 +516,7 @@ cd firmware && pio run -e cyd-2432s028r --target upload
 cd firmware && pio run -e lilygo-t-display-s3 --target upload
 
 # Start companion bridge
-cd companion && pip install -r requirements.txt && python3 pixel_agents_bridge.py
+python3 run_companion.py
 ```
 
 ### Troubleshooting Build

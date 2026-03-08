@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.1] - 2026-03-08
+
+- Add `run_companion.py` launcher script: auto-creates venv, installs deps, forwards CLI args
+- Single command (`python3 run_companion.py`) replaces 5-step manual setup
+
 ## [0.8.0] - 2026-03-08
 
 - Add BLE transport via NimBLE Nordic UART Service for untethered operation
