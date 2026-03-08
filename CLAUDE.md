@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.8.0
+**Current Version:** 0.9.0
 **Status:** In development
 
 ---
@@ -177,6 +177,11 @@ Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no hear
 - BLE and Serial can be active simultaneously
 - Screenshots are serial-only (BLE transport does not support SCREENSHOT_REQ)
 - Device advertises as `BLE_DEVICE_NAME` ("PixelAgents")
+- 4-digit PIN (1000-9999) generated per boot via `esp_random()`, embedded in manufacturer-specific advertising data for multi-device selection
+- PIN is device-selection convenience (not security) — broadcast in cleartext, no server-side verification
+- Manufacturer data format: 2-byte company ID (`0xFFFF`, little-endian) + 2-byte PIN (big-endian), fits within 31-byte advertising limit
+- PIN displayed on CYD boot splash screen (white, size 2, centered between log area and footer)
+- Companion `--ble-pin XXXX` connects directly; interactive mode prompts for PIN; non-interactive mode connects to first device
 - Memory overhead: ~312KB flash + 15KB RAM (NimBLE with central/observer roles disabled)
 
 #### 7. Touch Input (`touch_input.cpp`, CYD only)

@@ -13,3 +13,4 @@
 | 0.7.0 | Animated boot splash screen: random character at 2x scale with walk-down animation, verbose boot log, backlight fade transition to office scene on companion connection |
 | 0.7.1 | Splash screenshot capture: re-render splash into sprite buffer for screenshot during boot, CYD half-buffer two-pass support, footer with version string, audit fixes (null guard, _drawYOffset consistency) |
 | 0.8.0 | BLE transport: NimBLE Nordic UART Service for untethered operation, Transport abstraction layer, lock-free SPSC ring buffer with atomic memory ordering, companion --transport ble mode with bleak, separate Protocol instances per transport |
+| 0.9.0 | BLE PIN pairing: random 4-digit PIN per boot embedded in BLE advertising manufacturer data for multi-CYD device selection, PIN displayed on splash screen, companion --ble-pin CLI option, interactive PIN prompt, unified session-state reset on reconnect |
