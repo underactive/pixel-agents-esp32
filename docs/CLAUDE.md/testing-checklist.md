@@ -234,6 +234,39 @@
 - [ ] Serial disconnect/reconnect — status changes to red, recovers on reconnect
 - [ ] Long-running session (1+ hour) — no memory leaks, stable FPS
 
+### Web Firmware Flasher
+- [ ] Open `tools/firmware_update.html` in Chrome — page loads, no console errors
+- [ ] Open in Firefox/Safari — "Web Serial API not available" warning shown
+- [ ] Select CYD board, "Update Firmware Only" mode — hint shows firmware offset 0x10000
+- [ ] Select LILYGO board — hint updates to reflect LILYGO offsets
+- [ ] Select "Full Flash" mode — hint updates to describe full flash
+- [ ] Drag-and-drop a .bin file onto drop zone — file appears in file list with name, size, and address
+- [ ] Click drop zone to open file picker — file selection works
+- [ ] File auto-assigns correct offset (bootloader.bin → 0x01000 CYD / 0x00000 LILYGO, firmware.bin → 0x10000)
+- [ ] Remove file via × button — file removed from list
+- [ ] "Start Flash" button disabled when no files selected, enabled when files present
+- [ ] Click "Start Flash" — confirmation dialog shows board, mode, file count, baud rate
+- [ ] Click "Cancel" on confirmation — returns to file selection
+- [ ] Click "Confirm & Flash" — browser serial port picker appears
+- [ ] Cancel serial port picker — error shown "Serial port selection was cancelled."
+- [ ] Select correct serial port — terminal shows "Connecting to bootloader..." and chip detection
+- [ ] Progress bar advances during flash write (0% → 100%)
+- [ ] Flash completes — success banner shown, terminal log preserved
+- [ ] "Copy Log" button copies timestamped log to clipboard
+- [ ] "Flash Another" button resets to initial state
+- [ ] Disconnect USB during flash — error state shown with descriptive message
+- [ ] "Try Again" on error — returns to initial state
+- [ ] Full Flash mode: partitions.bin auto-assigns to 0x08000, boot_app0.bin to 0x0e000
+- [ ] Full Flash mode: adding second file with same slot name replaces the first (no duplicates)
+- [ ] Switch from Full Flash to Update mode with multiple files loaded — only firmware file kept
+- [ ] Switch board after files loaded — displayed offsets update (e.g., bootloader 0x01000 → 0x00000)
+- [ ] Drag non-.bin file onto drop zone — file is ignored
+- [ ] Select file larger than 16MB — rejected with size error
+- [ ] Double-click "Confirm & Flash" rapidly — only one flash operation starts
+- [ ] Bootloader not responding — times out after 30s with "hold BOOT" message
+- [ ] Full Flash mode with 4 files — progress bar advances smoothly without jumping back
+- [ ] Baud rate selector — confirmation summary reflects chosen baud rate
+
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)
