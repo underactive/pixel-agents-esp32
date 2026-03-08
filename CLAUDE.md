@@ -384,10 +384,11 @@ After audit findings have been addressed, update the `implementation.md` file in
 ## Common Modifications
 
 ### Version bumps
-Version string appears in 3 files:
+Version string appears in 4 files:
 1. `CLAUDE.md` -- "Current Version" in Project Overview section
-2. `docs/CLAUDE.md/version-history.md` -- append a new row to the table
-3. `firmware/src/config.h` -- `SPLASH_VERSION_STR` (boot splash footer text)
+2. `CHANGELOG.md` -- add a new `## [x.y.z]` section at top with bullet points
+3. `docs/CLAUDE.md/version-history.md` -- append a new row to the table
+4. `firmware/src/config.h` -- `SPLASH_VERSION_STR` (boot splash footer text)
 
 **Keep all version references in sync.** Always bump all files together during any version bump.
 
@@ -453,6 +454,7 @@ Version string appears in 3 files:
 | `tools/sprite_validation.html` | Visual sprite verification (browser, generated) |
 | `tools/layout_editor.html` | Office layout visual editor (generates C code) |
 | `CLAUDE.md` | This file |
+| `CHANGELOG.md` | User-facing changelog (Keep a Changelog format) |
 | `CLAUDE_TEMPLATE.md` | Template for CLAUDE.md (reference) |
 | `docs/CLAUDE.md/plans/` | Plan, implementation, and audit records (epoch-prefixed directories) |
 | `docs/CLAUDE.md/testing-checklist.md` | QA testing checklist |
