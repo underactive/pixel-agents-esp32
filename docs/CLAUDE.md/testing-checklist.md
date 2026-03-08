@@ -44,6 +44,15 @@
 - [ ] Import a v1 JSON (integer tiles) — auto-migrated to string keys
 - [ ] Page reload — custom items persist from localStorage
 
+### Companion Launcher
+- [ ] `python3 run_companion.py --help` — creates venv (if needed), installs deps, shows bridge usage
+- [ ] Second run of `python3 run_companion.py --help` — skips venv/pip, launches instantly
+- [ ] Run from different cwd (`cd /tmp && python3 /path/to/run_companion.py --help`) — works correctly
+- [ ] Edit `companion/requirements.txt` (add comment), run again — re-installs deps
+- [ ] Delete `companion/.venv/bin/python`, run again — detects corruption, recreates venv
+- [ ] Delete `companion/requirements.txt`, run — prints clear error and exits
+- [ ] `python3 run_companion.py --port /dev/cu.usbmodemXXXX` — forwards port arg to bridge
+
 ### Companion Script
 - [ ] `python3 companion/pixel_agents_bridge.py --help` — shows usage
 - [ ] Without ESP32: prints "No ESP32 serial port found." and retries
