@@ -26,12 +26,14 @@ using AgentCountCb   = void(*)(uint8_t count);
 using HeartbeatCb    = void(*)(uint32_t timestamp);
 using StatusTextCb   = void(*)(const StatusText&);
 using UsageStatsCb   = void(*)(const UsageStatsMsg&);
+using ScreenshotReqCb = void(*)();
 
 class Protocol {
 public:
     void begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
                HeartbeatCb onHeartbeat, StatusTextCb onStatus,
-               UsageStatsCb onUsage = nullptr);
+               UsageStatsCb onUsage = nullptr,
+               ScreenshotReqCb onScreenshotReq = nullptr);
     void process();  // call each loop iteration — reads available serial bytes
 
 private:
@@ -54,6 +56,7 @@ private:
     HeartbeatCb   _onHeartbeat = nullptr;
     StatusTextCb  _onStatus = nullptr;
     UsageStatsCb  _onUsage = nullptr;
+    ScreenshotReqCb _onScreenshotReq = nullptr;
 
     int payloadLength(uint8_t msgType) const;
     void dispatch();

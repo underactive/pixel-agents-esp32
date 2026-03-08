@@ -145,6 +145,16 @@
 - [ ] LED breathe/pulse animation remains smooth after 1+ hour in same mode
 - [ ] LILYGO build compiles without LED code (no compilation errors, no LED references)
 
+### Screenshot Capture
+- [ ] LILYGO: press 's' in companion terminal — prints "Requesting screenshot..." and "Receiving 320x170 screenshot..."
+- [ ] CYD: press 's' in companion terminal — prints "Requesting screenshot..." and "Receiving 320x240 screenshot..."
+- [ ] Screenshot BMP/PNG file appears in `companion/screenshots/` with timestamp filename
+- [ ] Open saved image — content matches what was on the ESP32 display, colors are correct
+- [ ] CYD screenshot colors are correct (no red-blue swap from byte order issues)
+- [ ] Take multiple screenshots in succession — no serial errors or desync
+- [ ] Companion with stdin not a TTY (e.g., `< /dev/null`) — runs normally without keyboard input, no crash
+- [ ] Ctrl+C exits companion cleanly, terminal is restored to normal mode
+
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes
 - [ ] Rapid state changes (TYPE→IDLE→TYPE) — smooth transitions

@@ -47,6 +47,10 @@ void onUsageStats(const UsageStatsMsg& us) {
     office.setUsageStats(us.currentPct, us.weeklyPct, us.currentResetMin, us.weeklyResetMin);
 }
 
+void onScreenshotReq() {
+    renderer.requestScreenshot();
+}
+
 // ── Splash screen ───────────────────────────────────────
 
 void drawSplash() {
@@ -81,7 +85,7 @@ void setup() {
     // Initialize subsystems
     office.init();
     renderer.begin(tft);
-    protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats);
+    protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
 
     // Seed random before spawning characters
     randomSeed(analogRead(0) ^ millis());
@@ -162,4 +166,9 @@ void loop() {
 
     // Render
     renderer.renderFrame(office);
+
+    // Screenshot capture (after render so buffer has latest frame)
+    if (renderer.isScreenshotPending()) {
+        renderer.sendScreenshot();
+    }
 }

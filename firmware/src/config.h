@@ -63,6 +63,11 @@ static constexpr uint8_t MSG_AGENT_COUNT  = 0x02;
 static constexpr uint8_t MSG_HEARTBEAT    = 0x03;
 static constexpr uint8_t MSG_STATUS_TEXT  = 0x04;
 static constexpr uint8_t MSG_USAGE_STATS  = 0x05;
+static constexpr uint8_t MSG_SCREENSHOT_REQ = 0x06;
+
+// Screenshot response (ESP32 → companion) uses distinct sync bytes
+static constexpr uint8_t SCREENSHOT_SYNC1 = 0xBB;
+static constexpr uint8_t SCREENSHOT_SYNC2 = 0x66;
 
 // ── Agent Limits ────────────────────────────────────────
 static constexpr int MAX_AGENTS = 6;

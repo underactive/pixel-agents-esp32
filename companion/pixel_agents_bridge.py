@@ -13,9 +13,11 @@ import argparse
 import glob
 import json
 import os
+import select
 import struct
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -26,6 +28,13 @@ except ImportError:
     print("Error: pyserial is required. Install with: pip install pyserial")
     sys.exit(1)
 
+# Optional: PIL for PNG output (falls back to BMP)
+try:
+    from PIL import Image as PILImage
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 # ── Protocol Constants ───────────────────────────────────────
 SYNC_BYTE_1 = 0xAA
 SYNC_BYTE_2 = 0x55
@@ -35,6 +44,12 @@ MSG_AGENT_COUNT = 0x02
 MSG_HEARTBEAT = 0x03
 MSG_STATUS_TEXT = 0x04
 MSG_USAGE_STATS = 0x05
+MSG_SCREENSHOT_REQ = 0x06
+
+# Screenshot response sync bytes (ESP32 → companion)
+SCREENSHOT_SYNC1 = 0xBB
+SCREENSHOT_SYNC2 = 0x66
+SCREENSHOT_TIMEOUT_SEC = 15.0
 
 # ── Agent States (must match firmware CharState enum) ────────
 STATE_OFFLINE = 0
@@ -107,6 +122,62 @@ def build_heartbeat() -> bytes:
     ts = int(time.time()) & 0xFFFFFFFF
     payload = struct.pack(">I", ts)
     return build_message(MSG_HEARTBEAT, payload)
+
+
+def build_screenshot_req() -> bytes:
+    """Build SCREENSHOT_REQ message (no payload)."""
+    return build_message(MSG_SCREENSHOT_REQ, b"")
+
+
+def rgb565_to_rgb888(pixel: int) -> tuple:
+    """Convert a 16-bit RGB565 value to (R, G, B) tuple."""
+    r = ((pixel >> 11) & 0x1F) << 3
+    g = ((pixel >> 5) & 0x3F) << 2
+    b = (pixel & 0x1F) << 3
+    # Fill low bits for full range
+    r |= r >> 5
+    g |= g >> 6
+    b |= b >> 5
+    return (r, g, b)
+
+
+def save_bmp(filepath: Path, width: int, height: int, pixels: list):
+    """Save pixels as a 24-bit uncompressed BMP file.
+
+    pixels is a flat list of (R, G, B) tuples, row-major, top-to-bottom.
+    """
+    row_bytes = width * 3
+    row_padding = (4 - (row_bytes % 4)) % 4
+    pixel_data_size = (row_bytes + row_padding) * height
+    file_size = 14 + 40 + pixel_data_size
+
+    with open(filepath, "wb") as f:
+        # File header (14 bytes)
+        f.write(b"BM")
+        f.write(struct.pack("<I", file_size))
+        f.write(struct.pack("<HH", 0, 0))  # reserved
+        f.write(struct.pack("<I", 14 + 40))  # pixel data offset
+
+        # BITMAPINFOHEADER (40 bytes)
+        f.write(struct.pack("<I", 40))  # header size
+        f.write(struct.pack("<i", width))
+        f.write(struct.pack("<i", height))
+        f.write(struct.pack("<HH", 1, 24))  # planes, bpp
+        f.write(struct.pack("<I", 0))  # no compression
+        f.write(struct.pack("<I", pixel_data_size))
+        f.write(struct.pack("<i", 2835))  # ~72 DPI horizontal
+        f.write(struct.pack("<i", 2835))  # ~72 DPI vertical
+        f.write(struct.pack("<I", 0))  # colors used
+        f.write(struct.pack("<I", 0))  # important colors
+
+        # Pixel data (bottom-to-top, BGR order)
+        pad = b"\x00" * row_padding
+        for row in range(height - 1, -1, -1):
+            row_start = row * width
+            for col in range(width):
+                r, g, b = pixels[row_start + col]
+                f.write(bytes([b, g, r]))
+            f.write(pad)
 
 
 def build_usage_stats(current_pct: int, weekly_pct: int,
@@ -358,6 +429,121 @@ class PixelAgentsBridge:
             msg = build_usage_stats(*data_key)
             self.send(msg)
 
+    def handle_screenshot(self):
+        """Request and receive a screenshot from the ESP32."""
+        if not self.ser:
+            print("Not connected to ESP32.")
+            return
+        print("Requesting screenshot...")
+        self.send(build_screenshot_req())
+        self.receive_screenshot()
+
+    def receive_screenshot(self):
+        """Receive screenshot data from ESP32 and save to file."""
+        if not self.ser:
+            return
+
+        try:
+            self._receive_screenshot_inner()
+        except serial.SerialException as e:
+            print(f"Screenshot failed — serial error: {e}")
+
+    def _receive_screenshot_inner(self):
+        """Inner screenshot receive logic (may raise serial.SerialException)."""
+        # Scan for sync bytes with timeout
+        deadline = time.time() + SCREENSHOT_TIMEOUT_SEC
+        found_sync = False
+        while time.time() < deadline:
+            b = self.ser.read(1)
+            if not b:
+                continue
+            if b[0] == SCREENSHOT_SYNC1:
+                b2 = self.ser.read(1)
+                if b2 and b2[0] == SCREENSHOT_SYNC2:
+                    found_sync = True
+                    break
+
+        if not found_sync:
+            print("Screenshot timeout — no response from ESP32.")
+            return
+
+        # Read 10-byte header (after sync bytes)
+        hdr = self._read_exact(10, deadline)
+        if hdr is None:
+            print("Screenshot timeout reading header.")
+            return
+
+        width = (hdr[0] << 8) | hdr[1]
+        height = (hdr[2] << 8) | hdr[3]
+        total_pixels = (hdr[4] << 24) | (hdr[5] << 16) | (hdr[6] << 8) | hdr[7]
+
+        if width == 0 or height == 0:
+            print("Screenshot not available (no full framebuffer — CYD half/direct mode).")
+            return
+
+        # Sanity checks on dimensions
+        MAX_DIM = 1024  # no supported board exceeds this
+        if width > MAX_DIM or height > MAX_DIM:
+            print(f"Screenshot error: invalid dimensions {width}x{height}.")
+            return
+        if total_pixels != width * height:
+            print(f"Screenshot error: total_pixels ({total_pixels}) != {width}x{height}.")
+            return
+
+        print(f"Receiving {width}x{height} screenshot ({total_pixels} pixels)...")
+
+        # Read RLE data
+        pixels = []
+        while len(pixels) < total_pixels and time.time() < deadline:
+            entry = self._read_exact(4, deadline)
+            if entry is None:
+                print("Screenshot timeout reading pixel data.")
+                return
+
+            count = (entry[0] << 8) | entry[1]
+            pixel = (entry[2] << 8) | entry[3]
+
+            if count == 0:
+                break  # end marker
+
+            rgb = rgb565_to_rgb888(pixel)
+            pixels.extend([rgb] * count)
+
+        if len(pixels) < total_pixels:
+            # Pad with black if we got fewer pixels than expected
+            pixels.extend([(0, 0, 0)] * (total_pixels - len(pixels)))
+        elif len(pixels) > total_pixels:
+            pixels = pixels[:total_pixels]
+
+        # Save to file
+        script_dir = Path(__file__).parent.resolve()
+        screenshots_dir = script_dir / "screenshots"
+        screenshots_dir.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+        if HAS_PIL:
+            filepath = screenshots_dir / f"pixel-agents-{timestamp}.png"
+            img = PILImage.new("RGB", (width, height))
+            img.putdata(pixels)
+            img.save(filepath)
+        else:
+            filepath = screenshots_dir / f"pixel-agents-{timestamp}.bmp"
+            save_bmp(filepath, width, height, pixels)
+
+        print(f"Screenshot saved: {filepath}")
+
+    def _read_exact(self, count: int, deadline: float) -> Optional[bytes]:
+        """Read exactly `count` bytes from serial with deadline."""
+        data = b""
+        while len(data) < count:
+            if time.time() >= deadline:
+                return None
+            chunk = self.ser.read(count - len(data))
+            if chunk:
+                data += chunk
+        return data
+
     def process_transcripts(self):
         """Scan transcripts and send state updates."""
         transcripts = self.watcher.find_active_transcripts()
@@ -404,17 +590,43 @@ class PixelAgentsBridge:
         print("Pixel Agents Bridge starting...")
         print(f"Watching: {CLAUDE_PROJECTS_DIR}")
 
-        while True:
-            # Reconnect if needed
-            if not self.ser:
-                if not self.connect():
-                    time.sleep(2.0)
-                    continue
+        use_keyboard = sys.stdin.isatty()
+        old_settings = None
 
-            self.send_heartbeat()
-            self.send_usage_stats()
-            self.process_transcripts()
-            time.sleep(POLL_INTERVAL_SEC)
+        if use_keyboard:
+            import tty
+            import termios
+            import atexit
+            old_settings = termios.tcgetattr(sys.stdin)
+            tty.setcbreak(sys.stdin.fileno())
+            atexit.register(lambda: termios.tcsetattr(
+                sys.stdin, termios.TCSADRAIN, old_settings))
+            print("Press 's' for screenshot, Ctrl+C to quit")
+
+        try:
+            while True:
+                # Reconnect if needed
+                if not self.ser:
+                    if not self.connect():
+                        time.sleep(2.0)
+                        continue
+
+                self.send_heartbeat()
+                self.send_usage_stats()
+                self.process_transcripts()
+
+                if use_keyboard:
+                    readable, _, _ = select.select([sys.stdin], [], [], POLL_INTERVAL_SEC)
+                    if readable:
+                        ch = sys.stdin.read(1)
+                        if ch == 's':
+                            self.handle_screenshot()
+                else:
+                    time.sleep(POLL_INTERVAL_SEC)
+        finally:
+            if old_settings is not None:
+                import termios
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 def main():

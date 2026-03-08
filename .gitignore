@@ -13,6 +13,9 @@ __pycache__/
 # Assets
 assets/Office Tileset/
 
+# Screenshots
+companion/screenshots/
+
 # Build artifacts
 *.o
 *.bin

@@ -3,12 +3,13 @@
 
 void Protocol::begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
                      HeartbeatCb onHeartbeat, StatusTextCb onStatus,
-                     UsageStatsCb onUsage) {
+                     UsageStatsCb onUsage, ScreenshotReqCb onScreenshotReq) {
     _onUpdate = onUpdate;
     _onCount = onCount;
     _onHeartbeat = onHeartbeat;
     _onStatus = onStatus;
     _onUsage = onUsage;
+    _onScreenshotReq = onScreenshotReq;
     _state = State::WAIT_SYNC1;
 }
 
@@ -18,6 +19,7 @@ int Protocol::payloadLength(uint8_t msgType) const {
         case MSG_AGENT_COUNT:  return 1;
         case MSG_HEARTBEAT:    return 4;
         case MSG_USAGE_STATS: return 6;
+        case MSG_SCREENSHOT_REQ: return 0;
         case MSG_STATUS_TEXT:  return -1;  // variable: 2 + text
         default: return -2;  // unknown
     }
@@ -158,5 +160,8 @@ void Protocol::dispatch() {
             if (_onUsage) _onUsage(us);
             break;
         }
+        case MSG_SCREENSHOT_REQ:
+            if (_onScreenshotReq) _onScreenshotReq();
+            break;
     }
 }
