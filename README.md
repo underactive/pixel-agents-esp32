@@ -2,6 +2,8 @@
 
 A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
+![Pixel Agents screenshot](assets/screenshot.png)
+
 Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Code extension by [@pablodelucca](https://github.com/pablodelucca).
 
 ## How It Works
@@ -20,15 +22,15 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 Either board works out of the box — just pick the right PlatformIO environment.
 
-**Option A:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
-- ESP32-S3, built-in 1.9" IPS display (170x320, ST7789), USB-C
-- 320x170 landscape → 20x10 tile grid
-- Build env: `lilygo-t-display-s3`
-
-**Option B:** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
+**Option A:** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
 - ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
 - 320x240 landscape → 20x14 tile grid (more room for wandering)
 - Build env: `cyd-2432s028r`
+
+**Option B:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
+- ESP32-S3, built-in 1.9" IPS display (170x320, ST7789), USB-C
+- 320x170 landscape → 20x10 tile grid
+- Build env: `lilygo-t-display-s3`
 
 ## Setup
 
@@ -72,11 +74,11 @@ Copy each tab's output into the corresponding firmware file, then build and flas
 ```bash
 cd firmware
 
-# For LILYGO T-Display S3:
-pio run -e lilygo-t-display-s3 --target upload
-
 # For CYD (ESP32-2432S028R):
 pio run -e cyd-2432s028r --target upload
+
+# For LILYGO T-Display S3:
+pio run -e lilygo-t-display-s3 --target upload
 ```
 
 PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically on first build.
