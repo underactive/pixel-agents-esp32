@@ -56,6 +56,40 @@ Key implementation details:
 
 ### Verification checklist
 
-- [ ] Both board targets compile clean after audit fixes
+- [x] Both board targets compile clean after audit fixes
 - [ ] Fade transition still works correctly on hardware (serial draining doesn't cause visible stutter)
 - [ ] No UART buffer overflow when companion sends messages during fade
+
+## Screenshot Capture Audit Fixes
+
+See `screenshot-audit.md` for full audit report on screenshot capture changes.
+
+### Files changed
+- `firmware/src/renderer.cpp` — null guard in `sendSplashScreenshot()` for direct mode
+- `firmware/src/splash.cpp` — `_drawYOffset` added to `clearCharArea()` and `addLog()`, version string extracted to constant
+- `firmware/src/config.h` — `SPLASH_VERSION_STR` constant, `SPLASH_CONNECTED_HOLD_MS` reverted to 3000
+- `CLAUDE.md` — version bump recipe updated (3 files instead of 2)
+- `docs/CLAUDE.md/testing-checklist.md` — added splash screenshot, footer, and fade test items
+
+### Fixes applied
+1. **S1 — null dereference in `sendSplashScreenshot()` (HIGH):** Added `_directMode || !_canvas` guard at top of function, returning empty screenshot response (matching `sendScreenshot()` pattern).
+2. **S2 — temp 15s hold time (HIGH):** Already reverted by user to 3000.
+3. **S3 — `clearCharArea()` missing `_drawYOffset` (MEDIUM):** Added `+ _drawYOffset` to fillRect Y coordinate.
+4. **S4 — `addLog()` missing `_drawYOffset` (MEDIUM):** Added `+ _drawYOffset` to lineY computation.
+5. **S5 — hardcoded version string (MEDIUM):** Extracted to `SPLASH_VERSION_STR` in `config.h`, updated version bump recipe in CLAUDE.md.
+6. **S7 — missing testing checklist items (MEDIUM):** Added 3 test items for footer, splash screenshot, and fade serial drain.
+
+### Unresolved items
+- **S6 — `drawTo()` temp mutation without reentrancy guard:** Safe in single-threaded Arduino loop. No change needed.
+- **S8 — `isScreenshotPending()` consume-on-read:** Pre-existing pattern, not a regression. No change needed.
+- **S9 — footer string near screen width limit:** Acceptable at 312/320px. No change needed.
+- **S10 — LEDC magic numbers:** Backlight fade and CYD LED are on different boards/contexts. Sharing constants would be misleading.
+- **S11 — Renderer/Splash coupling:** Single method, acceptable for screenshot capture.
+- **S12 — `_screenshotRequested` not volatile:** Safe in single-threaded model.
+- **S13 — callback parameter undocumented:** Low priority, code is self-explanatory from call site.
+- **S14 — no unit test infrastructure:** Pre-existing project limitation. Not scoped to this change.
+
+### Verification checklist
+- [x] Both board targets compile clean (LILYGO + CYD)
+- [ ] Splash screenshot captures valid image on CYD in half-buffer mode
+- [ ] Footer text visible and centered on both board layouts

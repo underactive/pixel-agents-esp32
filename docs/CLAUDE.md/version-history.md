@@ -11,3 +11,4 @@
 | 0.6.0 | Screenshot capture: press 's' in companion to capture ESP32 framebuffer as BMP/PNG, RLE-compressed transfer over serial, LILYGO full-buffer only (CYD returns graceful error) |
 | 0.6.1 | CYD screenshot support: read pixels back from ILI9341 display controller via SPI readRect row-by-row, no framebuffer needed |
 | 0.7.0 | Animated boot splash screen: random character at 2x scale with walk-down animation, verbose boot log, backlight fade transition to office scene on companion connection |
+| 0.7.1 | Splash screenshot capture: re-render splash into sprite buffer for screenshot during boot, CYD half-buffer two-pass support, footer with version string, audit fixes (null guard, _drawYOffset consistency) |

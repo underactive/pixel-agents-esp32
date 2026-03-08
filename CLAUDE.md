@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.7.0
+**Current Version:** 0.7.1
 **Status:** In development
 
 ---
@@ -384,9 +384,10 @@ After audit findings have been addressed, update the `implementation.md` file in
 ## Common Modifications
 
 ### Version bumps
-Version string appears in 2 files:
+Version string appears in 3 files:
 1. `CLAUDE.md` -- "Current Version" in Project Overview section
 2. `docs/CLAUDE.md/version-history.md` -- append a new row to the table
+3. `firmware/src/config.h` -- `SPLASH_VERSION_STR` (boot splash footer text)
 
 **Keep all version references in sync.** Always bump all files together during any version bump.
 
