@@ -162,7 +162,7 @@ void Splash::drawPinSuffix(int lineIdx) {
     int greenWidth = _tft->textWidth(lineText);
     int lineY = SPLASH_LOG_Y + lineIdx * SPLASH_LOG_LINE_H + _drawYOffset;
     char buf[20];
-    snprintf(buf, sizeof(buf), " [BLE PIN: %04u]", _pinCode);
+    snprintf(buf, sizeof(buf), " BLE PIN: %04u", _pinCode);
     _tft->setTextColor(TFT_WHITE, TFT_BLACK);
     _tft->drawString(buf, 8 + greenWidth, lineY);
 }
