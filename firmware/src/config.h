@@ -249,6 +249,29 @@ static constexpr uint8_t LED_ACTIVE_MIN_BRIGHT = 100;
 static constexpr uint8_t LED_ACTIVE_MAX_BRIGHT = 255;
 #endif
 
+// ── Boot Splash Screen ───────────────────────────────────
+static constexpr int SPLASH_CHAR_SCALE = 2;
+static constexpr int SPLASH_ANIM_FRAME_MS = 150;
+static constexpr int SPLASH_CONNECTED_HOLD_MS = 3000;
+static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade direction
+static constexpr int SPLASH_LOG_LINE_H = 10;
+static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
+static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
+
+#if defined(BOARD_CYD)
+static constexpr int SPLASH_TITLE_Y = 15;
+static constexpr int SPLASH_CHAR_Y  = 48;
+static constexpr int SPLASH_LOG_Y   = 142;
+static constexpr int SPLASH_MAX_LOG_LINES = 7;
+static constexpr int SPLASH_FOOTER_Y = 230;
+#else
+static constexpr int SPLASH_TITLE_Y = 8;
+static constexpr int SPLASH_CHAR_Y  = 36;
+static constexpr int SPLASH_LOG_Y   = 128;
+static constexpr int SPLASH_MAX_LOG_LINES = 3;
+static constexpr int SPLASH_FOOTER_Y = 160;
+#endif
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;

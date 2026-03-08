@@ -3,7 +3,7 @@
 ## High Priority
 - [ ] WiFi mode: send agent state over WebSocket instead of USB serial (untethered operation)
 - [ ] Strip-buffer fallback: render in 320x30 bands if PSRAM unavailable
-- [ ] Boot animation: animated pixel-art logo on startup
+- [x] Boot animation: animated pixel-art logo on startup (v0.7.0)
 
 ## Medium Priority
 - [ ] Touch input (CYD variant): tap character to show tool name, tap status bar to toggle info

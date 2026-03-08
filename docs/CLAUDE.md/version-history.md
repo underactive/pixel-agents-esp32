@@ -10,3 +10,4 @@
 | 0.5.0 | Hamburger menu + multi-color dog: 4 dog color variants (black, brown, gray, tan), CYD touch hamburger menu for dog toggle and color selection, NVS settings persistence across reboots |
 | 0.6.0 | Screenshot capture: press 's' in companion to capture ESP32 framebuffer as BMP/PNG, RLE-compressed transfer over serial, LILYGO full-buffer only (CYD returns graceful error) |
 | 0.6.1 | CYD screenshot support: read pixels back from ILI9341 display controller via SPI readRect row-by-row, no framebuffer needed |
+| 0.7.0 | Animated boot splash screen: random character at 2x scale with walk-down animation, verbose boot log, backlight fade transition to office scene on companion connection |

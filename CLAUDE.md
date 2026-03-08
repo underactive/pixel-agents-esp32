@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.6.1
+**Current Version:** 0.7.0
 **Status:** In development
 
 ---
@@ -82,6 +82,7 @@ Modular C++ firmware with Python companion service.
 - `firmware/src/office_state.h/.cpp` -- Character FSM, BFS pathfinding, agent lifecycle, usage stats
 - `firmware/src/renderer.h/.cpp` -- TFT_eSprite double-buffered rendering pipeline
 - `firmware/src/protocol.h/.cpp` -- Binary serial protocol parser (non-blocking state machine)
+- `firmware/src/splash.h/.cpp` -- Animated boot splash screen (title, 2x character, boot log, backlight fade)
 - `firmware/src/touch_input.h/.cpp` -- XPT2046 touch input driver (CYD only, `#if defined(HAS_TOUCH)`)
 - `firmware/src/sprites/characters.h` -- Character templates (indexed) + RGB565 palettes (PROGMEM)
 - `firmware/src/sprites/furniture.h` -- Furniture sprites as RGB565 arrays (PROGMEM)
@@ -432,6 +433,7 @@ Version string appears in 2 files:
 | `firmware/src/protocol.h/.cpp` | Serial protocol parser (state machine) |
 | `firmware/src/office_state.h/.cpp` | Game state, character FSM, BFS pathfinding |
 | `firmware/src/renderer.h/.cpp` | Display rendering (double-buffered or fallback) |
+| `firmware/src/splash.h/.cpp` | Animated boot splash screen |
 | `firmware/src/touch_input.h/.cpp` | XPT2046 touch driver (CYD only) |
 | `firmware/src/sprites/characters.h` | Generated character sprite data (PROGMEM) |
 | `firmware/src/sprites/furniture.h` | Generated furniture sprite data (PROGMEM) |
