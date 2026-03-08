@@ -2,19 +2,7 @@
 
 All notable changes to Pixel Agents are documented here.
 
-## [0.9.0] - 2026-03-08
-
-- Add BLE PIN pairing for multi-CYD device selection
-- Generate random 4-digit PIN (1000-9999) per boot via esp_random()
-- Embed PIN in BLE manufacturer-specific advertising data (company ID 0xFFFF)
-- Display PIN on CYD boot splash screen in white text
-- Add companion `--ble-pin` CLI option for non-interactive device selection
-- Add interactive PIN prompt when multiple devices are in range
-- Add `--ble-pin` range validation (1000-9999)
-- Add unified session-state reset on serial/BLE reconnect
-- Fix `volatile bool` to `std::atomic<bool>` for cross-core BLE connection flag
-
-## [0.8.0] - 2026-03-07
+## [0.8.0] - 2026-03-08
 
 - Add BLE transport via NimBLE Nordic UART Service for untethered operation
 - Add Transport abstraction (SerialTransport, BleTransport) with abstract base class
@@ -22,7 +10,12 @@ All notable changes to Pixel Agents are documented here.
 - Add companion `--transport ble` and `--ble-name` CLI options
 - Add bleak Python BLE client with background asyncio event loop
 - Add separate Protocol instances per transport to prevent parser state corruption
-- Add BLE_DEVICE_NAME, BLE_MTU, BLE_RING_BUF_SIZE named constants to config.h
+- Add BLE PIN pairing for multi-CYD device selection (4-digit PIN per boot)
+- Embed PIN in BLE manufacturer-specific advertising data (company ID 0xFFFF)
+- Display PIN on CYD boot splash "Waiting for companion..." line in white text
+- Add companion `--ble-pin` CLI option and interactive PIN prompt
+- Add unified session-state reset on serial/BLE reconnect
+- Fix `volatile bool` to `std::atomic<bool>` for cross-core BLE connection flag
 
 ## [0.7.1] - 2026-03-07
 
