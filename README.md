@@ -110,6 +110,73 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Status bar** at bottom shows connection status and agent count
 - **Multiple agents** each get their own desk and color palette
 
+## Agent Characters
+
+All 6 characters are always visible on screen. At boot they spawn in two social zones — 3 in the break room and 3 in the library — and wander within their zone until assigned work.
+
+### Lifecycle
+
+```
+Boot → appear (matrix reveal) → IDLE (wander in social zone)
+                                   ↓ agent activates
+                                WALK → desk → TYPE / READ
+                                   ↑ agent goes idle
+                                WALK → back to social zone → IDLE
+```
+
+All 6 characters appear once at boot with a matrix-style column reveal effect and remain on screen permanently. They never despawn — when an agent goes inactive, the character walks back to its social zone rather than disappearing.
+
+When the companion bridge reports an agent becoming active, the nearest unassigned character claims a desk and pathfinds to it. Once seated, the character animates typing or reading depending on the tool in use:
+
+- **TYPE** — tools that write (`Edit`, `Write`, `Bash`, etc.)
+- **READ** — tools that read (`Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`)
+
+### State Machine
+
+| State | Animation | Behavior |
+|-------|-----------|----------|
+| IDLE | Standing frame | Wanders within assigned social zone (2–20s pause, 3–6 moves per burst) |
+| WALK | 4-frame cycle (0.15s/frame) | BFS pathfinding at 48 px/s to destination tile |
+| TYPE | 2-frame cycle (0.3s/frame) | Seated at desk, typing animation |
+| READ | 2-frame cycle (0.3s/frame) | Seated at desk, reading animation |
+
+Characters face 4 directions (DOWN, UP, RIGHT, LEFT). LEFT sprites are rendered by flipping RIGHT horizontally. Each character has a unique color palette (hair, skin, shirt, pants, shoes).
+
+### Rendering
+
+The scene renders at 15 FPS using a double-buffered sprite. Entities (characters, furniture, dog) are depth-sorted by Y position so closer objects draw in front. Characters seated at desks are offset to visually align with the chair sprite.
+
+## Office Dog
+
+A dog roams the office autonomously, cycling through three behaviors:
+
+```
+WANDER (20 min) → FOLLOW (20 min) → WANDER → FOLLOW → ...
+                         ↑
+                 NAP interrupts every 4 hours (lasts 30 min)
+```
+
+**WANDER** — The dog picks random tiles and walks to them, pausing 2–6 seconds between moves. Each pause has an 8% chance of triggering a pee animation (3s) and each walk has a 15% chance of becoming a run (faster speed, different sprite cycle).
+
+**FOLLOW** — The dog picks a random character and stays within 5 tiles of them, re-pathfinding every 8 seconds. If the target sits down at a desk (typing or reading), the dog sits beside them. A new follow target is picked every hour.
+
+**NAP** — A global timer counts down regardless of current behavior. Every 4 hours the dog stops everything, lays down, and naps for 30 minutes before returning to WANDER.
+
+### Animations
+
+| Animation | Frames | When |
+|-----------|--------|------|
+| Idle | 8 frames (0.3s each) | Standing still — default when not walking, sitting, peeing, or napping |
+| Walk | 4 frames (0.12s each) | Moving to a tile at 40 px/s |
+| Run | 8 frames (0.08s each) | 15% chance a wander walk becomes a run at 72 px/s |
+| Sit | 1 frame | Following a character who is seated at a desk |
+| Pee | 1 frame | 8% chance during wander pauses, lasts 3 seconds |
+| Lay down | 1 frame | Napping (30 minutes every 4 hours) |
+
+The dog sprite is side-view only — LEFT facing is rendered by flipping the RIGHT sprite horizontally. The dog uses BFS pathfinding and depth-sorts with characters.
+
+On the CYD board, the dog can be toggled on/off and its color changed (black, brown, gray, tan) via the hamburger menu. Settings persist across reboots via NVS.
+
 ## Serial Protocol
 
 Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
