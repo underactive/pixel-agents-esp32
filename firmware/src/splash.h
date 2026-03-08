@@ -11,6 +11,7 @@ public:
     bool isActive() const;
     void fadeOut(void (*stepCallback)() = nullptr);
     void fadeIn(void (*stepCallback)() = nullptr);
+    void drawTo(TFT_eSPI* target, int yOffset);
 
 private:
     void drawTitle();
@@ -26,6 +27,8 @@ private:
     bool _connected = false;
     uint32_t _connectedMs = 0;     // millis() when connected
     bool _complete = false;
+
+    int _drawYOffset = 0;          // y offset for drawTo() capture
 
     // Log line circular buffer
     char _logLines[SPLASH_MAX_LOG_LINES][40];

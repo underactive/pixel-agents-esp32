@@ -26,7 +26,7 @@ void Splash::drawTitle() {
     _tft->setTextSize(3);
     _tft->setTextColor(TFT_WHITE, TFT_BLACK);
     _tft->setTextDatum(TC_DATUM);  // top-center
-    _tft->drawString("PIXEL AGENTS", SCREEN_W / 2, SPLASH_TITLE_Y);
+    _tft->drawString("PIXEL AGENTS", SCREEN_W / 2, SPLASH_TITLE_Y + _drawYOffset);
     _tft->setTextDatum(TL_DATUM);  // reset to top-left
 }
 
@@ -35,7 +35,7 @@ void Splash::drawFooter() {
     _tft->setTextSize(1);
     _tft->setTextColor(COLOR_SPLASH_FOOTER, TFT_BLACK);
     _tft->setTextDatum(TC_DATUM);
-    _tft->drawString("v0.7.0 (c) 2026 TARS Industrial Technical Solutions", SCREEN_W / 2, SPLASH_FOOTER_Y);
+    _tft->drawString("v0.7.0 (c) 2026 TARS Industrial Technical Solutions", SCREEN_W / 2, SPLASH_FOOTER_Y + _drawYOffset);
     _tft->setTextDatum(TL_DATUM);
 }
 
@@ -53,7 +53,7 @@ void Splash::drawCharFrame() {
 
     int scaledW = CHAR_W * SPLASH_CHAR_SCALE;
     int startX = (SCREEN_W - scaledW) / 2;
-    int startY = SPLASH_CHAR_Y;
+    int startY = SPLASH_CHAR_Y + _drawYOffset;
 
     for (int py = 0; py < CHAR_H; py++) {
         for (int px = 0; px < CHAR_W; px++) {
@@ -96,7 +96,7 @@ void Splash::addLog(const char* msg) {
 void Splash::redrawLogArea() {
     // Clear log area
     int logAreaH = SPLASH_MAX_LOG_LINES * SPLASH_LOG_LINE_H;
-    _tft->fillRect(0, SPLASH_LOG_Y, SCREEN_W, logAreaH, TFT_BLACK);
+    _tft->fillRect(0, SPLASH_LOG_Y + _drawYOffset, SCREEN_W, logAreaH, TFT_BLACK);
 
     _tft->setTextFont(1);
     _tft->setTextSize(1);
@@ -104,7 +104,7 @@ void Splash::redrawLogArea() {
     _tft->setTextDatum(TL_DATUM);
 
     for (int i = 0; i < _logCount; i++) {
-        int lineY = SPLASH_LOG_Y + i * SPLASH_LOG_LINE_H;
+        int lineY = SPLASH_LOG_Y + i * SPLASH_LOG_LINE_H + _drawYOffset;
         _tft->drawString(_logLines[i], 8, lineY);
     }
 }
@@ -137,6 +137,18 @@ void Splash::onHeartbeat() {
 
 bool Splash::isActive() const {
     return !_complete;
+}
+
+void Splash::drawTo(TFT_eSPI* target, int yOffset) {
+    TFT_eSPI* saved = _tft;
+    _tft = target;
+    _drawYOffset = yOffset;
+    drawTitle();
+    drawFooter();
+    drawCharFrame();
+    redrawLogArea();
+    _drawYOffset = 0;
+    _tft = saved;
 }
 
 // LEDC channel for backlight PWM fade (avoid CYD LED channels 5/6/7)
