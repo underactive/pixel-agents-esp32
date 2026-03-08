@@ -90,8 +90,19 @@ bool BleService::begin(BleTransport& transport) {
 
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     if (!pAdvertising) { Serial.println("[BLE] FAIL: getAdvertising"); return false; }
-    pAdvertising->addServiceUUID(NUS_SERVICE_UUID);
-    pAdvertising->setName(BLE_DEVICE_NAME);
+
+    // Split advertising data across two packets to fit 31-byte limit:
+    // - Advertising packet: flags + service UUID (21 bytes)
+    // - Scan response: device name (13 bytes)
+    NimBLEAdvertisementData advData;
+    advData.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+    advData.addServiceUUID(NUS_SERVICE_UUID);
+
+    NimBLEAdvertisementData scanResponse;
+    scanResponse.setName(BLE_DEVICE_NAME);
+
+    pAdvertising->setAdvertisementData(advData);
+    pAdvertising->setScanResponseData(scanResponse);
     if (!pAdvertising->start()) {
         Serial.println("[BLE] FAIL: advertising start");
         return false;
