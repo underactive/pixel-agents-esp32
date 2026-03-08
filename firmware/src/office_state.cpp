@@ -1,5 +1,6 @@
 #include "office_state.h"
 #include <Arduino.h>
+#include <Preferences.h>
 #include <string.h>
 
 // ── Reading tools (show reading animation instead of typing) ──
@@ -20,6 +21,7 @@ void OfficeState::init() {
     initTileMap();
     _connected = false;
     _lastHeartbeatMs = 0;
+    loadSettings();
 }
 
 void OfficeState::spawnAllCharacters() {
@@ -478,7 +480,9 @@ void OfficeState::update(float dt) {
         if (!_chars[i].alive) continue;
         updateCharacter(_chars[i], dt);
     }
-    updatePet(dt);
+    if (_dogSettings.enabled) {
+        updatePet(dt);
+    }
 }
 
 void OfficeState::updateCharacter(Character& ch, float dt) {
@@ -1042,7 +1046,7 @@ void OfficeState::updatePet(float dt) {
                 _pet.wanderTimer -= dt;
                 if (_pet.wanderTimer <= 0) {
                     // Random chance to pee when pausing
-                    if (!_pet.isPeeing && randomRange(0, 1.0f) < DOG_PEE_CHANCE) {
+                    if (randomRange(0, 1.0f) < DOG_PEE_CHANCE) {
                         _pet.isPeeing = true;
                         _pet.peeTimer = DOG_PEE_DURATION_SEC;
                         _pet.wanderTimer = DOG_PEE_DURATION_SEC + 0.5f;
@@ -1116,4 +1120,99 @@ void OfficeState::setUsageStats(uint8_t curPct, uint8_t wkPct, uint16_t curReset
     _usage.currentResetMin = curResetMin;
     _usage.weeklyResetMin = wkResetMin;
     _usage.valid = true;
+}
+
+// ── Settings Persistence (NVS) ───────────────────────────
+
+void OfficeState::loadSettings() {
+    Preferences prefs;
+    prefs.begin("pixelagent", true);  // read-only
+    _dogSettings.enabled = prefs.getBool("dogOn", true);
+    uint8_t colorVal = prefs.getUChar("dogColor", static_cast<uint8_t>(DOG_DEFAULT_COLOR));
+    if (colorVal < DOG_COLOR_COUNT) {
+        _dogSettings.color = static_cast<DogColor>(colorVal);
+    } else {
+        _dogSettings.color = DOG_DEFAULT_COLOR;
+    }
+    prefs.end();
+}
+
+void OfficeState::saveSettings() {
+    Preferences prefs;
+    prefs.begin("pixelagent", false);  // read-write
+    prefs.putBool("dogOn", _dogSettings.enabled);
+    prefs.putUChar("dogColor", static_cast<uint8_t>(_dogSettings.color));
+    prefs.end();
+}
+
+void OfficeState::setDogEnabled(bool enabled) {
+    if (_dogSettings.enabled == enabled) return;
+    _dogSettings.enabled = enabled;
+    saveSettings();
+    if (enabled) {
+        initPet();
+    }
+}
+
+void OfficeState::setDogColor(DogColor color) {
+    if (static_cast<uint8_t>(color) >= DOG_COLOR_COUNT) return;
+    if (_dogSettings.color == color) return;
+    _dogSettings.color = color;
+    saveSettings();
+}
+
+bool OfficeState::hitTestHamburger(int screenX, int screenY) const {
+#if defined(HAS_TOUCH)
+    int statusTop = SCREEN_H - STATUS_BAR_H;
+    int hx = SCREEN_W - HAMBURGER_W - HAMBURGER_MARGIN;
+    int hy = statusTop;
+    return screenX >= hx - 4 && screenX <= SCREEN_W &&
+           screenY >= hy && screenY <= SCREEN_H;
+#else
+    (void)screenX; (void)screenY;
+    return false;
+#endif
+}
+
+int OfficeState::hitTestMenuItem(int screenX, int screenY) const {
+#if defined(HAS_TOUCH)
+    if (!_menuOpen) return -1;
+
+    // Menu positioned: right-aligned above status bar
+    int menuX = SCREEN_W - MENU_W - 4;
+    int menuY = SCREEN_H - STATUS_BAR_H - MENU_H - 2;
+
+    // Check if tap is within menu bounds
+    if (screenX < menuX || screenX >= menuX + MENU_W ||
+        screenY < menuY || screenY >= menuY + MENU_H) {
+        return -1;
+    }
+
+    int relY = screenY - menuY;
+
+    // Row 0: title "Settings" (no-op, but inside menu — don't close)
+    if (relY < MENU_ITEM_H) return -2;
+
+    // Row 1: dog toggle — next MENU_ITEM_H pixels
+    if (relY < MENU_ITEM_H * 2) return 0;
+
+    // Row 2: color swatches (4 swatches, only active when dog enabled)
+    if (relY < MENU_ITEM_H * 3) {
+        if (!_dogSettings.enabled) return -2;
+        int relX = screenX - menuX;
+        for (int i = 0; i < DOG_COLOR_COUNT; i++) {
+            int sx = SWATCH_AREA_X + i * (SWATCH_W + SWATCH_GAP);
+            if (relX >= sx && relX < sx + SWATCH_W) {
+                return 1 + i;  // 1=BLACK, 2=BROWN, 3=GRAY, 4=TAN
+            }
+        }
+        return -2;  // between swatches — inside menu, no action
+    }
+
+    // Bottom padding area — inside menu, no action
+    return -2;
+#else
+    (void)screenX; (void)screenY;
+    return -1;
+#endif
 }

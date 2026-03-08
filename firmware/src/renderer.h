@@ -22,10 +22,14 @@ private:
     void drawFloor(const TileType* tiles);
     void drawFurniture();
     void drawCharacter(const Character& ch);
-    void drawDog(const Pet& pet);
+    void drawDog(const Pet& pet, DogColor color);
     void drawBubble(const Character& ch);
     void drawStatusBar(OfficeState& office);
     void drawSpawnEffect(const Character& ch);
+#if defined(HAS_TOUCH)
+    void drawHamburgerIcon(int x, int y);
+    void drawMenuOverlay(OfficeState& office);
+#endif
 
     // Sprite rendering helpers
     void drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h);
