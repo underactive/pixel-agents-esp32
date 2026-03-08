@@ -101,6 +101,7 @@ void setup() {
     // when partial messages arrive on both transports simultaneously
     bleProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, nullptr);
     if (bleService.begin(bleTransport)) {
+        splash.setPinCode(bleService.getPin());
         splash.addLog("BLE advertising");
     } else {
         splash.addLog("BLE init failed");
