@@ -7,6 +7,9 @@
 #if defined(HAS_TOUCH)
 #include "touch_input.h"
 #endif
+#if defined(BOARD_CYD)
+#include "led_ambient.h"
+#endif
 
 TFT_eSPI tft;
 Protocol protocol;
@@ -14,6 +17,9 @@ OfficeState office;
 Renderer renderer;
 #if defined(HAS_TOUCH)
 TouchInput touchInput;
+#endif
+#if defined(BOARD_CYD)
+LedAmbient ledAmbient;
 #endif
 
 uint32_t lastFrameMs = 0;
@@ -87,6 +93,10 @@ void setup() {
     touchInput.begin();
 #endif
 
+#if defined(BOARD_CYD)
+    ledAmbient.begin();
+#endif
+
     lastFrameMs = millis();
 }
 
@@ -112,6 +122,11 @@ void loop() {
 
     // Update office state
     office.update(dt);
+
+#if defined(BOARD_CYD)
+    // Update ambient LED based on office state
+    ledAmbient.update(office, dt);
+#endif
 
 #if defined(HAS_TOUCH)
     // Poll touch input

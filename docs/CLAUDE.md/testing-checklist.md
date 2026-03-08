@@ -135,6 +135,16 @@
 - [ ] Reboot device — dog enabled/disabled and color persist from NVS
 - [ ] LILYGO build compiles without touch/menu code (no hamburger icon, no menu)
 
+### RGB LED Ambient Lighting (CYD Only)
+- [ ] LED is off when companion is disconnected
+- [ ] LED breathes dim cyan when connected with no active agents (~4s cycle)
+- [ ] LED glows steady green with 1-3 active agents (brightness increases with count)
+- [ ] LED glows amber/orange with 4+ active agents
+- [ ] LED pulses red when usage stats reach 90%+ current usage (~2s cycle)
+- [ ] LED transitions smoothly between modes (no flicker on mode change)
+- [ ] LED breathe/pulse animation remains smooth after 1+ hour in same mode
+- [ ] LILYGO build compiles without LED code (no compilation errors, no LED references)
+
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes
 - [ ] Rapid state changes (TYPE→IDLE→TYPE) — smooth transitions

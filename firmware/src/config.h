@@ -216,6 +216,34 @@ enum class DogColor : uint8_t { BLACK = 0, BROWN = 1, GRAY = 2, TAN = 3 };
 static constexpr int DOG_COLOR_COUNT = 4;
 static constexpr DogColor DOG_DEFAULT_COLOR = DogColor::BROWN;
 
+// ── RGB LED (CYD only) ──────────────────────────────────
+#if defined(BOARD_CYD)
+static constexpr int LED_PIN_R = 4;
+static constexpr int LED_PIN_G = 16;
+static constexpr int LED_PIN_B = 17;
+static constexpr int LED_PWM_FREQ = 5000;    // 5kHz
+static constexpr int LED_PWM_RES  = 8;       // 8-bit (0-255)
+// LEDC channels (TFT_eSPI backlight uses channel 0; pick 5/6/7)
+static constexpr int LED_LEDC_CH_R = 5;
+static constexpr int LED_LEDC_CH_G = 6;
+static constexpr int LED_LEDC_CH_B = 7;
+
+enum class LedMode : uint8_t {
+    OFF          = 0,
+    IDLE_BREATHE = 1,
+    ACTIVE       = 2,
+    BUSY         = 3,
+    RATE_LIMITED = 4
+};
+
+static constexpr float LED_BREATHE_PERIOD_SEC = 4.0f;   // idle breathe cycle
+static constexpr float LED_PULSE_PERIOD_SEC   = 2.0f;   // rate-limited pulse cycle
+static constexpr int   LED_BUSY_THRESHOLD     = 4;      // agents for BUSY mode
+static constexpr uint8_t LED_RATE_LIMIT_PCT   = 90;     // usage % to trigger rate-limited mode
+static constexpr uint8_t LED_ACTIVE_MIN_BRIGHT = 100;
+static constexpr uint8_t LED_ACTIVE_MAX_BRIGHT = 255;
+#endif
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;
