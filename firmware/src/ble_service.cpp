@@ -55,8 +55,13 @@ bool BleService::begin(BleTransport& transport) {
     _instance = this;
 
     Serial.println("[BLE] Initializing NimBLE...");
-    NimBLEDevice::init(BLE_DEVICE_NAME);
+    if (!NimBLEDevice::init(BLE_DEVICE_NAME)) {
+        Serial.println("[BLE] FAIL: NimBLEDevice::init");
+        return false;
+    }
     NimBLEDevice::setMTU(BLE_MTU);
+    Serial.print("[BLE] Address: ");
+    Serial.println(NimBLEDevice::getAddress().toString().c_str());
     Serial.println("[BLE] NimBLE initialized");
 
     NimBLEServer* pServer = NimBLEDevice::createServer();
@@ -87,9 +92,12 @@ bool BleService::begin(BleTransport& transport) {
     if (!pAdvertising) { Serial.println("[BLE] FAIL: getAdvertising"); return false; }
     pAdvertising->addServiceUUID(NUS_SERVICE_UUID);
     pAdvertising->setName(BLE_DEVICE_NAME);
-    pAdvertising->start();
+    if (!pAdvertising->start()) {
+        Serial.println("[BLE] FAIL: advertising start");
+        return false;
+    }
 
-    Serial.println("[BLE] Advertising started");
+    Serial.println("[BLE] Advertising started OK");
     return true;
 }
 
