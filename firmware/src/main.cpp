@@ -4,6 +4,7 @@
 #include "protocol.h"
 #include "office_state.h"
 #include "renderer.h"
+#include "splash.h"
 #if defined(HAS_TOUCH)
 #include "touch_input.h"
 #endif
@@ -15,6 +16,7 @@ TFT_eSPI tft;
 Protocol protocol;
 OfficeState office;
 Renderer renderer;
+Splash splash;
 #if defined(HAS_TOUCH)
 TouchInput touchInput;
 #endif
@@ -23,6 +25,7 @@ LedAmbient ledAmbient;
 #endif
 
 uint32_t lastFrameMs = 0;
+bool splashActive = true;
 
 // ── Protocol callbacks ──────────────────────────────────
 
@@ -37,6 +40,9 @@ void onAgentCount(uint8_t count) {
 void onHeartbeat(uint32_t timestamp) {
     (void)timestamp;
     office.onHeartbeat();
+    if (splashActive) {
+        splash.onHeartbeat();
+    }
 }
 
 void onStatusText(const StatusText& st) {
@@ -49,18 +55,6 @@ void onUsageStats(const UsageStatsMsg& us) {
 
 void onScreenshotReq() {
     renderer.requestScreenshot();
-}
-
-// ── Splash screen ───────────────────────────────────────
-
-void drawSplash() {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextSize(2);
-    tft.drawString("Pixel Agents", 80, 60);
-    tft.setTextSize(1);
-    tft.drawString("Waiting for connection...", 70, 100);
-    tft.drawString("Connect companion script via USB", 40, 120);
 }
 
 // ── Setup ───────────────────────────────────────────────
@@ -79,27 +73,34 @@ void setup() {
     digitalWrite(TFT_BL, HIGH);
 #endif
 
-    // Show splash
-    drawSplash();
+    // Boot splash with animated character + verbose log
+    splash.begin(tft);
+    splash.addLog("Display initialized");
 
-    // Initialize subsystems
     office.init();
+    splash.addLog("Office state ready");
+
     renderer.begin(tft);
+    splash.addLog("Render buffer allocated");
+
     protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
+    splash.addLog("Serial protocol ready");
 
-    // Seed random before spawning characters
     randomSeed(analogRead(0) ^ millis());
-
-    // Spawn all 6 characters in social zones
     office.spawnAllCharacters();
+    splash.addLog("Characters spawned");
 
 #if defined(HAS_TOUCH)
     touchInput.begin();
+    splash.addLog("Touch input ready");
 #endif
 
 #if defined(BOARD_CYD)
     ledAmbient.begin();
+    splash.addLog("LED ambient ready");
 #endif
+
+    splash.addLog("Waiting for companion...");
 
     lastFrameMs = millis();
 }
@@ -107,8 +108,27 @@ void setup() {
 // ── Main loop ───────────────────────────────────────────
 
 void loop() {
-    // Process serial (non-blocking)
+    // Process serial (non-blocking) — needed during splash for heartbeat
     protocol.process();
+
+    // Splash screen mode: animate character + wait for connection
+    if (splashActive) {
+        splash.tick();
+        if (!splash.isActive()) {
+            // Drain serial buffer during blocking fade to prevent UART overflow
+            auto drainSerial = []() { protocol.process(); };
+            splash.fadeOut(drainSerial);
+            // Render first office frame while screen is dark
+            uint32_t now = millis();
+            float dt = 0.016f;
+            office.update(dt);
+            renderer.renderFrame(office);
+            splash.fadeIn(drainSerial);
+            splashActive = false;
+            lastFrameMs = now;
+        }
+        return;
+    }
 
     // Capture time AFTER serial processing so now >= _lastHeartbeatMs
     // (avoids unsigned underflow in timeout check)

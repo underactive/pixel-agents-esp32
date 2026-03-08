@@ -63,9 +63,22 @@
 
 ### Display Bootstrap
 - [ ] Upload firmware via PlatformIO — compiles and uploads without errors
-- [ ] Splash screen appears: "Pixel Agents" title, connection instructions
 - [ ] Screen orientation is landscape (320x170)
 - [ ] Backlight is on
+
+### Boot Splash Screen
+- [ ] "PIXEL AGENTS" title appears centered at top of screen in chunky pixel font
+- [ ] A character sprite renders at 2x scale (32x64 pixels), centered below the title
+- [ ] Character is randomly selected (different character on different boots)
+- [ ] Character plays walk-down animation in place (4-frame cycle, ~150ms/frame)
+- [ ] Boot log lines appear sequentially in green terminal-style text with ">" prefix
+- [ ] Log shows subsystem init messages: "Display initialized", "Office state ready", etc.
+- [ ] "Waiting for companion..." appears as last log line before connection
+- [ ] Starting companion → "Connected!" appears in the boot log
+- [ ] Splash holds for ~3 seconds after "Connected!" while character keeps animating
+- [ ] Screen fades to black (backlight dims), then fades back in showing the office scene
+- [ ] Office scene renders correctly after fade-in (characters visible, status bar active)
+- [ ] CYD: splash layout accommodates taller screen (320x240), more log lines visible
 
 ### Idle Scene (No Companion Connected)
 - [ ] Status bar shows red dot + "Disconnected"
