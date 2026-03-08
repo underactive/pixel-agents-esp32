@@ -61,6 +61,7 @@ void Renderer::begin(TFT_eSPI& tft) {
     // Try full-screen sprite (works with PSRAM)
     void* buf = _canvas->createSprite(SCREEN_W, SCREEN_H);
     if (buf) {
+        _frameBuffer = (uint16_t*)buf;  // save for screenshot access
         _canvas->setSwapBytes(true);
         Serial.println("[renderer] full-screen buffer OK");
         return;
@@ -89,6 +90,7 @@ void Renderer::begin(TFT_eSPI& tft) {
 
 void Renderer::renderFrame(OfficeState& office) {
     if (!_canvas && !_directMode) return;
+    _currentOffice = &office;
 
     // Track FPS
     uint32_t now = millis();
@@ -705,6 +707,147 @@ void Renderer::drawRGB565SpriteFlip(int x, int y, const uint16_t* data, int w, i
             }
         }
     }
+}
+
+// ── Screenshot capture ──────────────────────────────────────
+
+void Renderer::requestScreenshot() {
+    _screenshotRequested = true;
+}
+
+bool Renderer::isScreenshotPending() {
+    if (_screenshotRequested) {
+        _screenshotRequested = false;
+        return true;
+    }
+    return false;
+}
+
+void Renderer::sendScreenshotHeader(uint16_t w, uint16_t h) {
+    uint8_t hdr[12];
+    uint32_t totalPixels = (uint32_t)w * h;
+    hdr[0] = SCREENSHOT_SYNC1;
+    hdr[1] = SCREENSHOT_SYNC2;
+    hdr[2] = (w >> 8) & 0xFF;
+    hdr[3] = w & 0xFF;
+    hdr[4] = (h >> 8) & 0xFF;
+    hdr[5] = h & 0xFF;
+    hdr[6] = (totalPixels >> 24) & 0xFF;
+    hdr[7] = (totalPixels >> 16) & 0xFF;
+    hdr[8] = (totalPixels >> 8) & 0xFF;
+    hdr[9] = totalPixels & 0xFF;
+    hdr[10] = 0;
+    hdr[11] = 0;
+    Serial.write(hdr, 12);
+}
+
+void Renderer::rleEncodeBuffer(const uint16_t* buf, uint32_t pixelCount,
+                               uint8_t* rleBuf, int& bufPos,
+                               uint16_t& runPixel, uint16_t& runCount,
+                               bool swapped) {
+    for (uint32_t i = 0; i < pixelCount; i++) {
+        uint16_t px = buf[i];
+        if (swapped) px = (px << 8) | (px >> 8);
+
+        if (runCount == 0) {
+            runPixel = px;
+            runCount = 1;
+        } else if (px == runPixel && runCount < 0xFFFF) {
+            runCount++;
+        } else {
+            rleBuf[bufPos++] = (runCount >> 8) & 0xFF;
+            rleBuf[bufPos++] = runCount & 0xFF;
+            rleBuf[bufPos++] = (runPixel >> 8) & 0xFF;
+            rleBuf[bufPos++] = runPixel & 0xFF;
+            if (bufPos >= 252) {
+                Serial.write(rleBuf, bufPos);
+                bufPos = 0;
+            }
+            runPixel = px;
+            runCount = 1;
+        }
+    }
+}
+
+void Renderer::rleFlushEnd(uint8_t* rleBuf, int& bufPos,
+                           uint16_t runPixel, uint16_t runCount) {
+    if (bufPos > 248) {
+        Serial.write(rleBuf, bufPos);
+        bufPos = 0;
+    }
+    // Last run
+    rleBuf[bufPos++] = (runCount >> 8) & 0xFF;
+    rleBuf[bufPos++] = runCount & 0xFF;
+    rleBuf[bufPos++] = (runPixel >> 8) & 0xFF;
+    rleBuf[bufPos++] = runPixel & 0xFF;
+    // End marker
+    rleBuf[bufPos++] = 0;
+    rleBuf[bufPos++] = 0;
+    rleBuf[bufPos++] = 0;
+    rleBuf[bufPos++] = 0;
+    Serial.write(rleBuf, bufPos);
+}
+
+void Renderer::sendScreenshot() {
+    if (_frameBuffer) {
+        // LILYGO: full framebuffer in PSRAM
+        sendScreenshotHeader(SCREEN_W, SCREEN_H);
+        uint32_t totalPixels = (uint32_t)SCREEN_W * SCREEN_H;
+        uint8_t rleBuf[256];
+        int bufPos = 0;
+        uint16_t runPixel = 0, runCount = 0;
+        bool swapped = _canvas->getSwapBytes();
+        rleEncodeBuffer(_frameBuffer, totalPixels, rleBuf, bufPos,
+                        runPixel, runCount, swapped);
+        rleFlushEnd(rleBuf, bufPos, runPixel, runCount);
+        return;
+    }
+
+    if (_directMode || !_canvas) {
+        // Direct mode: no buffer at all — send empty response
+        uint8_t hdr[12];
+        hdr[0] = SCREENSHOT_SYNC1;
+        hdr[1] = SCREENSHOT_SYNC2;
+        memset(&hdr[2], 0, 10);
+        Serial.write(hdr, 12);
+        uint8_t end[4] = {0, 0, 0, 0};
+        Serial.write(end, 4);
+        return;
+    }
+
+    // Half-mode: not reachable here — handled in sendScreenshotFromDisplay()
+    sendScreenshotFromDisplay();
+}
+
+void Renderer::sendScreenshotFromDisplay() {
+    // CYD half-mode: re-render each half into the sprite buffer and capture
+    // The sprite buffer holds SCREEN_W x _halfHeight pixels
+    sendScreenshotHeader(SCREEN_W, SCREEN_H);
+
+    uint8_t rleBuf[256];
+    int bufPos = 0;
+    uint16_t runPixel = 0, runCount = 0;
+    uint16_t* halfBuf = (uint16_t*)_canvas->getPointer();
+    uint32_t halfPixels = (uint32_t)SCREEN_W * _halfHeight;
+
+    // setSwapBytes(true) causes byte-swapped storage in the sprite buffer
+    bool swapped = _canvas->getSwapBytes();
+
+    // Pass 1: render top half
+    _canvas->fillSprite(COLOR_BG);
+    _yOffset = 0;
+    drawScene(*_currentOffice);
+    rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
+                    runPixel, runCount, swapped);
+
+    // Pass 2: render bottom half
+    _canvas->fillSprite(COLOR_BG);
+    _yOffset = -_halfHeight;
+    drawScene(*_currentOffice);
+    rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
+                    runPixel, runCount, swapped);
+
+    rleFlushEnd(rleBuf, bufPos, runPixel, runCount);
 }
 
 void Renderer::drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h) {

@@ -17,6 +17,10 @@
 - [ ] Remote status API: ESP32 exposes REST endpoint for external tools (Home Assistant, Stream Deck) to query agent state
 
 ## Low Priority
+- [ ] CYD SD card — screenshot storage: save screenshots directly to SD card without companion
+- [ ] CYD SD card — custom sprites: load user sprite sheets from SD at boot (swap palettes/furniture without recompiling)
+- [ ] CYD SD card — activity logging: write agent activity and usage stats history to SD for later review
+- [ ] CYD SD card — portable config: store settings (WiFi creds, display prefs, dog color) as JSON on SD, survives reflashes
 - [ ] Theme system: swappable color palettes for floor/wall/furniture
 - [ ] Custom office layouts: JSON-defined room layouts uploaded via serial
 - [ ] Agent name labels: tiny text below characters showing project name

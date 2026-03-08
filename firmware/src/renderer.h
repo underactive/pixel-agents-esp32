@@ -7,10 +7,16 @@ class Renderer {
 public:
     void begin(TFT_eSPI& tft);
     void renderFrame(OfficeState& office);
+    void requestScreenshot();
+    bool isScreenshotPending();
+    void sendScreenshot();
 
 private:
     TFT_eSPI* _tft = nullptr;
     TFT_eSprite* _canvas = nullptr;
+    uint16_t* _frameBuffer = nullptr;
+    bool _screenshotRequested = false;
+    OfficeState* _currentOffice = nullptr;
     bool _directMode = false;
     bool _halfMode = false;
     int _halfHeight = 0;
@@ -30,6 +36,16 @@ private:
     void drawHamburgerIcon(int x, int y);
     void drawMenuOverlay(OfficeState& office);
 #endif
+
+    // Screenshot helpers
+    void sendScreenshotFromDisplay();
+    void sendScreenshotHeader(uint16_t w, uint16_t h);
+    void rleEncodeBuffer(const uint16_t* buf, uint32_t pixelCount,
+                         uint8_t* rleBuf, int& bufPos,
+                         uint16_t& runPixel, uint16_t& runCount,
+                         bool swapped);
+    void rleFlushEnd(uint8_t* rleBuf, int& bufPos,
+                     uint16_t runPixel, uint16_t runCount);
 
     // Sprite rendering helpers
     void drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h);
