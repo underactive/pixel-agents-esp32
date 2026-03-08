@@ -180,7 +180,7 @@ Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no hear
 - 4-digit PIN (1000-9999) generated per boot via `esp_random()`, embedded in manufacturer-specific advertising data for multi-device selection
 - PIN is device-selection convenience (not security) — broadcast in cleartext, no server-side verification
 - Manufacturer data format: 2-byte company ID (`0xFFFF`, little-endian) + 2-byte PIN (big-endian), fits within 31-byte advertising limit
-- PIN displayed on CYD boot splash screen (white, size 2, centered between log area and footer)
+- PIN displayed as white suffix on "Waiting for companion..." log line during CYD boot splash
 - Companion `--ble-pin XXXX` connects directly; interactive mode prompts for PIN; non-interactive mode connects to first device
 - Memory overhead: ~312KB flash + 15KB RAM (NimBLE with central/observer roles disabled)
 
