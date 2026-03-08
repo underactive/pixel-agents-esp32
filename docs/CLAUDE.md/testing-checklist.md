@@ -206,6 +206,19 @@
 - [ ] Without ESP32 in range: prints scan failure and retries after 2 seconds
 - [ ] Ctrl+C exits cleanly, BLE event loop shut down
 
+### Idle Activities (Screensaver)
+- [ ] Idle characters occasionally leave their home zone to perform activities (~40% of wander triggers)
+- [ ] Characters walk to bookshelves (row 8) and play reading animation facing UP
+- [ ] Characters walk to coffee maker area (row 3) and stand facing UP
+- [ ] Characters walk to water cooler (row 3) and stand facing UP
+- [ ] Characters walk to another idle character and stand facing them (socializing)
+- [ ] Activities last 4-10 seconds, then character walks back to their home zone
+- [ ] No back-to-back activities (at least one normal wander between activities)
+- [ ] Status bar AGENT_LIST shows "ACT" for characters performing activities
+- [ ] Starting a Claude Code session preempts an active activity (character walks to desk)
+- [ ] Multiple characters can perform activities simultaneously without overlap at interaction points
+- [ ] Characters face correct direction during activities (UP for furniture, toward target for socializing)
+
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes
 - [ ] Rapid state changes (TYPE→IDLE→TYPE) — smooth transitions
