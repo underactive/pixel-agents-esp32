@@ -185,7 +185,7 @@
 - [ ] Boot splash shows "BLE advertising" log line (CYD only)
 
 ### BLE PIN Pairing (CYD)
-- [ ] CYD boot splash "Waiting for companion..." log line shows "[BLE PIN: XXXX]" suffix in white text
+- [ ] CYD boot splash "Waiting for companion..." log line shows "BLE PIN: XXXX" suffix in white text
 - [ ] PIN is a 4-digit number (1000-9999)
 - [ ] Rebooting CYD generates a different PIN (verify across 3+ reboots)
 - [ ] `--transport ble` scan output lists each device with its PIN (e.g., "Found: PixelAgents at XX:XX, PIN=1234")
