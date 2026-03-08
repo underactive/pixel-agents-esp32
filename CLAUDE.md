@@ -14,23 +14,23 @@
 ### Microcontroller
 Two board targets are supported:
 
-**LILYGO T-Display S3** (primary)
-- ESP32-S3, Xtensa LX7 dual-core, 240 MHz
-- WiFi + BLE (not used in v1)
-- 16MB Flash, 8MB PSRAM (OPI)
-- USB-C, built-in 1.9" IPS ST7789 display (170x320)
-
-**ESP32-2432S028R "Cheap Yellow Display" (CYD)** (secondary)
+**ESP32-2432S028R "Cheap Yellow Display" (CYD)** (primary)
 - ESP32 (non-S3), dual-core, 240 MHz
 - WiFi + BLE (not used in v1)
 - No PSRAM
 - 2.8" ILI9341 320x240, resistive touch (XPT2046)
 
+**LILYGO T-Display S3** (secondary)
+- ESP32-S3, Xtensa LX7 dual-core, 240 MHz
+- WiFi + BLE (not used in v1)
+- 16MB Flash, 8MB PSRAM (OPI)
+- USB-C, built-in 1.9" IPS ST7789 display (170x320)
+
 ### Components
 | Ref | Component | Purpose |
 |-----|-----------|---------|
-| U1 | ESP32-S3 (LILYGO) or ESP32 (CYD) | MCU + display driver |
-| D1 | ST7789 1.9" IPS (LILYGO) or ILI9341 2.8" TFT (CYD) | Pixel art scene display |
+| U1 | ESP32 (CYD) or ESP32-S3 (LILYGO) | MCU + display driver |
+| D1 | ILI9341 2.8" TFT (CYD) or ST7789 1.9" IPS (LILYGO) | Pixel art scene display |
 | T1 | XPT2046 (CYD only) | Resistive touch input |
 
 ### Pin Assignments
@@ -181,16 +181,16 @@ Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no hear
 
 Two environments in `platformio.ini`:
 
-**`[env:lilygo-t-display-s3]`** (default)
-- **board:** `lilygo-t-display-s3` -- ESP32-S3 with built-in ST7789 display
-- **board_build.arduino.memory_type=qio_opi** -- enables PSRAM for full-frame double buffer
-- **board_build.partitions=default_16MB.csv** -- full 16MB flash partition layout
-
-**`[env:cyd-2432s028r]`**
+**`[env:cyd-2432s028r]`** (default)
 - **board:** `esp32dev` -- generic ESP32 board definition
 - **-DBOARD_CYD=1** -- enables CYD-specific layout, grid size, and conditional compilation
 - **-DHAS_TOUCH=1** -- enables touch input subsystem compilation
 - No PSRAM; renderer uses half-height buffer or direct-draw fallback
+
+**`[env:lilygo-t-display-s3]`**
+- **board:** `lilygo-t-display-s3` -- ESP32-S3 with built-in ST7789 display
+- **board_build.arduino.memory_type=qio_opi** -- enables PSRAM for full-frame double buffer
+- **board_build.partitions=default_16MB.csv** -- full 16MB flash partition layout
 
 **Shared flags (both environments):**
 - **-DUSER_SETUP_LOADED=1** -- tells TFT_eSPI to use build_flags instead of User_Setup.h
@@ -475,11 +475,11 @@ Version string appears in 4 files:
 # Generate sprite headers (run once, or after sprite changes)
 python3 tools/sprite_converter.py
 
-# Build and flash firmware (LILYGO T-Display S3)
-cd firmware && pio run -e lilygo-t-display-s3 --target upload
-
 # Build and flash firmware (CYD)
 cd firmware && pio run -e cyd-2432s028r --target upload
+
+# Build and flash firmware (LILYGO T-Display S3)
+cd firmware && pio run -e lilygo-t-display-s3 --target upload
 
 # Start companion bridge
 cd companion && pip install -r requirements.txt && python3 pixel_agents_bridge.py
