@@ -17,7 +17,7 @@ Claude Code CLI  -->  JSONL transcripts  -->  Python bridge  -->  USB Serial  --
 ```
 
 1. **Claude Code** writes JSONL transcript files as you work
-2. **Companion bridge** (Python) watches those files and detects agent state changes
+2. **Companion bridge** (Python) watches those files, detects agent state changes, and reads `~/.claude/rate-limits-cache.json` for usage stats
 3. **ESP32 firmware** receives state updates over USB serial and animates the office scene
 
 Characters walk to their desks when active, sit and type/read while tools run, wander around the office when idle, and spawn/despawn with a matrix effect.
@@ -26,9 +26,10 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 Either board works out of the box — just pick the right PlatformIO environment.
 
-**Option A:** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
+**Option A (recommended):** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
 - ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
 - 320x240 landscape → 20x14 tile grid (more room for wandering)
+- Touch input for cycling status modes, hamburger menu for dog settings
 - Build env: `cyd-2432s028r`
 
 **Option B:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
@@ -113,7 +114,8 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Active agent** walks to its desk and sits down to type or read
 - **Idle agent** stands up and wanders around the office
 - **Speech bubbles** show tool names while running, permission/waiting indicators
-- **Status bar** at bottom shows connection status and agent count
+- **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
+- **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
 - **Multiple agents** each get their own desk and color palette
 
 ## Agent Characters
@@ -193,33 +195,42 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 | Agent Count | 0x02 | count |
 | Heartbeat | 0x03 | timestamp (4 bytes, big-endian) |
 | Status Text | 0x04 | agent_id + text_len + text |
+| Usage Stats | 0x05 | current_pct + weekly_pct + current_reset_min (2 bytes) + weekly_reset_min (2 bytes) |
+| Screenshot Req | 0x06 | (none) |
 
 ## Project Structure
 
 ```
-pixel-agents/
-  assets/                # External art assets (gitignored)
-    Office Tileset/      # 16x16 tileset used by sprite_converter
-  firmware/              # ESP32 PlatformIO project
+pixel-agents-esp32/
+  assets/                  # External art assets (gitignored)
+    Office Tileset/        # 16x16 tileset used by sprite_converter
+  firmware/                # ESP32 PlatformIO project
     platformio.ini
     src/
-      main.cpp           # Entry point
-      config.h           # Constants, enums, layout
-      protocol.h/.cpp    # Serial protocol parser
-      office_state.h/.cpp # Character FSM, pathfinding
-      renderer.h/.cpp    # Display rendering
-      sprites/           # Generated PROGMEM sprite data
+      main.cpp             # Entry point
+      config.h             # Constants, enums, layout
+      protocol.h/.cpp      # Serial protocol parser
+      office_state.h/.cpp  # Character FSM, pathfinding
+      renderer.h/.cpp      # Display rendering
+      splash.h/.cpp        # Animated boot splash screen
+      touch_input.h/.cpp   # XPT2046 touch driver (CYD only)
+      led_ambient.h/.cpp   # RGB LED breathing effects (CYD only)
+      sprites/             # Generated PROGMEM sprite data
         characters.h
         furniture.h
-        tiles.h          # Floor/wall/furniture from layout editor
+        tiles.h            # Floor/wall/furniture from layout editor
         bubbles.h
-  companion/             # Python bridge service
+        dog.h              # Master dog sprite include
+        dog_black/brown/gray/tan.h  # Dog color variants
+  companion/               # Python bridge service
     pixel_agents_bridge.py
     requirements.txt
-  tools/                 # Build tools
-    sprite_converter.py
-    sprite_validation.html  # Generated visual check
-    layout_editor.html      # Office layout editor (serve via HTTP)
+  tools/                   # Build tools
+    sprite_converter.py      # Character/furniture sprite → C header
+    convert_characters.py    # Character sprite sheet converter
+    convert_dog.py           # Dog sprite sheet → C header
+    sprite_validation.html   # Generated visual check
+    layout_editor.html       # Office layout editor (serve via HTTP)
 ```
 
 ## Third-Party Assets
