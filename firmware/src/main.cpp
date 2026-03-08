@@ -100,8 +100,11 @@ void setup() {
     // Separate protocol instance for BLE to avoid state corruption
     // when partial messages arrive on both transports simultaneously
     bleProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, nullptr);
-    bleService.begin(bleTransport);
-    splash.addLog("BLE advertising");
+    if (bleService.begin(bleTransport)) {
+        splash.addLog("BLE advertising");
+    } else {
+        splash.addLog("BLE init failed");
+    }
 #endif
 
     randomSeed(analogRead(0) ^ millis());

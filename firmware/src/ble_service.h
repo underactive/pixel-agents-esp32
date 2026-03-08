@@ -5,7 +5,7 @@
 
 class BleService {
 public:
-    void begin(BleTransport& transport);
+    bool begin(BleTransport& transport);
     bool isConnected() const { return _connected; }
 
 private:

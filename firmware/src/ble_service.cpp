@@ -50,19 +50,21 @@ class NusRxCallbacks : public NimBLECharacteristicCallbacks {
 static NusServerCallbacks serverCallbacks;
 static NusRxCallbacks rxCallbacks;
 
-void BleService::begin(BleTransport& transport) {
+bool BleService::begin(BleTransport& transport) {
     _transport = &transport;
     _instance = this;
 
+    Serial.println("[BLE] Initializing NimBLE...");
     NimBLEDevice::init(BLE_DEVICE_NAME);
     NimBLEDevice::setMTU(BLE_MTU);
+    Serial.println("[BLE] NimBLE initialized");
 
     NimBLEServer* pServer = NimBLEDevice::createServer();
-    if (!pServer) return;
+    if (!pServer) { Serial.println("[BLE] FAIL: createServer"); return false; }
     pServer->setCallbacks(&serverCallbacks);
 
     NimBLEService* pService = pServer->createService(NUS_SERVICE_UUID);
-    if (!pService) return;
+    if (!pService) { Serial.println("[BLE] FAIL: createService"); return false; }
 
     // RX characteristic — companion writes protocol messages here
     NimBLECharacteristic* pRx = pService->createCharacteristic(
@@ -82,10 +84,13 @@ void BleService::begin(BleTransport& transport) {
     pService->start();
 
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-    if (!pAdvertising) return;
+    if (!pAdvertising) { Serial.println("[BLE] FAIL: getAdvertising"); return false; }
     pAdvertising->addServiceUUID(NUS_SERVICE_UUID);
     pAdvertising->setName(BLE_DEVICE_NAME);
     pAdvertising->start();
+
+    Serial.println("[BLE] Advertising started");
+    return true;
 }
 
 #endif // HAS_BLE
