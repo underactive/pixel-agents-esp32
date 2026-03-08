@@ -1,0 +1,88 @@
+name: Build & Release Firmware
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract and validate version
+        id: version
+        run: |
+          # Version from git tag
+          TAG_VER="${GITHUB_REF_NAME#v}"
+          echo "version=$TAG_VER" >> "$GITHUB_OUTPUT"
+
+          # Version from SPLASH_VERSION_STR in config.h
+          CODE_VER=$(grep -E '#define SPLASH_VERSION_STR' firmware/src/config.h | sed 's/.*"v\([0-9][0-9.]*\).*/\1/')
+
+          echo "Tag version:  $TAG_VER"
+          echo "Code version: $CODE_VER"
+
+          if [[ "$TAG_VER" != "$CODE_VER" ]]; then
+            echo "ERROR: Tag version ($TAG_VER) does not match config.h ($CODE_VER)"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build CYD firmware
+        run: pio run -e cyd-2432s028r
+        working-directory: firmware
+
+      - name: Build LILYGO firmware
+        run: pio run -e lilygo-t-display-s3
+        working-directory: firmware
+
+      - name: Prepare release artifacts
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p releases
+
+          # CYD package
+          CYD_DIR="releases/pixel-agents-cyd-v${VERSION}"
+          mkdir -p "$CYD_DIR"
+          cp firmware/.pio/build/cyd-2432s028r/firmware.bin "$CYD_DIR/"
+          cp firmware/.pio/build/cyd-2432s028r/bootloader.bin "$CYD_DIR/"
+          cp firmware/.pio/build/cyd-2432s028r/partitions.bin "$CYD_DIR/"
+          # boot_app0.bin is provided by the Arduino framework
+          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$CYD_DIR/"
+          (cd releases && zip -r "pixel-agents-cyd-v${VERSION}.zip" "pixel-agents-cyd-v${VERSION}/")
+
+          # LILYGO package
+          LILYGO_DIR="releases/pixel-agents-lilygo-v${VERSION}"
+          mkdir -p "$LILYGO_DIR"
+          cp firmware/.pio/build/lilygo-t-display-s3/firmware.bin "$LILYGO_DIR/"
+          cp firmware/.pio/build/lilygo-t-display-s3/bootloader.bin "$LILYGO_DIR/"
+          cp firmware/.pio/build/lilygo-t-display-s3/partitions.bin "$LILYGO_DIR/"
+          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$LILYGO_DIR/"
+          (cd releases && zip -r "pixel-agents-lilygo-v${VERSION}.zip" "pixel-agents-lilygo-v${VERSION}/")
+
+      - name: Extract changelog entry
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract everything between ## [VERSION] and the next ## [ heading
+          BODY=$(sed -n "/^## \[${VERSION}\]/,/^## \[/{/^## \[${VERSION}\]/d;/^## \[/d;p;}" CHANGELOG.md)
+          echo "$BODY" > /tmp/release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: releases/*.zip
+          body_path: /tmp/release_body.md
