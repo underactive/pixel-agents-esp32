@@ -89,6 +89,27 @@
 - [ ] All 6 agents active simultaneously -- all 6 characters seated at desks
 - [ ] All 6 agents go idle -- all 6 characters walk back to their zones
 
+### French Bulldog Pet
+- [ ] Dog appears on screen after boot, positioned on a walkable floor tile
+- [ ] Dog walk animation cycles smoothly (4-frame cycle visible during movement)
+- [ ] Dog faces correct direction when moving (down, up, right, left-flip)
+- [ ] Dog stands still with standing frame when not walking
+- [ ] Dog idle animation cycles through 8 frames smoothly when standing still
+- [ ] Dog run animation plays (8-frame cycle, faster movement) occasionally during WANDER walks
+- [ ] Dog pee animation displays (single frame, ~3s) occasionally during WANDER idle pauses
+- [ ] Dog sit frame renders when sitting near a seated follow target
+- [ ] Dog lay down frame renders during NAP behavior (no Z overlay)
+- [ ] Dog facing LEFT is a horizontal flip of the RIGHT sprite (no separate LEFT sprites)
+- [ ] Dog moving UP/DOWN continues the current walk/run animation frame (no direction-specific sprites)
+- [ ] Dog does not display pee frame while following a character (pee only during WANDER)
+- [ ] Dog does not run at fast speed during FOLLOW phase (run only during WANDER)
+- [ ] Dog depth-sorts correctly with characters (behind higher-Y characters, in front of lower-Y)
+- [ ] Dog wanders to random tiles during WANDER phase (2-6s pauses between moves)
+- [ ] Dog follows a character during FOLLOW phase (stays within ~5 tiles)
+- [ ] Dog does not walk through walls or furniture (respects BFS pathfinding)
+- [ ] Dog walks smoothly between tiles (no teleporting or jittering)
+- [ ] `python3 tools/convert_dog.py` generates 4 color headers + master `firmware/src/sprites/dog.h` without errors
+
 ### Connected Scene (Companion Running)
 - [ ] Status bar shows green dot when companion sends heartbeats
 - [ ] Agent count updates as Claude Code sessions start/stop
@@ -98,6 +119,21 @@
 - [ ] LEFT-facing characters are horizontal flips (not separate sprites)
 - [ ] Speech bubbles appear above characters for permission/waiting states
 - [ ] Multiple characters depth-sort correctly (lower Y = further back)
+
+### Hamburger Menu (CYD Only)
+- [ ] Hamburger icon (three white bars) visible in rightmost area of status bar
+- [ ] Tap hamburger icon — settings menu opens above status bar
+- [ ] Menu shows "Settings" title, "Dog: ON/OFF" toggle, and 4 color swatches
+- [ ] Tap "Dog: ON/OFF" row — toggles dog visibility (green ON / red OFF text)
+- [ ] Dog disappears immediately when toggled off
+- [ ] Dog respawns at random tile when toggled back on
+- [ ] Tap color swatch — dog sprite color changes immediately
+- [ ] Selected color swatch has green highlight border
+- [ ] Color swatches dimmed (dark) when dog is disabled
+- [ ] Tapping color swatch while dog disabled has no effect
+- [ ] Tap outside menu — menu closes
+- [ ] Reboot device — dog enabled/disabled and color persist from NVS
+- [ ] LILYGO build compiles without touch/menu code (no hamburger icon, no menu)
 
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes

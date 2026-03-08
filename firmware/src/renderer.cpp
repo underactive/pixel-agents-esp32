@@ -10,6 +10,11 @@
 #include "sprites/furniture.h"
 #endif
 #include "sprites/bubbles.h"
+#include "sprites/dog.h"
+
+static_assert(DOG_WALK_BASE + DOG_WALK_COUNT <= DOG_FRAME_COUNT, "Dog walk indices exceed DOG_FRAME_COUNT");
+static_assert(DOG_RUN_BASE + DOG_RUN_COUNT <= DOG_FRAME_COUNT, "Dog run indices exceed DOG_FRAME_COUNT");
+static_assert(DOG_IDLE_BASE + DOG_IDLE_COUNT <= DOG_FRAME_COUNT, "Dog idle indices exceed DOG_FRAME_COUNT");
 
 // ── Drawing wrappers (apply _yOffset, dispatch to canvas or TFT) ──
 
@@ -135,37 +140,58 @@ void Renderer::drawScene(OfficeState& office) {
     // 3. Draw furniture
     drawFurniture();
 
-    // 4. Collect and depth-sort characters
+    // 4. Collect and depth-sort characters + dog
+    // Use index -1 to represent the dog in the sort
     Character* chars = office.getCharacters();
-    int indices[MAX_AGENTS];
+    const Pet& pet = office.getPet();
+    int indices[MAX_AGENTS + 1]; // +1 for dog
+    float sortY[MAX_AGENTS + 1];
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (chars[i].alive) {
-            indices[count++] = i;
+            indices[count] = i;
+            sortY[count] = chars[i].y;
+            count++;
         }
     }
+    // Add dog as index -1 (only if enabled)
+    if (office.getDogSettings().enabled) {
+        indices[count] = -1;
+        sortY[count] = pet.y;
+        count++;
+    }
+
+    // Insertion sort by Y
     for (int i = 1; i < count; i++) {
-        int key = indices[i];
+        int keyIdx = indices[i];
+        float keyY = sortY[i];
         int j = i - 1;
-        while (j >= 0 && chars[indices[j]].y > chars[key].y) {
+        while (j >= 0 && sortY[j] > keyY) {
             indices[j + 1] = indices[j];
+            sortY[j + 1] = sortY[j];
             j--;
         }
-        indices[j + 1] = key;
+        indices[j + 1] = keyIdx;
+        sortY[j + 1] = keyY;
     }
 
-    // 5. Draw characters
+    // 5. Draw characters and dog in depth order
     for (int i = 0; i < count; i++) {
-        const Character& ch = chars[indices[i]];
-        if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
-            drawSpawnEffect(ch);
+        if (indices[i] == -1) {
+            drawDog(pet, office.getDogSettings().color);
         } else {
-            drawCharacter(ch);
+            const Character& ch = chars[indices[i]];
+            if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
+                drawSpawnEffect(ch);
+            } else {
+                drawCharacter(ch);
+            }
         }
     }
 
-    // 6. Draw speech bubbles
+    // 6. Draw speech bubbles (skip dog index -1)
     for (int i = 0; i < count; i++) {
+        if (indices[i] < 0) continue;
         const Character& ch = chars[indices[i]];
         if (ch.bubbleType > 0) {
             drawBubble(ch);
@@ -174,6 +200,13 @@ void Renderer::drawScene(OfficeState& office) {
 
     // 7. Draw status bar
     drawStatusBar(office);
+
+#if defined(HAS_TOUCH)
+    // 8. Draw menu overlay (on top of everything)
+    if (office.isMenuOpen()) {
+        drawMenuOverlay(office);
+    }
+#endif
 }
 
 void Renderer::drawFloor(const TileType* tiles) {
@@ -287,6 +320,41 @@ void Renderer::drawCharacter(const Character& ch) {
     int drawY = (int)(ch.y + sittingOffset) - CHAR_H;
 
     drawRGB565SpriteFlip(drawX, drawY, sprite, CHAR_W, CHAR_H, flipH);
+}
+
+void Renderer::drawDog(const Pet& pet, DogColor color) {
+    int frameIdx;
+    bool flipH = (pet.dir == Dir::LEFT);
+
+    if (pet.behavior == DogBehavior::NAP) {
+        frameIdx = DOG_LAYDOWN_IDX;
+    } else if (pet.isSitting) {
+        frameIdx = DOG_SIT_IDX;
+    } else if (pet.isPeeing) {
+        frameIdx = DOG_PEE_IDX;
+    } else if (pet.walking) {
+        if (pet.isRunning) {
+            frameIdx = DOG_RUN_BASE + (pet.frame % DOG_RUN_COUNT);
+        } else {
+            frameIdx = DOG_WALK_BASE + (pet.frame % DOG_WALK_COUNT);
+        }
+    } else {
+        // Idle: cycle through 8 frames
+        frameIdx = DOG_IDLE_BASE + (pet.idleFrame % DOG_IDLE_COUNT);
+    }
+
+    if (frameIdx < 0 || frameIdx >= DOG_FRAME_COUNT) frameIdx = DOG_IDLE_BASE;
+
+    uint8_t colorIdx = static_cast<uint8_t>(color);
+    if (colorIdx >= DOG_COLOR_COUNT) colorIdx = static_cast<uint8_t>(DOG_DEFAULT_COLOR);
+    const uint16_t* const* spriteTable =
+        (const uint16_t* const*)pgm_read_ptr(&DOG_COLOR_SPRITES[colorIdx]);
+    if (!spriteTable) return;
+    const uint16_t* sprite = (const uint16_t*)pgm_read_ptr(&spriteTable[frameIdx]);
+    if (!sprite) return;
+    int drawX = (int)(pet.x) - DOG_W / 2;
+    int drawY = (int)(pet.y) - DOG_H;
+    drawRGB565SpriteFlip(drawX, drawY, sprite, DOG_W, DOG_H, flipH);
 }
 
 void Renderer::drawSpawnEffect(const Character& ch) {
@@ -417,7 +485,7 @@ void Renderer::drawStatusBar(OfficeState& office) {
             snprintf(buf, sizeof(buf), "%d/%d active", activeCount, MAX_AGENTS);
             gfxDrawString(buf, 12, y + 1);
             if (!office.isConnected()) {
-                gfxDrawString("Disconnected", SCREEN_W - 80, y + 1);
+                gfxDrawString("Disconnected", SCREEN_W - 92, y + 1);
             }
             break;
         }
@@ -514,6 +582,13 @@ void Renderer::drawStatusBar(OfficeState& office) {
             break;
         }
     }
+
+#if defined(HAS_TOUCH)
+    // Hamburger menu icon (rightmost area of status bar)
+    int hx = SCREEN_W - HAMBURGER_W - HAMBURGER_MARGIN;
+    int hy = y + (STATUS_BAR_H - HAMBURGER_H) / 2;
+    drawHamburgerIcon(hx, hy);
+#endif
 }
 
 int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
@@ -537,6 +612,85 @@ int Renderer::getFrameIndex(CharState state, uint8_t frame) const {
     }
     return 1;
 }
+
+#if defined(HAS_TOUCH)
+void Renderer::drawHamburgerIcon(int x, int y) {
+    // Three 7x1 white bars with 1px gaps
+    gfxFillRect(x, y,     HAMBURGER_W, 1, COLOR_TEXT);
+    gfxFillRect(x, y + 2, HAMBURGER_W, 1, COLOR_TEXT);
+    gfxFillRect(x, y + 4, HAMBURGER_W, 1, COLOR_TEXT);
+}
+
+void Renderer::drawMenuOverlay(OfficeState& office) {
+    DogSettings ds = office.getDogSettings();
+
+    // Menu position: right-aligned, above status bar
+    int menuX = SCREEN_W - MENU_W - 4;
+    int menuY = SCREEN_H - STATUS_BAR_H - MENU_H - 2;
+
+    // Background
+    gfxFillRect(menuX, menuY, MENU_W, MENU_H, COLOR_MENU_BG);
+    // Border
+    gfxFillRect(menuX, menuY, MENU_W, 1, COLOR_MENU_BORDER);
+    gfxFillRect(menuX, menuY + MENU_H - 1, MENU_W, 1, COLOR_MENU_BORDER);
+    gfxFillRect(menuX, menuY, 1, MENU_H, COLOR_MENU_BORDER);
+    gfxFillRect(menuX + MENU_W - 1, menuY, 1, MENU_H, COLOR_MENU_BORDER);
+
+    gfxSetTextSize(1);
+
+    // Row 0: Title
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Settings", menuX + 4, menuY + 5);
+
+    // Separator line
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 1: Dog toggle
+    int row1Y = menuY + MENU_ITEM_H;
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Dog:", menuX + 4, row1Y + 5);
+    gfxSetTextColor(ds.enabled ? COLOR_ACTIVE : COLOR_DISCONNECTED);
+    gfxDrawString(ds.enabled ? "ON" : "OFF", menuX + 34, row1Y + 5);
+
+    // Separator
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 2 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 2: Color swatches
+    int row2Y = menuY + MENU_ITEM_H * 2;
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Color:", menuX + 4, row2Y + 5);
+
+    // Representative colors for each dog variant (RGB565)
+    static const uint16_t SWATCH_COLORS[DOG_COLOR_COUNT] = {
+        0x2104,  // black (dark gray)
+        0x8262,  // brown
+        0x8410,  // gray
+        0xCC0A,  // tan
+    };
+
+    int swatchX = menuX + SWATCH_AREA_X;
+    int swatchY = row2Y + 2;
+    int swatchH = 14;
+
+    for (int i = 0; i < DOG_COLOR_COUNT; i++) {
+        int sx = swatchX + i * (SWATCH_W + SWATCH_GAP);
+
+        if (!ds.enabled) {
+            // Dimmed when dog disabled
+            gfxFillRect(sx, swatchY, SWATCH_W, swatchH, 0x1082);
+        } else {
+            gfxFillRect(sx, swatchY, SWATCH_W, swatchH, SWATCH_COLORS[i]);
+            // Green highlight border on selected color
+            if (static_cast<uint8_t>(ds.color) == i) {
+                gfxFillRect(sx - 1, swatchY - 1, SWATCH_W + 2, 1, COLOR_ACTIVE);
+                gfxFillRect(sx - 1, swatchY + swatchH, SWATCH_W + 2, 1, COLOR_ACTIVE);
+                gfxFillRect(sx - 1, swatchY - 1, 1, swatchH + 2, COLOR_ACTIVE);
+                gfxFillRect(sx + SWATCH_W, swatchY - 1, 1, swatchH + 2, COLOR_ACTIVE);
+            }
+        }
+    }
+}
+#endif
 
 void Renderer::drawRGB565SpriteFlip(int x, int y, const uint16_t* data, int w, int h, bool flipH) {
     for (int row = 0; row < h; row++) {
