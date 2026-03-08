@@ -114,6 +114,10 @@ void loop() {
     // Splash screen mode: animate character + wait for connection
     if (splashActive) {
         splash.tick();
+        // Handle screenshot requests during splash
+        if (renderer.isScreenshotPending()) {
+            renderer.sendSplashScreenshot(splash);
+        }
         if (!splash.isActive()) {
             // Drain serial buffer during blocking fade to prevent UART overflow
             auto drainSerial = []() { protocol.process(); };

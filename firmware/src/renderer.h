@@ -3,6 +3,8 @@
 #include "config.h"
 #include "office_state.h"
 
+class Splash;  // forward declaration
+
 class Renderer {
 public:
     void begin(TFT_eSPI& tft);
@@ -10,6 +12,7 @@ public:
     void requestScreenshot();
     bool isScreenshotPending();
     void sendScreenshot();
+    void sendSplashScreenshot(Splash& splash);
 
 private:
     TFT_eSPI* _tft = nullptr;
