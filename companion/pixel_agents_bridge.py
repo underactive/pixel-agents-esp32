@@ -363,7 +363,7 @@ class PixelAgentsBridge:
         transcripts = self.watcher.find_active_transcripts()
 
         for filepath in transcripts:
-            project_key = filepath.parent.name
+            project_key = str(filepath)
             records = self.watcher.read_new_lines(filepath)
             if not records:
                 continue
