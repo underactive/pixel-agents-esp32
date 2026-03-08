@@ -94,9 +94,17 @@
 - [ ] Dog walk animation cycles smoothly (4-frame cycle visible during movement)
 - [ ] Dog faces correct direction when moving (down, up, right, left-flip)
 - [ ] Dog stands still with standing frame when not walking
-- [ ] Dog nap sprite renders correctly (lying down pose)
+- [ ] Dog idle animation cycles through 8 frames smoothly when standing still
+- [ ] Dog run animation plays (8-frame cycle, faster movement) occasionally during WANDER walks
+- [ ] Dog pee animation displays (single frame, ~3s) occasionally during WANDER idle pauses
+- [ ] Dog sit frame renders when sitting near a seated follow target
+- [ ] Dog lay down frame renders during NAP behavior (no Z overlay)
+- [ ] Dog facing LEFT is a horizontal flip of the RIGHT sprite (no separate LEFT sprites)
+- [ ] Dog moving UP/DOWN continues the current walk/run animation frame (no direction-specific sprites)
+- [ ] Dog does not display pee frame while following a character (pee only during WANDER)
+- [ ] Dog does not run at fast speed during FOLLOW phase (run only during WANDER)
 - [ ] Dog depth-sorts correctly with characters (behind higher-Y characters, in front of lower-Y)
-- [ ] Dog wanders to random tiles during WANDER phase (2-10s pauses between moves)
+- [ ] Dog wanders to random tiles during WANDER phase (2-6s pauses between moves)
 - [ ] Dog follows a character during FOLLOW phase (stays within ~5 tiles)
 - [ ] Dog does not walk through walls or furniture (respects BFS pathfinding)
 - [ ] Dog walks smoothly between tiles (no teleporting or jittering)

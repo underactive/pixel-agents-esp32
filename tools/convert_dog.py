@@ -1,455 +1,91 @@
 #!/usr/bin/env python3
 """
-convert_dog.py - Generate French Bulldog sprite header for ESP32 firmware.
+convert_dog.py - Generate dog sprite header from PNG sprite sheet.
 
-32x24 Chibi Anime Frenchie (bat ears, proportional profile)
-Includes:
-- idle breathing
-- blink
-- sit
-- happy (tongue out)
-- walk (down / up / right)
-- tail wag
-- nap + sleep Z
+Reads assets/doggy3.png (125x95, 5x5 grid of 25x19 frames):
+  Frame 0:     Sit (1)
+  Frames 1-8:  Idle (8)
+  Frames 9-16: Run (8)
+  Frame 17:    Pee (1)
+  Frame 18:    Lay down (1)
+  Frames 19-22: Walk (4)
+  Frames 23-24: Empty
 
 Output: firmware/src/sprites/dog.h
 """
 
 from pathlib import Path
+from PIL import Image
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_PATH = SCRIPT_DIR.parent / "firmware" / "src" / "sprites" / "dog.h"
+PROJECT_DIR = SCRIPT_DIR.parent
+INPUT_PATH = PROJECT_DIR / "assets" / "doggy3.png"
+OUTPUT_PATH = PROJECT_DIR / "firmware" / "src" / "sprites" / "dog.h"
 
-# ---------------------------------------------------------------------------
-# Color palette (RGB565)
-# ---------------------------------------------------------------------------
+FRAME_W = 25
+FRAME_H = 19
+GRID_COLS = 5
+GRID_ROWS = 5
+TOTAL_FRAMES = 23  # last 2 cells are empty
 
-def rgb565(r, g, b):
+FRAME_NAMES = [
+    "DOG_SIT",
+    "DOG_IDLE1", "DOG_IDLE2", "DOG_IDLE3", "DOG_IDLE4",
+    "DOG_IDLE5", "DOG_IDLE6", "DOG_IDLE7", "DOG_IDLE8",
+    "DOG_RUN1", "DOG_RUN2", "DOG_RUN3", "DOG_RUN4",
+    "DOG_RUN5", "DOG_RUN6", "DOG_RUN7", "DOG_RUN8",
+    "DOG_PEE",
+    "DOG_LAYDOWN",
+    "DOG_WALK1", "DOG_WALK2", "DOG_WALK3", "DOG_WALK4",
+]
+
+
+def rgba_to_rgb565(r, g, b, a):
+    """Convert RGBA pixel to RGB565. Returns 0x0000 for transparent pixels."""
+    if a < 128:
+        return 0x0000
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
-COLORS = {
-    '.': 0x0000,                    # transparent
-    'F': rgb565(200, 152, 80),      # fawn body
-    'D': rgb565(136, 96, 48),       # dark fawn
-    'L': rgb565(224, 200, 152),     # light belly
-    'K': rgb565(24, 24, 24),        # black (eyes / nose)
-    'W': rgb565(216, 208, 192),     # white
-    'P': rgb565(220, 120, 140),     # tongue / pink
-}
 
-WIDTH = 32
-HEIGHT = 24
-
-# ---------------------------------------------------------------------------
-# SPRITE FRAMES
-# ---------------------------------------------------------------------------
-
-# ---------------- FRONT IDLE ----------------
-
-IDLE1 = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFWWWWWWWWWWWWWFFD.......",
-"....DFFFWWKKWWWWWWWKKWWWFFD.....",
-"....DFFFWWWWWWWWWWWWWWWWWFFD....",
-"....DFFFFLLLLLLLLLLLLLLLFFD.....",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFF..........",
-".......FFFFF.......FFFFF........",
-".......FFFFF.......FFFFF........",
-".......KKKK.........KKKK........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-IDLE2 = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFWWWWWWWWWWWWWFFD.......",
-"....DFFFWWKKWWWWWWWKKWWWFFD.....",
-"....DFFFWWWWWWWWWWWWWWWWWFFD....",
-"....DFFFFLLLLLLLLLLLLLLLFFD.....",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFFF.........",
-"........FFFFFFFFFFFFFF..........",
-".......FFFFF.......FFFFF........",
-".......KKKK.........KKKK........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-BLINK = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFWWDDDDDDDDDDDWWFFD......",
-"....DFFFWWWWWWWWWWWWWWWFFD......",
-"....DFFFWWWWWWWWWWWWWWWFFD......",
-"....DFFFFLLLLLLLLLLLLLLLFFD.....",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFF..........",
-".......FFFFF.......FFFFF........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-HAPPY = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFWWWWWWWWWWWWWFFD.......",
-"....DFFFWWKKWWWWWWWKKWWWFFD.....",
-"....DFFFWWWWWWWWWWWWWWWWWFFD....",
-"....DFFFFLLLLLLLLLLLLLLLFFD.....",
-"....DFFFFFPPPPPPPPPFFFFFD.......",
-"....DFFFFFPPPPPPPPPFFFFFD.......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFF..........",
-".......FFFFF.......FFFFF........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-# ---------------- SIT ----------------
-
-SIT = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFWWWWWWWWWWWWWFFD.......",
-"....DFFFWWKKWWWWWWWKKWWWFFD.....",
-"....DFFFWWWWWWWWWWWWWWWWWFFD....",
-".....DFFFFLLLLLLLLLLLLLFFD......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFF..........",
-".......FFFFFFFFFFFFFFF..........",
-".......FFFFF.......FFFFF........",
-".......KKKK.........KKKK........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-# ---------------- WALK DOWN ----------------
-
-DOWN_STAND = IDLE1
-DOWN_WALK1 = IDLE2
-DOWN_WALK3 = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFWWWWWWWWWWWWWFFD.......",
-"....DFFFWWKKWWWWWWWKKWWWFFD.....",
-"....DFFFWWWWWWWWWWWWWWWWWFFD....",
-"....DFFFFLLLLLLLLLLLLLLLFFD.....",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFFFFFFFD........",
-".......FFFFFFFFFFFFFFF..........",
-"......FFFFF.........FFFFF.......",
-"......FFFFF.........FFFFF.......",
-".......KKK...........KKK........",
-".......KKK...........KKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-# ---------------- WALK UP ----------------
-
-UP_STAND = [
-".....DD.................DD......",
-"....DFFD...............DFFD.....",
-"....DFFFFD.............DFFFFD...",
-"....DFFFFFD...........DFFFFFD...",
-"....DFFFFFFDDDDDDDDDDDFFFFFFD...",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-"....DFFFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFFFFFFFFFFFFFFFD.......",
-"......DFFFFFFFFFFF..FFFD........",
-".......FFFFFFFFFFF..FFF.........",
-".......FFFFF......FF..FF........",
-".......FFFFF......FF..FF........",
-".......KKKK.........KKKK........",
-".......KKKK.........KKKK........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-UP_WALK1 = UP_STAND
-UP_WALK3 = UP_STAND
-
-# ---------------- RIGHT PROFILE ----------------
-
-RIGHT_STAND = [
-".....DD.........................",
-"....DFFD.....DD.................",
-"....DFFD....DFFD................",
-"....DFFD...DFFFFD...............",
-"...DFFDDDDDDFFFFFD..............",
-"DFFFFFFFFFFFFFFFFFDDDDDDDDDDDDDD",
-"DFFFFWWWWWWWWFFFFFFFFFFFFFFFFFFD",
-"DFWWKKWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWWWWWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWLLLLLLLLLLLFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-".DFFFFFFFFFFFFFFFFFFFFFFFFFFFFD.",
-"..DFFFFFFFFFFFFFFFFFFFFFFFFFFD..",
-"..DFFFFFFF............FFFFFFF...",
-"..DFFFFFFF............FFFFFFF...",
-"..KKKKKKK..............KKKKKK...",
-"..KKKKKKK..............KKKKKK...",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-RIGHT_WALK1 = [
-".....DD.........................",
-"....DFFD.....DD.................",
-"....DFFD....DFFD................",
-"....DFFD...DFFFFD...............",
-"...DFFDDDDDDFFFFFD..............",
-"DFFFFFFFFFFFFFFFFFDDDDDDDDDDDDDD",
-"DFFFFWWWWWWWWFFFFFFFFFFFFFFFFFFD",
-"DFWWKKWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWWWWWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWLLLLLLLLLLLFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-".DFFFFFFFFFFFFFFFFFFFFFFFFFFFFD.",
-".....DFFFFFFF........DFFFFFF....",
-".....DFFFFFFF........DFFFFFF....",
-".......KKKKKK.........KKKKKK....",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-RIGHT_WALK3 = [
-".....DD.........................",
-"....DFFD.....DD.................",
-"....DFFD....DFFD................",
-"....DFFD...DFFFFD...............",
-"...DFFDDDDDDFFFFFD..............",
-"DFFFFFFFFFFFFFFFFFDDDDDDDDDDDDDD",
-"DFFFFWWWWWWWWFFFFFFFFFFFFFFFFFFD",
-"DFWWKKWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWWWWWWWWWWWWFFFFFFFFFFFFFFFFFD",
-"DFWLLLLLLLLLLLFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-"DFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD",
-".DFFFFFFFFFFFFFFFFFFFFFFFFFFFFD.",
-"..DFFFFFFFFFFFFFFFFFFFFFFFFFFD..",
-"..DFFFFF................DFFFF...",
-"..DFFFFF................DFFFF...",
-"..KKKKK..................KKKK...",
-"..KKKKK..................KKKK...",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-TAIL1 = RIGHT_STAND
-TAIL2 = RIGHT_WALK3
-
-# ---------------- SLEEP ----------------
-
-NAP = [
-"................................",
-"................................",
-".........DD..........DD.........",
-"........DFFD........DFFD........",
-".......DFFFFDDDDDDDDFFFFD.......",
-"......DFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFWWWWWWWWWWWWFFFFD.....",
-".....DFFFFWKKWWWWWWKKWFFFFD.....",
-".....DFFFFWWWWWWWWWWWWFFFFD.....",
-"......DFFFFFLLLLLLLLFFFFFD......",
-".......DFFFFFFFFFFFFFFFFD.......",
-".........DFFFFFFFFFFFFD.........",
-"...........DDDDDDDDDD...........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-SLEEP_Z = [
-"............................KK..",
-"...........................K....",
-".........DD..........DD.........",
-"........DFFD........DFFD........",
-".......DFFFFDDDDDDDDFFFFD.......",
-"......DFFFFFFFFFFFFFFFFFFD......",
-".....DFFFFWWWWWWWWWWWWFFFFD.....",
-".....DFFFFWKKWWWWWWKKWFFFFD.....",
-".....DFFFFWWWWWWWWWWWWFFFFD.....",
-"......DFFFFFLLLLLLLLFFFFFD......",
-".......DFFFFFFFFFFFFFFFFD.......",
-".........DFFFFFFFFFFFFD.........",
-"...........DDDDDDDDDD...........",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-"................................",
-]
-
-# ---------------------------------------------------------------------------
-# FRAME ORDER
-# ---------------------------------------------------------------------------
-
-FRAMES = [
-
-("DOG_IDLE1", IDLE1),
-("DOG_IDLE2", IDLE2),
-("DOG_BLINK", BLINK),
-
-("DOG_SIT", SIT),
-("DOG_HAPPY", HAPPY),
-
-("DOG_DOWN_WALK1", DOWN_WALK1),
-("DOG_DOWN_STAND", DOWN_STAND),
-("DOG_DOWN_WALK3", DOWN_WALK3),
-
-("DOG_UP_WALK1", UP_WALK1),
-("DOG_UP_STAND", UP_STAND),
-("DOG_UP_WALK3", UP_WALK3),
-
-("DOG_RIGHT_WALK1", RIGHT_WALK1),
-("DOG_RIGHT_STAND", RIGHT_STAND),
-("DOG_RIGHT_WALK3", RIGHT_WALK3),
-
-("DOG_TAIL1", TAIL1),
-("DOG_TAIL2", TAIL2),
-
-("DOG_NAP", NAP),
-("DOG_SLEEP_Z", SLEEP_Z),
-]
-
-# ---------------------------------------------------------------------------
-# Generator
-# ---------------------------------------------------------------------------
-
-def frame_to_rgb565(rows):
+def extract_frame(img, idx):
+    """Extract a single frame from the sprite sheet by linear index."""
+    col = idx % GRID_COLS
+    row = idx // GRID_COLS
+    x0 = col * FRAME_W
+    y0 = row * FRAME_H
+    frame = img.crop((x0, y0, x0 + FRAME_W, y0 + FRAME_H))
     pixels = []
-    for row in rows:
-        assert len(row) == WIDTH, f"Row width {len(row)} != {WIDTH}: {row!r}"
-        for ch in row:
-            pixels.append(COLORS[ch])
+    for y in range(FRAME_H):
+        for x in range(FRAME_W):
+            r, g, b, a = frame.getpixel((x, y))
+            pixels.append(rgba_to_rgb565(r, g, b, a))
     return pixels
 
 
 def format_array(name, pixels):
     lines = [f"static const uint16_t {name}[{len(pixels)}] PROGMEM = {{"]
-    for i in range(0, len(pixels), WIDTH):
-        row = pixels[i:i+WIDTH]
+    for i in range(0, len(pixels), FRAME_W):
+        row = pixels[i:i + FRAME_W]
         vals = ", ".join(f"0x{v:04X}" for v in row)
-        comma = "," if i+WIDTH < len(pixels) else ""
+        comma = "," if i + FRAME_W < len(pixels) else ""
         lines.append(f"    {vals}{comma}")
     lines.append("};")
     return "\n".join(lines)
 
 
 def main():
+    if not INPUT_PATH.exists():
+        print(f"Error: {INPUT_PATH} not found")
+        return
+
+    img = Image.open(INPUT_PATH).convert("RGBA")
+    assert img.size == (GRID_COLS * FRAME_W, GRID_ROWS * FRAME_H), \
+        f"Expected {GRID_COLS * FRAME_W}x{GRID_ROWS * FRAME_H}, got {img.size}"
 
     frame_data = []
-    for name, rows in FRAMES:
-        assert len(rows) == HEIGHT, f"{name}: {len(rows)} rows != {HEIGHT}"
-        pixels = frame_to_rgb565(rows)
+    for idx in range(TOTAL_FRAMES):
+        name = FRAME_NAMES[idx]
+        pixels = extract_frame(img, idx)
         frame_data.append((name, pixels))
 
     parts = [
@@ -459,11 +95,11 @@ def main():
         "#include <Arduino.h>",
         "#include <pgmspace.h>",
         "",
-        "// 32x24 Chibi French Bulldog Sprites",
+        f"// {FRAME_W}x{FRAME_H} Dog Sprites (extracted from doggy3.png)",
         "// Generated by tools/convert_dog.py",
         "",
-        f"#define DOG_FRAME_PIXELS ({WIDTH*HEIGHT})",
-        f"#define DOG_FRAME_COUNT {len(FRAMES)}",
+        f"#define DOG_FRAME_PIXELS ({FRAME_W * FRAME_H})",
+        f"#define DOG_FRAME_COUNT {TOTAL_FRAMES}",
         "",
     ]
 
@@ -472,7 +108,7 @@ def main():
         parts.append(format_array(name, pixels))
 
     parts.append("")
-    parts.append(f"static const uint16_t* const DOG_SPRITES[{len(FRAMES)}] PROGMEM = {{")
+    parts.append(f"static const uint16_t* const DOG_SPRITES[{TOTAL_FRAMES}] PROGMEM = {{")
     for name, _ in frame_data:
         parts.append(f"    {name},")
     parts.append("};")
@@ -483,7 +119,7 @@ def main():
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text("\n".join(parts))
 
-    print(f"Generated {OUTPUT_PATH}")
+    print(f"Generated {OUTPUT_PATH} ({TOTAL_FRAMES} frames, {FRAME_W}x{FRAME_H})")
 
 
 if __name__ == "__main__":

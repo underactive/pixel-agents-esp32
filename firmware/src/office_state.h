@@ -56,36 +56,22 @@ struct Pet {
     uint8_t pathIdx;
     float moveProgress;
 
-    // Walk animation
+    // Walk/run animation
     uint8_t frame;
     float frameTimer;
     bool walking;
+    bool isRunning;           // run uses faster speed + run frames
 
     // Idle animation
-    uint8_t idleFrame;        // 0 or 1 for breathing cycle
-    float idleFrameTimer;     // breathing cycle timer
-
-    // Blink
-    float blinkTimer;         // countdown to next blink
-    float blinkRemaining;     // time left showing blink frame
-    bool isBlinking;
-
-    // Happy (tongue out)
-    float happyTimer;         // time remaining showing happy face
-    bool isHappy;
+    uint8_t idleFrame;        // cycles through 8 idle frames
+    float idleFrameTimer;
 
     // Sit (during FOLLOW near seated character)
     bool isSitting;
 
-    // Tail wag
-    float tailWagTimer;       // time remaining wagging (0 = not wagging)
-    float tailWagCooldown;    // time until wagging can happen again
-    float tailFrameTimer;     // animation timer for tail frames
-    uint8_t tailFrame;        // 0 or 1
-
-    // Nap Z animation
-    float napZTimer;          // toggle timer for NAP/SLEEP_Z
-    bool showingZ;
+    // Pee (idle variant)
+    float peeTimer;           // time remaining in pee animation
+    bool isPeeing;
 
     // Behavior FSM
     DogBehavior behavior;
