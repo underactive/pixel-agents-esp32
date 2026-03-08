@@ -122,7 +122,7 @@ void setup() {
     splash.addLog("LED ambient ready");
 #endif
 
-    splash.addLog("Waiting for companion...");
+    splash.addLog("Waiting for companion...", true);
 
     lastFrameMs = millis();
 }
