@@ -12,6 +12,10 @@
 #include "sprites/bubbles.h"
 #include "sprites/dog.h"
 
+static_assert(DOG_WALK_BASE + DOG_WALK_COUNT <= DOG_FRAME_COUNT, "Dog walk indices exceed DOG_FRAME_COUNT");
+static_assert(DOG_RUN_BASE + DOG_RUN_COUNT <= DOG_FRAME_COUNT, "Dog run indices exceed DOG_FRAME_COUNT");
+static_assert(DOG_IDLE_BASE + DOG_IDLE_COUNT <= DOG_FRAME_COUNT, "Dog idle indices exceed DOG_FRAME_COUNT");
+
 // ── Drawing wrappers (apply _yOffset, dispatch to canvas or TFT) ──
 
 inline void Renderer::gfxFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t c) {
@@ -311,47 +315,29 @@ void Renderer::drawCharacter(const Character& ch) {
 
 void Renderer::drawDog(const Pet& pet) {
     int frameIdx;
-    bool flipH = false;
+    bool flipH = (pet.dir == Dir::LEFT);
 
     if (pet.behavior == DogBehavior::NAP) {
-        frameIdx = pet.showingZ ? DOG_SLEEP_Z_IDX : DOG_NAP_IDX;
-    } else if (pet.tailWagTimer > 0) {
-        // Tail wag (right-facing frames); flip if dog faces left
-        frameIdx = (pet.tailFrame % 2 == 0) ? DOG_TAIL1_IDX : DOG_TAIL2_IDX;
-        if (pet.dir == Dir::LEFT) flipH = true;
+        frameIdx = DOG_LAYDOWN_IDX;
     } else if (pet.isSitting) {
         frameIdx = DOG_SIT_IDX;
+    } else if (pet.isPeeing) {
+        frameIdx = DOG_PEE_IDX;
     } else if (pet.walking) {
-        // Walk cycle: [walk1, stand, walk3, stand]
-        static const int WALK_CYCLE[] = {0, 1, 2, 1};
-        int localFrame = WALK_CYCLE[pet.frame % 4];
-
-        Dir renderDir = pet.dir;
-        if (pet.dir == Dir::LEFT) {
-            renderDir = Dir::RIGHT;
-            flipH = true;
-        }
-        int dirBase;
-        switch (renderDir) {
-            case Dir::UP:    dirBase = DOG_UP_WALK_BASE;    break;
-            case Dir::RIGHT: dirBase = DOG_RIGHT_WALK_BASE; break;
-            default:         dirBase = DOG_DOWN_WALK_BASE;  break;
-        }
-        frameIdx = dirBase + localFrame;
-    } else {
-        // Idle: blink > happy > breathing
-        if (pet.isBlinking) {
-            frameIdx = DOG_BLINK_IDX;
-        } else if (pet.isHappy) {
-            frameIdx = DOG_HAPPY_IDX;
+        if (pet.isRunning) {
+            frameIdx = DOG_RUN_BASE + (pet.frame % DOG_RUN_COUNT);
         } else {
-            frameIdx = (pet.idleFrame == 0) ? DOG_IDLE1_IDX : DOG_IDLE2_IDX;
+            frameIdx = DOG_WALK_BASE + (pet.frame % DOG_WALK_COUNT);
         }
+    } else {
+        // Idle: cycle through 8 frames
+        frameIdx = DOG_IDLE_BASE + (pet.idleFrame % DOG_IDLE_COUNT);
     }
 
-    if (frameIdx < 0 || frameIdx >= DOG_FRAME_COUNT) frameIdx = DOG_IDLE1_IDX;
+    if (frameIdx < 0 || frameIdx >= DOG_FRAME_COUNT) frameIdx = DOG_IDLE_BASE;
 
     const uint16_t* sprite = (const uint16_t*)pgm_read_ptr(&DOG_SPRITES[frameIdx]);
+    if (!sprite) return;
     int drawX = (int)(pet.x) - DOG_W / 2;
     int drawY = (int)(pet.y) - DOG_H;
     drawRGB565SpriteFlip(drawX, drawY, sprite, DOG_W, DOG_H, flipH);

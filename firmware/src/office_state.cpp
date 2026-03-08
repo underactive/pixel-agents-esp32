@@ -824,7 +824,7 @@ int OfficeState::randomInt(int minVal, int maxVal) {
 
 void OfficeState::initPet() {
     memset(&_pet, 0, sizeof(Pet));
-    _pet.dir = Dir::DOWN;
+    _pet.dir = Dir::RIGHT;
     _pet.behavior = DogBehavior::WANDER;
     _pet.phaseTimer = DOG_WANDER_DURATION_SEC;
     _pet.napTimer = DOG_NAP_INTERVAL_SEC;
@@ -833,8 +833,6 @@ void OfficeState::initPet() {
     _pet.lastTargetCol = -1;
     _pet.lastTargetRow = -1;
     _pet.wanderTimer = randomRange(DOG_WANDER_PAUSE_MIN_SEC, DOG_WANDER_PAUSE_MAX_SEC);
-    _pet.blinkTimer = randomRange(DOG_BLINK_MIN_SEC, DOG_BLINK_MAX_SEC);
-    _pet.tailWagCooldown = 0;
 
     // Place at a random walkable tile
     for (int attempt = 0; attempt < 40; attempt++) {
@@ -864,6 +862,7 @@ void OfficeState::petStartWalk(int8_t goalCol, int8_t goalRow) {
         _pet.pathIdx = 0;
         _pet.moveProgress = 0;
         _pet.walking = true;
+        _pet.isRunning = false;
         _pet.frame = 0;
         _pet.frameTimer = 0;
     }
@@ -942,89 +941,32 @@ void OfficeState::updatePet(float dt) {
         _pet.behavior = DogBehavior::NAP;
         _pet.napRemaining = DOG_NAP_DURATION_SEC;
         _pet.walking = false;
+        _pet.isRunning = false;
         _pet.pathLen = 0;
         _pet.frame = 0;
         _pet.frameTimer = 0;
-        _pet.napZTimer = DOG_NAP_Z_TOGGLE_SEC;
-        _pet.showingZ = false;
         _pet.isSitting = false;
-        _pet.isHappy = false;
-        _pet.isBlinking = false;
+        _pet.isPeeing = false;
     }
 
-    // ── Tail wag cooldown (always ticks) ──
-    if (_pet.tailWagCooldown > 0) _pet.tailWagCooldown -= dt;
-
-    // ── Tail wag proximity check ──
-    if (_pet.tailWagTimer <= 0 && _pet.tailWagCooldown <= 0 &&
-        _pet.behavior != DogBehavior::NAP) {
-        for (int i = 0; i < MAX_AGENTS; i++) {
-            if (!_chars[i].alive) continue;
-            int dx = abs(_pet.tileCol - _chars[i].tileCol);
-            int dy = abs(_pet.tileRow - _chars[i].tileRow);
-            if (dx + dy <= DOG_TAIL_WAG_PROXIMITY) {
-                _pet.tailWagTimer = DOG_TAIL_WAG_DURATION_SEC;
-                _pet.tailFrameTimer = 0;
-                _pet.tailFrame = 0;
-                break;
-            }
-        }
-    }
-
-    // ── Tail wag animation ──
-    if (_pet.tailWagTimer > 0) {
-        _pet.tailWagTimer -= dt;
-        _pet.tailFrameTimer += dt;
-        if (_pet.tailFrameTimer >= DOG_TAIL_FRAME_SEC) {
-            _pet.tailFrameTimer -= DOG_TAIL_FRAME_SEC;
-            _pet.tailFrame = (_pet.tailFrame + 1) % 2;
-        }
-        if (_pet.tailWagTimer <= 0) {
-            _pet.tailWagTimer = 0;
-            _pet.tailWagCooldown = DOG_TAIL_WAG_COOLDOWN_SEC;
-        }
-    }
-
-    // ── Idle animations (blink, happy, breathing) ──
-    if (!_pet.walking && _pet.behavior != DogBehavior::NAP) {
-        // Breathing cycle
+    // ── Idle animations (cycle 8 idle frames) ──
+    if (!_pet.walking && !_pet.isPeeing && _pet.behavior != DogBehavior::NAP) {
         _pet.idleFrameTimer += dt;
         if (_pet.idleFrameTimer >= DOG_IDLE_FRAME_SEC) {
             _pet.idleFrameTimer -= DOG_IDLE_FRAME_SEC;
-            _pet.idleFrame = (_pet.idleFrame + 1) % 2;
+            _pet.idleFrame = (_pet.idleFrame + 1) % DOG_IDLE_COUNT;
         }
+    }
 
-        // Blink
-        if (_pet.isBlinking) {
-            _pet.blinkRemaining -= dt;
-            if (_pet.blinkRemaining <= 0) {
-                _pet.isBlinking = false;
-                _pet.blinkTimer = randomRange(DOG_BLINK_MIN_SEC, DOG_BLINK_MAX_SEC);
-            }
-        } else {
-            _pet.blinkTimer -= dt;
-            if (_pet.blinkTimer <= 0) {
-                _pet.isBlinking = true;
-                _pet.blinkRemaining = DOG_BLINK_DURATION_SEC;
-            }
-        }
-
-        // Happy timer tick
-        if (_pet.isHappy) {
-            _pet.happyTimer -= dt;
-            if (_pet.happyTimer <= 0) _pet.isHappy = false;
-        }
+    // ── Pee timer tick ──
+    if (_pet.isPeeing) {
+        _pet.peeTimer -= dt;
+        if (_pet.peeTimer <= 0) _pet.isPeeing = false;
     }
 
     // ── Behavior FSM ──
     switch (_pet.behavior) {
         case DogBehavior::NAP: {
-            // Alternate NAP / SLEEP_Z
-            _pet.napZTimer -= dt;
-            if (_pet.napZTimer <= 0) {
-                _pet.showingZ = !_pet.showingZ;
-                _pet.napZTimer = DOG_NAP_Z_TOGGLE_SEC;
-            }
             _pet.napRemaining -= dt;
             if (_pet.napRemaining <= 0) {
                 _pet.behavior = DogBehavior::WANDER;
@@ -1053,7 +995,7 @@ void OfficeState::updatePet(float dt) {
                 _pet.targetPickTimer = DOG_PICK_TARGET_SEC;
             }
 
-            // Check if follow target is seated — dog sits nearby
+            // Check if follow target is seated -- dog sits nearby
             _pet.isSitting = false;
             if (_pet.followTarget >= 0 && _pet.followTarget < MAX_AGENTS && !_pet.walking) {
                 const Character& target = _chars[_pet.followTarget];
@@ -1085,6 +1027,7 @@ void OfficeState::updatePet(float dt) {
             if (_pet.phaseTimer <= 0) {
                 _pet.behavior = DogBehavior::FOLLOW;
                 _pet.phaseTimer = DOG_FOLLOW_DURATION_SEC;
+                _pet.isPeeing = false;
                 if (_pet.followTarget < 0) petPickTarget();
                 _pet.repathTimer = 0;
                 break;
@@ -1095,27 +1038,36 @@ void OfficeState::updatePet(float dt) {
                 _pet.targetPickTimer = DOG_PICK_TARGET_SEC;
             }
 
-            if (!_pet.walking) {
+            if (!_pet.walking && !_pet.isPeeing) {
                 _pet.wanderTimer -= dt;
                 if (_pet.wanderTimer <= 0) {
-                    // Random chance to show happy face when starting a new wander pause
-                    if (!_pet.isHappy && randomRange(0, 1.0f) < DOG_HAPPY_CHANCE) {
-                        _pet.isHappy = true;
-                        _pet.happyTimer = DOG_HAPPY_DURATION_SEC;
+                    // Random chance to pee when pausing
+                    if (!_pet.isPeeing && randomRange(0, 1.0f) < DOG_PEE_CHANCE) {
+                        _pet.isPeeing = true;
+                        _pet.peeTimer = DOG_PEE_DURATION_SEC;
+                        _pet.wanderTimer = DOG_PEE_DURATION_SEC + 0.5f;
+                    } else {
+                        // Random chance this walk becomes a run
+                        bool run = randomRange(0, 1.0f) < DOG_RUN_CHANCE;
+                        petWander();
+                        if (run && _pet.walking) {
+                            _pet.isRunning = true;
+                        }
+                        _pet.wanderTimer = randomRange(DOG_WANDER_MOVE_MIN_SEC, DOG_WANDER_MOVE_MAX_SEC);
                     }
-                    petWander();
-                    _pet.wanderTimer = randomRange(DOG_WANDER_MOVE_MIN_SEC, DOG_WANDER_MOVE_MAX_SEC);
                 }
             }
             break;
         }
     }
 
-    // ── Walk movement ──
+    // ── Walk/run movement ──
     if (_pet.walking && _pet.pathIdx < _pet.pathLen) {
-        if (_pet.frameTimer >= DOG_WALK_FRAME_DURATION_SEC) {
-            _pet.frameTimer -= DOG_WALK_FRAME_DURATION_SEC;
-            _pet.frame = (_pet.frame + 1) % 4;
+        float frameDur = _pet.isRunning ? DOG_RUN_FRAME_DURATION_SEC : DOG_WALK_FRAME_DURATION_SEC;
+        int frameCount = _pet.isRunning ? DOG_RUN_COUNT : DOG_WALK_COUNT;
+        if (_pet.frameTimer >= frameDur) {
+            _pet.frameTimer -= frameDur;
+            _pet.frame = (_pet.frame + 1) % frameCount;
         }
 
         PathNode next = _pet.path[_pet.pathIdx];
@@ -1127,7 +1079,8 @@ void OfficeState::updatePet(float dt) {
         else if (dr > 0) _pet.dir = Dir::DOWN;
         else _pet.dir = Dir::UP;
 
-        _pet.moveProgress += (DOG_WALK_SPEED_PX_PER_SEC / TILE_SIZE) * dt;
+        float speed = _pet.isRunning ? DOG_RUN_SPEED_PX_PER_SEC : DOG_WALK_SPEED_PX_PER_SEC;
+        _pet.moveProgress += (speed / TILE_SIZE) * dt;
 
         float fromX = _pet.tileCol * TILE_SIZE + TILE_SIZE / 2.0f;
         float fromY = _pet.tileRow * TILE_SIZE + TILE_SIZE / 2.0f;
@@ -1149,6 +1102,7 @@ void OfficeState::updatePet(float dt) {
         }
     } else if (_pet.walking) {
         _pet.walking = false;
+        _pet.isRunning = false;
         _pet.frame = 0;
         _pet.frameTimer = 0;
         _pet.x = _pet.tileCol * TILE_SIZE + TILE_SIZE / 2.0f;
