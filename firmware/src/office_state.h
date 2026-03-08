@@ -88,6 +88,11 @@ struct Pet {
     float wanderTimer;
 };
 
+struct DogSettings {
+    bool enabled;
+    DogColor color;
+};
+
 struct UsageStats {
     uint8_t currentPct;
     uint8_t weeklyPct;
@@ -122,6 +127,14 @@ public:
     Character* getCharacters() { return _chars; }
     const Character* getCharacters() const { return _chars; }
     const Pet& getPet() const { return _pet; }
+    DogSettings getDogSettings() const { return _dogSettings; }
+    void setDogEnabled(bool enabled);
+    void setDogColor(DogColor color);
+    bool isMenuOpen() const { return _menuOpen; }
+    void toggleMenu() { _menuOpen = !_menuOpen; }
+    void closeMenu() { _menuOpen = false; }
+    bool hitTestHamburger(int screenX, int screenY) const;
+    int hitTestMenuItem(int screenX, int screenY) const;
     int getActiveAgentCount() const;   // count of characters at TYPE/READ
     int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
@@ -141,6 +154,8 @@ private:
     uint32_t _lastHeartbeatMs = 0;
     StatusMode _statusMode = StatusMode::OVERVIEW;
     UsageStats _usage = {};
+    DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };
+    bool _menuOpen = false;
 
     void initTileMap();
     int findCharByAgentId(uint8_t agentId) const;
@@ -167,6 +182,10 @@ private:
     void petWander();
     void petFollowNear();
     void petPickTarget();
+
+    // Settings persistence (NVS)
+    void loadSettings();
+    void saveSettings();
 
     // Random helpers
     float randomRange(float minVal, float maxVal);

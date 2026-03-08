@@ -108,7 +108,7 @@
 - [ ] Dog follows a character during FOLLOW phase (stays within ~5 tiles)
 - [ ] Dog does not walk through walls or furniture (respects BFS pathfinding)
 - [ ] Dog walks smoothly between tiles (no teleporting or jittering)
-- [ ] `python3 tools/convert_dog.py` generates `firmware/src/sprites/dog.h` without errors
+- [ ] `python3 tools/convert_dog.py` generates 4 color headers + master `firmware/src/sprites/dog.h` without errors
 
 ### Connected Scene (Companion Running)
 - [ ] Status bar shows green dot when companion sends heartbeats
@@ -119,6 +119,21 @@
 - [ ] LEFT-facing characters are horizontal flips (not separate sprites)
 - [ ] Speech bubbles appear above characters for permission/waiting states
 - [ ] Multiple characters depth-sort correctly (lower Y = further back)
+
+### Hamburger Menu (CYD Only)
+- [ ] Hamburger icon (three white bars) visible in rightmost area of status bar
+- [ ] Tap hamburger icon — settings menu opens above status bar
+- [ ] Menu shows "Settings" title, "Dog: ON/OFF" toggle, and 4 color swatches
+- [ ] Tap "Dog: ON/OFF" row — toggles dog visibility (green ON / red OFF text)
+- [ ] Dog disappears immediately when toggled off
+- [ ] Dog respawns at random tile when toggled back on
+- [ ] Tap color swatch — dog sprite color changes immediately
+- [ ] Selected color swatch has green highlight border
+- [ ] Color swatches dimmed (dark) when dog is disabled
+- [ ] Tapping color swatch while dog disabled has no effect
+- [ ] Tap outside menu — menu closes
+- [ ] Reboot device — dog enabled/disabled and color persist from NVS
+- [ ] LILYGO build compiles without touch/menu code (no hamburger icon, no menu)
 
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes

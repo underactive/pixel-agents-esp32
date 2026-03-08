@@ -211,11 +211,29 @@ enum class DogBehavior : uint8_t {
     NAP     = 2
 };
 
+// Order must match COLORS list in tools/convert_dog.py
+enum class DogColor : uint8_t { BLACK = 0, BROWN = 1, GRAY = 2, TAN = 3 };
+static constexpr int DOG_COLOR_COUNT = 4;
+static constexpr DogColor DOG_DEFAULT_COLOR = DogColor::BROWN;
+
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)
 static constexpr int TOUCH_DEBOUNCE_MS = 200;
 static constexpr int TOUCH_CHAR_RADIUS_PX = 12;
 static constexpr float INFO_BUBBLE_DURATION_SEC = 3.0f;
+
+// Hamburger menu
+static constexpr int HAMBURGER_W = 7;
+static constexpr int HAMBURGER_H = 5;  // 3 bars of 1px + 2 gaps of 1px
+static constexpr int HAMBURGER_MARGIN = 4;
+static constexpr int MENU_W = 130;
+static constexpr int MENU_H = 70;
+static constexpr int MENU_ITEM_H = 20;
+static constexpr uint16_t COLOR_MENU_BG     = 0x2104;
+static constexpr uint16_t COLOR_MENU_BORDER = 0x7BEF;
+static constexpr int SWATCH_AREA_X = 42;   // left offset for swatches (past "Color:" label)
+static constexpr int SWATCH_W      = 16;   // each swatch width
+static constexpr int SWATCH_GAP    = 6;    // gap between swatches
 
 // CYD XPT2046 touch SPI pins (separate from display SPI)
 static constexpr int TOUCH_SPI_CLK  = 25;

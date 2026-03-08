@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.4.1
+**Current Version:** 0.5.0
 **Status:** In development
 
 ---
@@ -434,7 +434,11 @@ Version string appears in 2 files:
 | `firmware/src/sprites/furniture.h` | Generated furniture sprite data (PROGMEM) |
 | `firmware/src/sprites/tiles.h` | Generated floor/wall tile data from tileset (PROGMEM, optional) |
 | `firmware/src/sprites/bubbles.h` | Generated speech bubble sprite data (PROGMEM) |
-| `firmware/src/sprites/dog.h` | Generated dog pet sprite data (PROGMEM, 25x19 side-view) |
+| `firmware/src/sprites/dog.h` | Generated master dog sprite include (all colors, PROGMEM) |
+| `firmware/src/sprites/dog_black.h` | Generated dog sprites — black variant (PROGMEM) |
+| `firmware/src/sprites/dog_brown.h` | Generated dog sprites — brown variant (PROGMEM) |
+| `firmware/src/sprites/dog_gray.h` | Generated dog sprites — gray variant (PROGMEM) |
+| `firmware/src/sprites/dog_tan.h` | Generated dog sprites — tan variant (PROGMEM) |
 | `companion/` | Python bridge service |
 | `companion/pixel_agents_bridge.py` | JSONL watcher + serial sender |
 | `companion/requirements.txt` | Python dependencies (`pyserial>=3.5`) |
