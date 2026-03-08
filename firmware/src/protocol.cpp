@@ -25,9 +25,9 @@ int Protocol::payloadLength(uint8_t msgType) const {
     }
 }
 
-void Protocol::process() {
-    while (Serial.available()) {
-        uint8_t b = Serial.read();
+void Protocol::process(Transport& transport) {
+    while (transport.available()) {
+        uint8_t b = transport.read();
 
         switch (_state) {
             case State::WAIT_SYNC1:

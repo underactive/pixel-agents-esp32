@@ -2,6 +2,16 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.0] - 2026-03-07
+
+- Add BLE transport via NimBLE Nordic UART Service for untethered operation
+- Add Transport abstraction (SerialTransport, BleTransport) with abstract base class
+- Add lock-free SPSC ring buffer with std::atomic acquire/release ordering for multi-core safety
+- Add companion `--transport ble` and `--ble-name` CLI options
+- Add bleak Python BLE client with background asyncio event loop
+- Add separate Protocol instances per transport to prevent parser state corruption
+- Add BLE_DEVICE_NAME, BLE_MTU, BLE_RING_BUF_SIZE named constants to config.h
+
 ## [0.7.1] - 2026-03-07
 
 - Add splash screen screenshot capture (re-render into sprite buffer)

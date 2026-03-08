@@ -363,9 +363,13 @@ def derive_state(record: dict, agent: dict) -> Optional[tuple]:
 class PixelAgentsBridge:
     """Main bridge between Claude Code transcripts and ESP32 display."""
 
-    def __init__(self, port: Optional[str] = None):
+    def __init__(self, port: Optional[str] = None, transport: str = "serial",
+                 ble_name: str = "PixelAgents"):
         self.serial_port = port
+        self.transport_mode = transport
+        self.ble_name = ble_name
         self.ser: Optional[serial.Serial] = None
+        self._ble = None  # BleTransport instance (lazy import)
         self.tracker = AgentTracker()
         self.watcher = TranscriptWatcher()
         self.last_heartbeat = 0.0
@@ -373,7 +377,18 @@ class PixelAgentsBridge:
         self.last_usage_data: Optional[tuple] = None
         self.last_states: Dict[str, tuple] = {}  # project_key -> (state, tool)
 
+    def _is_connected(self) -> bool:
+        if self.transport_mode == "ble":
+            return self._ble is not None and self._ble.is_connected
+        return self.ser is not None
+
     def connect(self) -> bool:
+        """Connect to ESP32 via configured transport."""
+        if self.transport_mode == "ble":
+            return self._connect_ble()
+        return self._connect_serial()
+
+    def _connect_serial(self) -> bool:
         """Connect to ESP32 serial port."""
         port = self.serial_port or find_esp32_port()
         if not port:
@@ -388,8 +403,26 @@ class PixelAgentsBridge:
             print(f"Failed to connect to {port}: {e}")
             return False
 
+    def _connect_ble(self) -> bool:
+        """Connect to ESP32 via BLE."""
+        if self._ble is None:
+            from ble_transport import BleTransport
+            self._ble = BleTransport(device_name=self.ble_name)
+        connected = self._ble.connect()
+        if connected:
+            # Reset tracking state so firmware gets a full resync
+            self.last_states.clear()
+            self.last_usage_data = None
+            self._last_count = -1
+        return connected
+
     def send(self, data: bytes) -> bool:
-        """Send data over serial, handling disconnection."""
+        """Send data over the active transport, handling disconnection."""
+        if self.transport_mode == "ble":
+            return self._send_ble(data)
+        return self._send_serial(data)
+
+    def _send_serial(self, data: bytes) -> bool:
         if not self.ser:
             return False
         try:
@@ -403,6 +436,14 @@ class PixelAgentsBridge:
                 pass
             self.ser = None
             return False
+
+    def _send_ble(self, data: bytes) -> bool:
+        if not self._ble or not self._ble.is_connected:
+            return False
+        if not self._ble.send(data):
+            print("BLE send failed. Reconnecting...")
+            return False
+        return True
 
     def send_heartbeat(self):
         """Send periodic heartbeat."""
@@ -588,10 +629,12 @@ class PixelAgentsBridge:
     def run(self):
         """Main loop."""
         print("Pixel Agents Bridge starting...")
+        print(f"Transport: {self.transport_mode}")
         print(f"Watching: {CLAUDE_PROJECTS_DIR}")
 
         use_keyboard = sys.stdin.isatty()
         old_settings = None
+        screenshots_available = self.transport_mode == "serial"
 
         if use_keyboard:
             import tty
@@ -601,12 +644,15 @@ class PixelAgentsBridge:
             tty.setcbreak(sys.stdin.fileno())
             atexit.register(lambda: termios.tcsetattr(
                 sys.stdin, termios.TCSADRAIN, old_settings))
-            print("Press 's' for screenshot, Ctrl+C to quit")
+            if screenshots_available:
+                print("Press 's' for screenshot, Ctrl+C to quit")
+            else:
+                print("Ctrl+C to quit (screenshots not available over BLE)")
 
         try:
             while True:
                 # Reconnect if needed
-                if not self.ser:
+                if not self._is_connected():
                     if not self.connect():
                         time.sleep(2.0)
                         continue
@@ -619,7 +665,7 @@ class PixelAgentsBridge:
                     readable, _, _ = select.select([sys.stdin], [], [], POLL_INTERVAL_SEC)
                     if readable:
                         ch = sys.stdin.read(1)
-                        if ch == 's':
+                        if ch == 's' and screenshots_available:
                             self.handle_screenshot()
                 else:
                     time.sleep(POLL_INTERVAL_SEC)
@@ -627,21 +673,31 @@ class PixelAgentsBridge:
             if old_settings is not None:
                 import termios
                 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+            if self._ble:
+                self._ble.close()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Pixel Agents Bridge - Claude Code to ESP32")
     parser.add_argument("--port", type=str, default=None,
                         help="Serial port (auto-detected if not specified)")
+    parser.add_argument("--transport", type=str, default="serial",
+                        choices=["serial", "ble"],
+                        help="Transport mode: serial (default) or ble")
+    parser.add_argument("--ble-name", type=str, default="PixelAgents",
+                        help="BLE device name to scan for (default: PixelAgents)")
     args = parser.parse_args()
 
-    bridge = PixelAgentsBridge(port=args.port)
+    bridge = PixelAgentsBridge(port=args.port, transport=args.transport,
+                               ble_name=args.ble_name)
     try:
         bridge.run()
     except KeyboardInterrupt:
         print("\nShutting down.")
         if bridge.ser:
             bridge.ser.close()
+        if bridge._ble:
+            bridge._ble.close()
 
 
 if __name__ == "__main__":

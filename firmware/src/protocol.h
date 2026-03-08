@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "config.h"
+#include "transport.h"
 
 struct AgentUpdate {
     uint8_t agentId;
@@ -34,7 +35,7 @@ public:
                HeartbeatCb onHeartbeat, StatusTextCb onStatus,
                UsageStatsCb onUsage = nullptr,
                ScreenshotReqCb onScreenshotReq = nullptr);
-    void process();  // call each loop iteration — reads available serial bytes
+    void process(Transport& transport);  // call each loop iteration — reads available bytes from transport
 
 private:
     enum class State : uint8_t {
