@@ -364,12 +364,12 @@ class PixelAgentsBridge:
 
         for filepath in transcripts:
             project_key = str(filepath)
+            agent = self.tracker.get_or_create(project_key)
+            agent["last_seen"] = time.time()
+
             records = self.watcher.read_new_lines(filepath)
             if not records:
                 continue
-
-            agent = self.tracker.get_or_create(project_key)
-            agent["last_seen"] = time.time()
 
             for record in records:
                 result = derive_state(record, agent)
