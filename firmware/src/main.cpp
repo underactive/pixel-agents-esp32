@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include "config.h"
+#include "transport.h"
 #include "protocol.h"
 #include "office_state.h"
 #include "renderer.h"
@@ -11,17 +12,26 @@
 #if defined(BOARD_CYD)
 #include "led_ambient.h"
 #endif
+#if defined(HAS_BLE)
+#include "ble_service.h"
+#endif
 
 TFT_eSPI tft;
-Protocol protocol;
+Protocol serialProtocol;
 OfficeState office;
 Renderer renderer;
 Splash splash;
+SerialTransport serialTransport;
 #if defined(HAS_TOUCH)
 TouchInput touchInput;
 #endif
 #if defined(BOARD_CYD)
 LedAmbient ledAmbient;
+#endif
+#if defined(HAS_BLE)
+Protocol bleProtocol;
+BleTransport bleTransport;
+BleService bleService;
 #endif
 
 uint32_t lastFrameMs = 0;
@@ -83,8 +93,16 @@ void setup() {
     renderer.begin(tft);
     splash.addLog("Render buffer allocated");
 
-    protocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
-    splash.addLog("Serial protocol ready");
+    serialProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
+    splash.addLog("Protocol ready");
+
+#if defined(HAS_BLE)
+    // Separate protocol instance for BLE to avoid state corruption
+    // when partial messages arrive on both transports simultaneously
+    bleProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, nullptr);
+    bleService.begin(bleTransport);
+    splash.addLog("BLE advertising");
+#endif
 
     randomSeed(analogRead(0) ^ millis());
     office.spawnAllCharacters();
@@ -108,8 +126,11 @@ void setup() {
 // ── Main loop ───────────────────────────────────────────
 
 void loop() {
-    // Process serial (non-blocking) — needed during splash for heartbeat
-    protocol.process();
+    // Process transports (non-blocking) — needed during splash for heartbeat
+    serialProtocol.process(serialTransport);
+#if defined(HAS_BLE)
+    bleProtocol.process(bleTransport);
+#endif
 
     // Splash screen mode: animate character + wait for connection
     if (splashActive) {
@@ -120,7 +141,12 @@ void loop() {
         }
         if (!splash.isActive()) {
             // Drain serial buffer during blocking fade to prevent UART overflow
-            auto drainSerial = []() { protocol.process(); };
+            auto drainSerial = []() {
+                serialProtocol.process(serialTransport);
+#if defined(HAS_BLE)
+                bleProtocol.process(bleTransport);
+#endif
+            };
             splash.fadeOut(drainSerial);
             // Render first office frame while screen is dark
             uint32_t now = millis();
