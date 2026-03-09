@@ -75,9 +75,13 @@ void onScreenshotReq() {
 void setup() {
     Serial.begin(115200);
 
+    // Initialize office state first so persisted settings (e.g. flip) are available
+    office.init();
+
     // Initialize display
     tft.init();
-    tft.setRotation(1); // Landscape: 320xSCREEN_H
+    int rotation = office.isScreenFlipped() ? 3 : 1;
+    tft.setRotation(rotation); // Landscape: 320xSCREEN_H
     tft.fillScreen(TFT_BLACK);
 
     // Backlight
@@ -89,9 +93,6 @@ void setup() {
     // Boot splash with animated character + verbose log
     splash.begin(tft);
     splash.addLog("Display initialized");
-
-    office.init();
-    splash.addLog("Office state ready");
 
     renderer.begin(tft);
     splash.addLog("Render buffer allocated");
@@ -118,6 +119,9 @@ void setup() {
 
 #if defined(HAS_TOUCH)
     touchInput.begin();
+    if (office.isScreenFlipped()) {
+        touchInput.setDisplayRotation(3);
+    }
     splash.addLog("Touch input ready");
 #endif
 
@@ -200,7 +204,7 @@ void loop() {
     TouchEvent te = touchInput.poll();
     if (te.tapped) {
         if (office.isMenuOpen()) {
-            // hitTestMenuItem returns: 0=dog toggle, 1-4=color,
+            // hitTestMenuItem returns: 0=dog toggle, 1-4=color, 5=flip screen,
             // -1=outside menu (close), -2=inside menu no-op (keep open)
             int item = office.hitTestMenuItem(te.x, te.y);
             if (item == 0) {
@@ -209,6 +213,15 @@ void loop() {
             } else if (item >= 1 && item <= DOG_COLOR_COUNT) {
                 // Select dog color (1=BLACK, 2=BROWN, 3=GRAY, 4=TAN)
                 office.setDogColor(static_cast<DogColor>(item - 1));
+            } else if (item == 5) {
+                // Toggle screen flip
+                bool newFlip = !office.isScreenFlipped();
+                office.setScreenFlipped(newFlip);
+                int rot = newFlip ? 3 : 1;
+                tft.setRotation(rot);
+                touchInput.setDisplayRotation(rot);
+                // Close menu: rotation change invalidates menu position
+                office.closeMenu();
             } else if (item == -1) {
                 // Tap outside menu -> close menu
                 office.closeMenu();

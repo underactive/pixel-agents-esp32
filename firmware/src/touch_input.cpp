@@ -40,4 +40,8 @@ TouchEvent TouchInput::poll() {
     _wasTouched = touched;
     return ev;
 }
+
+void TouchInput::setDisplayRotation(int rotation) {
+    _ts.setRotation(rotation);
+}
 #endif

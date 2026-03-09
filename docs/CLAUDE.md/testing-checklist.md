@@ -158,6 +158,14 @@
 - [ ] Tapping color swatch while dog disabled has no effect
 - [ ] Tap outside menu — menu closes
 - [ ] Reboot device — dog enabled/disabled and color persist from NVS
+- [ ] Menu shows "Flip: OFF" as 4th row below color swatches
+- [ ] Tap "Flip" row — display rotates 180 degrees immediately, menu closes
+- [ ] Tap hamburger, tap "Flip" again — display returns to normal orientation
+- [ ] After flip: tap status bar, tap characters, tap hamburger — all touch targets are correct
+- [ ] After flip: scene content (characters, furniture, status bar) renders correctly
+- [ ] Reboot device with flip ON — display boots in flipped orientation from first frame
+- [ ] After flipped boot: touch input works correctly without needing to re-flip
+- [ ] Screenshot in flipped mode produces correctly oriented image
 - [ ] LILYGO build compiles without touch/menu code (no hamburger icon, no menu)
 
 ### RGB LED Ambient Lighting (CYD Only)

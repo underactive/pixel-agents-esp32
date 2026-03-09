@@ -730,6 +730,17 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
             }
         }
     }
+
+    // Separator
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 3 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 3: Flip screen toggle
+    bool flipped = office.isScreenFlipped();
+    int row3Y = menuY + MENU_ITEM_H * 3;
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Flip:", menuX + 4, row3Y + 5);
+    gfxSetTextColor(flipped ? COLOR_ACTIVE : COLOR_DISCONNECTED);
+    gfxDrawString(flipped ? "ON" : "OFF", menuX + 38, row3Y + 5);
 }
 #endif
 
