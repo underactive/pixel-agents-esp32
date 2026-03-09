@@ -4,16 +4,21 @@ import SwiftUI
 struct PixelAgentsApp: App {
     @StateObject private var bridge = BridgeService()
 
+    init() {
+        // start() and lifecycle observers are registered in .onAppear of the
+        // menu bar label, which fires once at app launch (not on popover open).
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(bridge)
+        } label: {
+            menuBarLabel
                 .onAppear {
                     bridge.start()
                     registerLifecycleObservers()
                 }
-        } label: {
-            menuBarLabel
         }
         .menuBarExtraStyle(.window)
     }
