@@ -55,24 +55,16 @@ This creates C header files in `firmware/src/sprites/` from the built-in sprite 
 
 ### 2. Customize the Office Layout (Optional)
 
-The layout editor lets you design the office floor plan, place furniture, assign tileset graphics, and export firmware-ready code.
+Use the [Layout Editor](#layout-editor) to design a custom office floor plan, place furniture, and export firmware-ready code. See the full section below for details.
 
-**Important:** The editor must be served via HTTP — opening the HTML file directly (`file://`) will cause canvas security errors when exporting tile sprites.
+**Quick start:**
 
 ```bash
-# From the project root:
+# Serve via HTTP (required — file:// causes canvas security errors)
 python3 -m http.server 8000
 ```
 
 Then open `http://localhost:8000/tools/layout_editor.html` in your browser.
-
-The editor has four export tabs:
-- **config.h** — workstation positions
-- **office_state** — tile map and furniture blocking
-- **renderer** — `drawFurniture()` with all sprite draw calls
-- **tiles.h** — RGB565 sprite data for floor, wall, and furniture tiles
-
-Copy each tab's output into the corresponding firmware file, then build and flash.
 
 ### 3. Build & Flash Firmware
 
@@ -183,6 +175,87 @@ WANDER (20 min) → FOLLOW (20 min) → WANDER → FOLLOW → ...
 The dog sprite is side-view only — LEFT facing is rendered by flipping the RIGHT sprite horizontally. The dog uses BFS pathfinding and depth-sorts with characters.
 
 On the CYD board, the dog can be toggled on/off and its color changed (black, brown, gray, tan) via the hamburger menu. Settings persist across reboots via NVS.
+
+## Layout Editor
+
+<p>
+  <img src="assets/layout_editor.png" alt="Layout Editor" height="400">
+  &nbsp;&nbsp;
+  <img src="assets/layout_editor-tile_picker.png" alt="Tile Picker" height="400">
+</p>
+
+The layout editor (`tools/layout_editor.html`) is a browser-based visual tool for designing the office scene. It must be served over HTTP — opening the file directly (`file://`) will cause canvas security errors when exporting tile sprites.
+
+```bash
+python3 -m http.server 8000
+# Open http://localhost:8000/tools/layout_editor.html
+```
+
+### Board Selection
+
+A dropdown at the top switches between the two supported boards. Each has a different grid size:
+
+- **LILYGO T-Display S3** — 20x10 tile grid (320x170 px)
+- **CYD ESP32-2432S028R** — 20x14 tile grid (320x240 px)
+
+Switching boards resizes the canvas and adjusts the default layout accordingly.
+
+### Drawing Tools
+
+The left toolbar provides four tools for painting the tile grid:
+
+| Tool | Behavior |
+|------|----------|
+| **Select** | Click a placed furniture item to select it. Press Delete to remove. |
+| **Floor** | Paint floor tiles. Click or drag to fill multiple tiles. |
+| **Wall** | Paint wall tiles. Click or drag to fill a row. |
+| **Erase** | Remove tiles or furniture. Right-click also erases in any mode. |
+
+Below the tools is a **Furniture** palette listing all available furniture items (desks, chairs, shelves, plants, etc.) with size indicators. Click one, then click on the grid to place it.
+
+### Layers
+
+Furniture items can be placed on different layers (adjustable via +/− controls), allowing overlapping items to render in the correct order. This is useful for placing decorations on top of desks or stacking wall-mounted items.
+
+### Workstation Auto-Detection
+
+The editor automatically detects workstations by finding desk + chair pairs that are adjacent to each other. The right panel lists all detected workstations with their grid positions. Up to 6 workstations are supported (one per agent character).
+
+### Character Preview
+
+The **Toggle Characters** button overlays idle agent sprites at each detected workstation, so you can verify desk placement and spacing before exporting.
+
+### Tile Picker
+
+The **Tile Picker** button opens a modal for managing tile graphics:
+
+- **Load PNG** — Import a tileset spritesheet (e.g., the 16x16 Office Tileset). The picker displays the full sheet and lets you click to select tile regions.
+- **Item library** — A sidebar lists all defined tile items (floors, walls, furniture pieces). Click an item to view or re-select its source region from the tileset.
+- **Create new items** — Define new furniture, floor, or wall tiles by specifying a name, type, dimensions (in tiles), and optional role (desk, chair, or none). Then click on the tileset to pick the graphic.
+- **Delete items** — Hover over an item in the sidebar and click the × to remove it.
+- **Copy Config** — Exports the current tile library as a reusable JSON config.
+
+### Import / Export
+
+- **Export JSON** — Saves the entire layout (tile grid, furniture placements, layers, workstations) as a JSON file for later editing.
+- **Import JSON** — Loads a previously exported layout.
+- **Load Default** — Resets to the built-in default layout for the selected board.
+- **Clear All** — Removes everything from the grid.
+
+Full undo/redo support (Ctrl+Z / Ctrl+Y) is available for all editing operations.
+
+### Code Generation
+
+The right panel has four export tabs, each generating copy-pasteable C/C++ code for a different firmware file:
+
+| Tab | Target File | What It Generates |
+|-----|-------------|-------------------|
+| **config.h** | `firmware/src/config.h` | Workstation position arrays (`WORKSTATION_DESK_TILES`, `WORKSTATION_CHAIR_TILES`, etc.) |
+| **office_state** | `firmware/src/office_state.cpp` | `initTileMap()` floor/wall grid and `TileType::BLOCKED` entries for furniture |
+| **renderer** | `firmware/src/renderer.cpp` | `drawFurniture()` function with all sprite draw calls, depth-sorted |
+| **tiles.h** | `firmware/src/sprites/tiles.h` | RGB565 `PROGMEM` sprite arrays for every tile graphic used in the layout |
+
+Copy each tab's output into the corresponding firmware file, then build and flash.
 
 ## Serial Protocol
 

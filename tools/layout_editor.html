@@ -408,7 +408,7 @@ function loadTileset() {
         console.log('Tileset not found, using fallback colors');
     };
     // Try relative path from tools/ directory
-    img.src = '../Office Tileset/Office Tileset All 16x16.png';
+    img.src = '../assets/Office Tileset/Office Tileset All 16x16.png';
 }
 
 function drawTilesetTile(x, y, tileEntry) {
@@ -1802,7 +1802,7 @@ function openTilePicker() {
         img.onerror = function() {
             console.warn('Tile Picker: could not load tileset image.');
         };
-        img.src = '../Office Tileset/Office Tileset All 16x16.png';
+        img.src = '../assets/Office Tileset/Office Tileset All 16x16.png';
         return;
     }
     document.getElementById('tilePickerModal').style.display = 'flex';
