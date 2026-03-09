@@ -325,4 +325,4 @@ The dog pet sprites are based on [Dog Animation - 4 Different Dogs](https://nvph
 
 ## License
 
-MIT
+[PolyForm Noncommercial License 1.0.0](LICENSE)
