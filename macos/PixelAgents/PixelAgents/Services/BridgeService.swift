@@ -128,10 +128,10 @@ final class BridgeService: ObservableObject {
 
     private func attemptConnect() {
         guard !(activeTransport?.isConnected ?? false) else { return }
-        connectionState = .connecting
 
         switch transportMode {
         case .serial:
+            connectionState = .connecting
             let port = selectedPort ?? serialPortDetector.availablePorts.first?.path
             guard let port = port else {
                 connectionState = .disconnected
@@ -146,20 +146,29 @@ final class BridgeService: ObservableObject {
 
         case .ble:
             if bleTransport.isConnected {
-                connectionState = .connected("BLE")
+                let name = bleTransport.connectedDeviceName ?? "Device"
+                connectionState = .connected("BLE: \(name)")
                 resetSessionState()
-            } else if let pin = selectedBLEPin {
-                bleTransport.connectByPin(pin)
-            } else if !bleTransport.isScanning {
-                bleTransport.startScanning()
+                return
             }
-            // BLE connection happens asynchronously via delegate callbacks
-            connectionState = .connecting
+            // If a manual connect is already in progress, don't overwrite .connecting
+            if bleTransport.pendingPeripheralID != nil {
+                connectionState = .connecting
+                return
+            }
+            // reconnect() tries UUID-based reconnect first, then falls back to scanning
+            if bleTransport.reconnect() {
+                connectionState = .connecting
+            } else {
+                // Just scanning — show disconnected so user can pick a device
+                connectionState = .disconnected
+            }
         }
     }
 
     func connectBLEDevice(_ device: BLEDevice) {
         selectedBLEPin = device.pin
+        connectionState = .connecting
         bleTransport.connect(to: device)
     }
 

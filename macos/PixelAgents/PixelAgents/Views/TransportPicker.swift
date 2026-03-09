@@ -69,26 +69,32 @@ struct TransportPicker: View {
             }
         } else {
             ForEach(bridge.bleTransport.discoveredDevices) { device in
-                Button {
-                    bridge.connectBLEDevice(device)
-                } label: {
-                    HStack {
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(device.name)
                             .font(.system(size: 11))
                         if let pin = device.pin {
-                            Text("PIN: \(pin)")
+                            Text("PIN: \(String(format: "%04d", pin))")
                                 .font(.system(size: 10, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        if bridge.bleTransport.isConnected && bridge.bleTransport.connectedDeviceName == device.name {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.green)
-                                .font(.system(size: 10))
+                    }
+                    Spacer()
+                    if bridge.bleTransport.isConnected && device.id == bridge.bleTransport.connectedPeripheralID {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 12))
+                    } else if bridge.bleTransport.pendingPeripheralID == device.id {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("Connect") {
+                            bridge.connectBLEDevice(device)
                         }
+                        .font(.system(size: 11))
+                        .controlSize(.small)
                     }
                 }
-                .buttonStyle(.plain)
             }
         }
     }

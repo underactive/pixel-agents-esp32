@@ -29,6 +29,9 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     /// Manufacturer data company ID (must match firmware BLE_MFG_COMPANY_ID)
     static let mfgCompanyID: UInt16 = 0xFFFF
 
+    /// Connect timeout — CoreBluetooth connect() has no built-in timeout.
+    private static let connectTimeout: TimeInterval = 10.0
+
     // MARK: - Published state
 
     @Published private(set) var isConnected = false
@@ -37,11 +40,29 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     @Published private(set) var bluetoothState: CBManagerState = .unknown
     @Published private(set) var connectedDeviceName: String?
 
+    /// UUID of the currently connected peripheral (for UI).
+    var connectedPeripheralID: UUID? { connectedPeripheral?.identifier }
+
+    /// UUID of the peripheral with a pending connect() (for UI).
+    var pendingPeripheralID: UUID? { pendingPeripheral?.identifier }
+
     // MARK: - Private state
 
     private var centralManager: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
     private var rxCharacteristic: CBCharacteristic?
+
+    /// Peripheral with a pending connect() call (not yet connected).
+    private var pendingPeripheral: CBPeripheral?
+
+    /// UUID of the last successfully connected peripheral (for reconnection).
+    private var lastConnectedID: UUID?
+
+    /// Timeout work item for connect attempts.
+    private var connectTimeoutWork: DispatchWorkItem?
+
+    /// Set after UUID-based reconnect times out — skip UUID and rely on scan + auto-connect.
+    private var skipUUIDReconnect = false
 
     /// Callback when connection is lost (for auto-reconnect).
     var onDisconnect: (() -> Void)?
@@ -56,13 +77,18 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     // MARK: - Scanning
 
     func startScanning() {
-        guard centralManager.state == .poweredOn else { return }
+        guard centralManager.state == .poweredOn else {
+            NSLog("[BLE] Cannot scan — Bluetooth state: %d", centralManager.state.rawValue)
+            return
+        }
         discoveredDevices.removeAll()
+        centralManager.stopScan() // Ensure clean scan session (resets duplicate tracking)
         centralManager.scanForPeripherals(
             withServices: [Self.nusServiceUUID],
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
         isScanning = true
+        NSLog("[BLE] Scan started")
     }
 
     func stopScanning() {
@@ -74,16 +100,68 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
 
     func connect(to device: BLEDevice) {
         stopScanning()
+        cancelPendingConnect()
+        skipUUIDReconnect = false
+
+        NSLog("[BLE] Connecting to: %@ (id: %@)", device.name, device.id.uuidString)
+        pendingPeripheral = device.peripheral
         centralManager.connect(device.peripheral, options: nil)
+        startConnectTimeout()
     }
 
     func connectByPin(_ pin: UInt16) {
+        guard !isConnected, pendingPeripheral == nil else { return }
+
         if let device = discoveredDevices.first(where: { $0.pin == pin }) {
             connect(to: device)
+        } else if !isScanning {
+            startScanning()
         }
     }
 
+    /// Auto-reconnect: tries UUID-based reconnect first, falls back to scanning.
+    /// Returns true if an active connection attempt is in progress.
+    @discardableResult
+    func reconnect() -> Bool {
+        guard !isConnected else { return false }
+
+        // Connection already in progress — report it
+        if pendingPeripheral != nil { return true }
+
+        // Try UUID-based reconnect (skip after first timeout — rely on scan + auto-connect)
+        if let uuid = lastConnectedID, !skipUUIDReconnect {
+            let peripherals = centralManager.retrievePeripherals(withIdentifiers: [uuid])
+            if let peripheral = peripherals.first {
+                NSLog("[BLE] Reconnecting by UUID: %@", uuid.uuidString)
+                stopScanning()
+                pendingPeripheral = peripheral
+                peripheral.delegate = self
+                centralManager.connect(peripheral, options: nil)
+                startConnectTimeout()
+                return true
+            }
+            NSLog("[BLE] Could not retrieve peripheral %@, clearing", uuid.uuidString)
+            lastConnectedID = nil
+        }
+
+        // Check if a previous scan already found the device we want
+        if let uuid = lastConnectedID,
+           let device = discoveredDevices.first(where: { $0.id == uuid }) {
+            NSLog("[BLE] Found known device in scan results, connecting")
+            connect(to: device)
+            return true
+        }
+
+        // Fall back to scanning — next reconnect() call will check discoveredDevices
+        if !isScanning {
+            NSLog("[BLE] Starting scan for reconnect")
+            startScanning()
+        }
+        return false
+    }
+
     func disconnect() {
+        cancelPendingConnect()
         if let peripheral = connectedPeripheral {
             centralManager.cancelPeripheralConnection(peripheral)
         }
@@ -118,11 +196,37 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
 
     // MARK: - Private
 
+    private func cancelPendingConnect() {
+        connectTimeoutWork?.cancel()
+        connectTimeoutWork = nil
+        if let pending = pendingPeripheral {
+            pendingPeripheral = nil // Clear before cancel to avoid callback interference
+            centralManager.cancelPeripheralConnection(pending)
+        }
+    }
+
+    private func startConnectTimeout() {
+        connectTimeoutWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, self.pendingPeripheral != nil else { return }
+            NSLog("[BLE] Connect timeout after %.0fs — falling back to scan", Self.connectTimeout)
+            self.cancelPendingConnect()
+            // Don't clear lastConnectedID — didDiscover needs it for auto-connect
+            self.skipUUIDReconnect = true
+            self.startScanning()
+        }
+        connectTimeoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.connectTimeout, execute: work)
+    }
+
     private func cleanupConnection() {
         connectedPeripheral = nil
+        pendingPeripheral = nil
         rxCharacteristic = nil
         connectedDeviceName = nil
         isConnected = false
+        // Clear stale peripheral references so reconnect triggers a fresh scan
+        discoveredDevices.removeAll()
     }
 }
 
@@ -130,6 +234,7 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
 
 extension BLETransport: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        NSLog("[BLE] Central state changed: %d", central.state.rawValue)
         bluetoothState = central.state
         if central.state != .poweredOn {
             stopScanning()
@@ -148,11 +253,21 @@ extension BLETransport: CBCentralManagerDelegate {
         let device = BLEDevice(id: peripheral.identifier, name: name, pin: pin, peripheral: peripheral)
 
         if !discoveredDevices.contains(where: { $0.id == device.id }) {
+            NSLog("[BLE] Discovered: %@ (PIN: %@, id: %@)", name, pin.map { String($0) } ?? "none", peripheral.identifier.uuidString)
             discoveredDevices.append(device)
+
+            // Note: reconnect() checks discoveredDevices on each timer tick,
+            // so we don't auto-connect here — that avoids state races with BridgeService.
         }
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        NSLog("[BLE] Connected: %@ (id: %@)", peripheral.name ?? "Unknown", peripheral.identifier.uuidString)
+        connectTimeoutWork?.cancel()
+        connectTimeoutWork = nil
+        lastConnectedID = peripheral.identifier
+        skipUUIDReconnect = false
+        pendingPeripheral = nil
         connectedPeripheral = peripheral
         connectedDeviceName = peripheral.name ?? "PixelAgents"
         peripheral.delegate = self
@@ -160,11 +275,27 @@ extension BLETransport: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        NSLog("[BLE] Failed to connect: %@ — %@", peripheral.name ?? "Unknown", error?.localizedDescription ?? "unknown error")
+        connectTimeoutWork?.cancel()
+        connectTimeoutWork = nil
+        pendingPeripheral = nil
         cleanupConnection()
         onDisconnect?()
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        NSLog("[BLE] Disconnected: %@ — %@", peripheral.name ?? "Unknown", error?.localizedDescription ?? "clean disconnect")
+
+        // Ignore disconnect callbacks for peripherals we already cancelled/abandoned.
+        // cancelPendingConnect() nils pendingPeripheral before calling cancelPeripheralConnection,
+        // so the resulting callback arrives when neither pending nor connected matches.
+        guard peripheral === connectedPeripheral || peripheral === pendingPeripheral else {
+            NSLog("[BLE] Ignoring disconnect for stale peripheral")
+            return
+        }
+
+        connectTimeoutWork?.cancel()
+        connectTimeoutWork = nil
         cleanupConnection()
         onDisconnect?()
     }
@@ -174,14 +305,24 @@ extension BLETransport: CBCentralManagerDelegate {
 
 extension BLETransport: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let services = peripheral.services else { return }
+        guard error == nil, let services = peripheral.services else {
+            NSLog("[BLE] Service discovery failed: %@", error?.localizedDescription ?? "no services")
+            cleanupConnection()
+            onDisconnect?()
+            return
+        }
         for service in services where service.uuid == Self.nusServiceUUID {
             peripheral.discoverCharacteristics([Self.nusRxUUID, Self.nusTxUUID], for: service)
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let characteristics = service.characteristics else { return }
+        guard error == nil, let characteristics = service.characteristics else {
+            NSLog("[BLE] Characteristic discovery failed: %@", error?.localizedDescription ?? "no characteristics")
+            cleanupConnection()
+            onDisconnect?()
+            return
+        }
         for char in characteristics {
             if char.uuid == Self.nusRxUUID {
                 rxCharacteristic = char
@@ -193,6 +334,7 @@ extension BLETransport: CBPeripheralDelegate {
 
         // Mark connected once RX characteristic is found
         if rxCharacteristic != nil {
+            NSLog("[BLE] NUS ready — transport connected")
             isConnected = true
         }
     }
