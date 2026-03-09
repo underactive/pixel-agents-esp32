@@ -38,6 +38,7 @@ final class BridgeService: ObservableObject {
     private let tracker = AgentTracker()
     private let watcher = TranscriptWatcher()
     private var serialTransport = SerialTransport()
+    private let usageFetcher = UsageStatsFetcher()
 
     private var activeTransport: TransportProtocol? {
         switch transportMode {
@@ -49,6 +50,7 @@ final class BridgeService: ObservableObject {
     private var pollTimer: Timer?
     private var heartbeatTimer: Timer?
     private var usageTimer: Timer?
+    private var usageFetchTimer: Timer?
     private var reconnectTimer: Timer?
 
     // Dedup state (reset on reconnect)
@@ -66,6 +68,7 @@ final class BridgeService: ObservableObject {
     private let pollInterval: TimeInterval = 0.25       // 4 Hz
     private let heartbeatInterval: TimeInterval = 2.0
     private let usageInterval: TimeInterval = 10.0
+    private let usageFetchInterval: TimeInterval = 300  // 5 min API poll
     private let staleTimeout: TimeInterval = 30.0
     private let reconnectInterval: TimeInterval = 2.0
 
@@ -83,6 +86,9 @@ final class BridgeService: ObservableObject {
                 self?.handleDisconnect()
             }
         }
+
+        // Kick off initial API fetch for usage stats
+        usageFetcher.fetchAndCache()
 
         startTimers()
         attemptConnect()
@@ -189,6 +195,10 @@ final class BridgeService: ObservableObject {
             }
         }
 
+        usageFetchTimer = Timer.scheduledTimer(withTimeInterval: usageFetchInterval, repeats: true) { [weak self] _ in
+            self?.usageFetcher.fetchAndCache()
+        }
+
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
@@ -210,10 +220,12 @@ final class BridgeService: ObservableObject {
         pollTimer?.invalidate()
         heartbeatTimer?.invalidate()
         usageTimer?.invalidate()
+        usageFetchTimer?.invalidate()
         reconnectTimer?.invalidate()
         pollTimer = nil
         heartbeatTimer = nil
         usageTimer = nil
+        usageFetchTimer = nil
         reconnectTimer = nil
     }
 
@@ -230,7 +242,7 @@ final class BridgeService: ObservableObject {
     private func checkUsageStats() {
         guard let transport = activeTransport, transport.isConnected else { return }
 
-        guard let data = UsageStatsReader.read() else { return }
+        guard let data = usageFetcher.currentStats() else { return }
 
         // Only send if changed
         if data != lastUsageData {

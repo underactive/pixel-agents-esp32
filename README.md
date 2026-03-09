@@ -82,6 +82,33 @@ PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically 
 
 ### 4. Start the Companion Bridge
 
+**Option A: macOS app** (recommended for macOS users)
+
+A native menu bar app replaces the Python bridge — no Python, pip, or terminal required.
+
+```bash
+# Install XcodeGen if you don't have it
+brew install xcodegen
+
+# Generate the Xcode project and build
+cd macos/PixelAgents && xcodegen generate && xcodebuild build -scheme PixelAgents -configuration Debug
+
+# Run the app (launches as a menu bar icon, no Dock icon)
+open ~/Library/Developer/Xcode/DerivedData/PixelAgents-*/Build/Products/Debug/PixelAgents.app
+```
+
+Pick Serial or BLE transport from the menu bar popover to connect to the ESP32.
+
+> **Keychain access:** On first launch, macOS may prompt you to allow PixelAgents to access "Claude Code-credentials" from your Keychain. This is used to retrieve your OAuth token and fetch usage statistics from the Anthropic API. Granting access enables the usage stats display on both the companion app and the ESP32. If you deny the request, everything else works normally — usage stats will simply not be available.
+
+To run the test suite:
+
+```bash
+cd macos/PixelAgents && xcodebuild test -scheme PixelAgents -configuration Debug
+```
+
+**Option B: Python bridge** (cross-platform)
+
 ```bash
 python3 run_companion.py
 ```
@@ -302,6 +329,15 @@ pixel-agents-esp32/
     pixel_agents_bridge.py
     ble_transport.py       # BLE client transport (bleak)
     requirements.txt
+  macos/PixelAgents/       # Native macOS companion app (Swift/SwiftUI)
+    project.yml            # XcodeGen project spec
+    PixelAgents/
+      PixelAgentsApp.swift # Menu bar app entry point
+      Model/               # AgentTracker, StateDeriver, ProtocolBuilder, etc.
+      Transport/           # SerialTransport (IOKit/POSIX), BLETransport (CoreBluetooth)
+      Services/            # BridgeService orchestrator, ScreenshotService
+      Views/               # SwiftUI menu bar popover UI
+    PixelAgentsTests/      # Unit tests (23 tests)
   tools/                   # Build tools
     sprite_converter.py      # Character/furniture sprite → C header
     convert_characters.py    # Character sprite sheet converter
