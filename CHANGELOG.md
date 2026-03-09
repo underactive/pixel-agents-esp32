@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.5] - 2026-03-09
+
+- Add native macOS companion menu bar app (Swift/SwiftUI) with serial and BLE transport
+- Add usage stats API fetcher to macOS companion
+- Fix BLE reconnection and add explicit Connect button to device list
+- Increase spawn effect duration from 0.3s to 3.0s
+- Fix README accuracy: speech bubbles show permission/waiting icons, not tool names
+- Update future improvements: mark completed items (BLE, touch, web flasher, CYD variant, idle screensaver)
+
 ## [0.8.4] - 2026-03-08
 
 - Add flip screen toggle to hamburger menu for CYD
