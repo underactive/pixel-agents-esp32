@@ -273,10 +273,6 @@ static constexpr int LED_PIN_G = 16;
 static constexpr int LED_PIN_B = 17;
 static constexpr int LED_PWM_FREQ = 5000;    // 5kHz
 static constexpr int LED_PWM_RES  = 8;       // 8-bit (0-255)
-// LEDC channels (TFT_eSPI backlight uses channel 0; pick 5/6/7)
-static constexpr int LED_LEDC_CH_R = 5;
-static constexpr int LED_LEDC_CH_G = 6;
-static constexpr int LED_LEDC_CH_B = 7;
 
 enum class LedMode : uint8_t {
     OFF          = 0,

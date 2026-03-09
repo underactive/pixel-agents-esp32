@@ -179,32 +179,28 @@ void Splash::drawTo(TFT_eSPI* target, int yOffset) {
     _tft = saved;
 }
 
-// LEDC channel for backlight PWM fade (avoid CYD LED channels 5/6/7)
-static constexpr int BL_LEDC_CH = 1;
-
 void Splash::fadeOut(void (*stepCallback)()) {
 #ifdef TFT_BL
-    ledcSetup(BL_LEDC_CH, 5000, 8);
-    ledcAttachPin(TFT_BL, BL_LEDC_CH);
+    ledcAttach(TFT_BL, 5000, 8);
     for (int i = 255; i >= 0; i -= 5) {
-        ledcWrite(BL_LEDC_CH, i);
+        ledcWrite(TFT_BL, i);
         delay(SPLASH_FADE_STEP_MS);
         if (stepCallback) stepCallback();
     }
-    ledcWrite(BL_LEDC_CH, 0);
+    ledcWrite(TFT_BL, 0);
 #endif
 }
 
 void Splash::fadeIn(void (*stepCallback)()) {
 #ifdef TFT_BL
     for (int i = 0; i <= 255; i += 5) {
-        ledcWrite(BL_LEDC_CH, i);
+        ledcWrite(TFT_BL, i);
         delay(SPLASH_FADE_STEP_MS);
         if (stepCallback) stepCallback();
     }
-    ledcWrite(BL_LEDC_CH, 255);
+    ledcWrite(TFT_BL, 255);
     // Revert to digital control
-    ledcDetachPin(TFT_BL);
+    ledcDetach(TFT_BL);
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
 #endif
