@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.3] - 2026-03-08
+
+- Add ESP32 junction temperature monitoring with thermal soak timing
+- Add thermal throttling with backlight management and fault indicators
+
 ## [0.8.2] - 2026-03-08
 
 - Add browser-based firmware flasher (`tools/firmware_update.html`) using Web Serial API + esptool-js

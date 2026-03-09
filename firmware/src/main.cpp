@@ -6,6 +6,7 @@
 #include "office_state.h"
 #include "renderer.h"
 #include "splash.h"
+#include "thermal_mgr.h"
 #if defined(HAS_TOUCH)
 #include "touch_input.h"
 #endif
@@ -21,6 +22,7 @@ Protocol serialProtocol;
 OfficeState office;
 Renderer renderer;
 Splash splash;
+ThermalManager thermalMgr;
 SerialTransport serialTransport;
 #if defined(HAS_TOUCH)
 TouchInput touchInput;
@@ -40,6 +42,7 @@ bool splashActive = true;
 // ── Protocol callbacks ──────────────────────────────────
 
 void onAgentUpdate(const AgentUpdate& upd) {
+    if (thermalMgr.isThrottled()) return;
     office.setAgentState(upd.agentId, upd.state, upd.toolName);
 }
 
@@ -109,6 +112,7 @@ void setup() {
 #endif
 
     randomSeed(analogRead(0) ^ millis());
+    thermalMgr.begin();
     office.spawnAllCharacters();
     splash.addLog("Characters spawned");
 
@@ -171,6 +175,9 @@ void loop() {
     // Check heartbeat
     office.checkHeartbeat(now);
 
+    // Junction temperature monitoring
+    thermalMgr.update(now, office);
+
     // Frame rate limiting
     if (now - lastFrameMs < FRAME_MS) return;
 
@@ -183,7 +190,9 @@ void loop() {
 
 #if defined(BOARD_CYD)
     // Update ambient LED based on office state
-    ledAmbient.update(office, dt);
+    if (!thermalMgr.isThrottled()) {
+        ledAmbient.update(office, dt);
+    }
 #endif
 
 #if defined(HAS_TOUCH)
