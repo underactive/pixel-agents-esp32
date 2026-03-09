@@ -10,6 +10,21 @@ A standalone hardware display that renders Claude Code agents as animated pixel 
 
 Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Code extension by [@pablodelucca](https://github.com/pablodelucca).
 
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [Hardware](#hardware)
+- [Setup](#setup)
+- [What You'll See](#what-youll-see)
+- [macOS Companion App](#macos-companion-app)
+- [Agent Characters](#agent-characters)
+- [Office Dog](#office-dog)
+- [Layout Editor](#layout-editor)
+- [Serial Protocol](#serial-protocol)
+- [Project Structure](#project-structure)
+- [Third-Party Assets](#third-party-assets)
+- [License](#license)
+
 ## How It Works
 
 ```
