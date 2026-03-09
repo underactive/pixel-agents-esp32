@@ -106,6 +106,7 @@ void setup() {
     bleProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, nullptr);
     if (bleService.begin(bleTransport)) {
         splash.setPinCode(bleService.getPin());
+        office.setBlePin(bleService.getPin());
         splash.addLog("BLE advertising");
     } else {
         splash.addLog("BLE init failed");
