@@ -16,3 +16,4 @@
 | 0.8.1 | Companion launcher script: `run_companion.py` auto-creates venv, installs deps (hash-cached), forwards CLI args — replaces 5-step manual setup with single command |
 | 0.8.2 | Browser firmware flasher + CI/CD: standalone `tools/firmware_update.html` using Web Serial API + esptool-js for flashing CYD/LILYGO from Chrome, drag-and-drop file selection, two flash modes (update only / full flash), GitHub Actions workflow for automated firmware builds and releases on tag push |
 | 0.8.3 | ESP32 thermal management: junction temperature monitoring with thermal soak timing, thermal throttling with backlight management and CYD fault indicator LED |
+| 0.8.4 | CYD display improvements: flip screen toggle in hamburger menu, strip-buffer fallback replacing half-screen buffer for no-PSRAM rendering |

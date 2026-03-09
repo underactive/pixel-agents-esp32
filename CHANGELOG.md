@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.4] - 2026-03-08
+
+- Add flip screen toggle to hamburger menu for CYD
+- Replace half-screen buffer with strip-buffer fallback for CYD
+
 ## [0.8.3] - 2026-03-08
 
 - Add ESP32 junction temperature monitoring with thermal soak timing
