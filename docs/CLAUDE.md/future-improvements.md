@@ -1,13 +1,13 @@
 # Future Improvements (Ideas)
 
 ## High Priority
-- [ ] WiFi mode: send agent state over WebSocket instead of USB serial (untethered operation)
+- [x] Wireless mode: BLE NUS transport for untethered operation (v0.8.2)
 - [x] Strip-buffer fallback: render in 320x30 bands if PSRAM unavailable (v0.8.4)
 - [x] Boot animation: animated pixel-art logo on startup (v0.7.0)
 
 ## Medium Priority
-- [ ] Touch input (CYD variant): tap character to show tool name, tap status bar to toggle info
-- [ ] OTA firmware updates: push new firmware over WiFi
+- [x] Touch input (CYD variant): tap character to show info bubble, tap status bar to toggle modes (v0.8.0)
+- [x] Web-based firmware updates: browser-based flasher via Web Serial API (tools/firmware_update.html)
 - [ ] Web config dashboard: ESP32 hosts a tiny AP/mDNS page for WiFi creds, dog color, brightness — no recompile
 - [ ] NTP time sync: accurate clock for uptime display and schedule-based night mode
 - [ ] Multiple display support: daisy-chain ESP32 boards for wider scenes
@@ -24,9 +24,9 @@
 - [ ] Theme system: swappable color palettes for floor/wall/furniture
 - [ ] Custom office layouts: JSON-defined room layouts uploaded via serial
 - [ ] Agent name labels: tiny text below characters showing project name
-- [ ] Idle screensaver: characters do random activities when no real agents active
+- [x] Idle screensaver: unassigned characters wander and do random activities when no agents active (v0.8.0)
 - [ ] Statistics overlay: show total tool calls, active time, etc.
-- [ ] CYD board variant: alternative pin config and 240x320 layout
+- [x] CYD board variant: alternative pin config and 240x320 layout (v0.8.0)
 - [ ] BLE phone companion: phone app forwards agent state over BLE without needing WiFi infrastructure
 - [ ] BLE proximity presence: detect phone via BLE to auto-dim/sleep display when away, wake on return
 - [ ] BLE mesh multi-board: synchronized animations across multiple boards via BLE mesh without WiFi
