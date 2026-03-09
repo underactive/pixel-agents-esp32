@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Pixel Agents needs Bluetooth to communicate with your ESP32 display wirelessly.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Pixel Agents</string>
+</dict>
+</plist>
