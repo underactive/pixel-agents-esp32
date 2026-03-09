@@ -1,0 +1,57 @@
+import Foundation
+
+/// Usage statistics from Claude Code rate limits cache.
+struct UsageStatsData: Equatable {
+    let currentPct: UInt8
+    let weeklyPct: UInt8
+    let currentResetMin: UInt16
+    let weeklyResetMin: UInt16
+}
+
+/// Reads ~/.claude/rate-limits-cache.json and produces UsageStatsData.
+enum UsageStatsReader {
+    private static let cachePath: URL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".claude/rate-limits-cache.json")
+
+    /// Read and parse the rate limits cache. Returns nil if file missing or invalid.
+    static func read() -> UsageStatsData? {
+        guard let data = try? Data(contentsOf: cachePath),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        let currentPct = clampPct(json["current_pct"])
+        let weeklyPct = clampPct(json["weekly_pct"])
+        let currentResetMin = minutesUntilReset(json["current_resets_at"])
+        let weeklyResetMin = minutesUntilReset(json["weekly_resets_at"])
+
+        return UsageStatsData(
+            currentPct: currentPct,
+            weeklyPct: weeklyPct,
+            currentResetMin: currentResetMin,
+            weeklyResetMin: weeklyResetMin
+        )
+    }
+
+    private static func clampPct(_ value: Any?) -> UInt8 {
+        guard let num = value as? NSNumber else { return 0 }
+        return UInt8(min(max(num.intValue, 0), 100))
+    }
+
+    private static func minutesUntilReset(_ value: Any?) -> UInt16 {
+        guard let str = value as? String else { return 0 }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var date = formatter.date(from: str)
+        if date == nil {
+            // Retry without fractional seconds
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: str)
+        }
+
+        guard let resetDate = date else { return 0 }
+        let minutes = resetDate.timeIntervalSinceNow / 60.0
+        return UInt16(max(0, min(Int(minutes), Int(UInt16.max))))
+    }
+}

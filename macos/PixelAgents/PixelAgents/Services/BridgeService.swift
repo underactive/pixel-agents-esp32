@@ -1,0 +1,323 @@
+import Foundation
+import Combine
+import AppKit
+
+/// Connection state for display.
+enum ConnectionState: Equatable {
+    case disconnected
+    case connecting
+    case connected(String) // transport info string
+}
+
+/// Transport mode selection.
+enum TransportMode: String, CaseIterable, Identifiable {
+    case serial = "Serial"
+    case ble = "BLE"
+
+    var id: String { rawValue }
+}
+
+/// Main orchestrator — watches transcripts, manages transports, sends protocol messages.
+/// Replaces PixelAgentsBridge.run() from the Python companion.
+@MainActor
+final class BridgeService: ObservableObject {
+
+    // MARK: - Published state for SwiftUI
+
+    @Published var connectionState: ConnectionState = .disconnected
+    @Published var displayAgents: [Agent] = []
+    @Published var usageStats: UsageStatsData?
+    @Published var transportMode: TransportMode = .serial
+
+    // MARK: - Sub-components
+
+    let serialPortDetector = SerialPortDetector()
+    let bleTransport = BLETransport()
+
+    // MARK: - Private state
+
+    private let tracker = AgentTracker()
+    private let watcher = TranscriptWatcher()
+    private var serialTransport = SerialTransport()
+
+    private var activeTransport: TransportProtocol? {
+        switch transportMode {
+        case .serial: return serialTransport
+        case .ble:    return bleTransport
+        }
+    }
+
+    private var pollTimer: Timer?
+    private var heartbeatTimer: Timer?
+    private var usageTimer: Timer?
+    private var reconnectTimer: Timer?
+
+    // Dedup state (reset on reconnect)
+    private var lastStates: [String: (CharState, String)] = [:]
+    private var lastUsageData: UsageStatsData?
+    private var lastCount: Int = -1
+
+    /// Selected serial port path (nil = auto-detect).
+    @Published var selectedPort: String?
+    /// Selected BLE device PIN.
+    @Published var selectedBLEPin: UInt16?
+
+    // MARK: - Timing constants (matching Python bridge)
+
+    private let pollInterval: TimeInterval = 0.25       // 4 Hz
+    private let heartbeatInterval: TimeInterval = 2.0
+    private let usageInterval: TimeInterval = 10.0
+    private let staleTimeout: TimeInterval = 30.0
+    private let reconnectInterval: TimeInterval = 2.0
+
+    // MARK: - Lifecycle
+
+    func start() {
+        serialPortDetector.startMonitoring()
+        watcher.startMonitoring { [weak self] in
+            // FSEvents fired — next poll cycle will pick up changes
+            _ = self
+        }
+
+        bleTransport.onDisconnect = { [weak self] in
+            Task { @MainActor in
+                self?.handleDisconnect()
+            }
+        }
+
+        startTimers()
+        attemptConnect()
+    }
+
+    func stop() {
+        stopTimers()
+        activeTransport?.disconnect()
+        serialPortDetector.stopMonitoring()
+        watcher.stopMonitoring()
+        connectionState = .disconnected
+    }
+
+    func setTransport(_ mode: TransportMode) {
+        guard mode != transportMode else { return }
+        activeTransport?.disconnect()
+        transportMode = mode
+        resetSessionState()
+        connectionState = .disconnected
+        attemptConnect()
+    }
+
+    /// Take a screenshot (serial only).
+    func requestScreenshot() {
+        guard transportMode == .serial, serialTransport.isConnected else { return }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let url = ScreenshotService.capture(via: self.serialTransport) {
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+                }
+            }
+        }
+    }
+
+    // MARK: - Connection management
+
+    private func attemptConnect() {
+        guard !(activeTransport?.isConnected ?? false) else { return }
+        connectionState = .connecting
+
+        switch transportMode {
+        case .serial:
+            let port = selectedPort ?? serialPortDetector.availablePorts.first?.path
+            guard let port = port else {
+                connectionState = .disconnected
+                return
+            }
+            if serialTransport.connect(port: port) {
+                connectionState = .connected("Serial: \(port.components(separatedBy: "/").last ?? port)")
+                resetSessionState()
+            } else {
+                connectionState = .disconnected
+            }
+
+        case .ble:
+            if bleTransport.isConnected {
+                connectionState = .connected("BLE")
+                resetSessionState()
+            } else if let pin = selectedBLEPin {
+                bleTransport.connectByPin(pin)
+            } else if !bleTransport.isScanning {
+                bleTransport.startScanning()
+            }
+            // BLE connection happens asynchronously via delegate callbacks
+            connectionState = .connecting
+        }
+    }
+
+    func connectBLEDevice(_ device: BLEDevice) {
+        selectedBLEPin = device.pin
+        bleTransport.connect(to: device)
+    }
+
+    private func handleDisconnect() {
+        connectionState = .disconnected
+        // Reconnect timer will handle retry
+    }
+
+    private func resetSessionState() {
+        lastStates.removeAll()
+        lastUsageData = nil
+        lastCount = -1
+    }
+
+    // MARK: - Timers
+
+    private func startTimers() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.processTranscripts()
+            }
+        }
+
+        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.sendHeartbeat()
+            }
+        }
+
+        usageTimer = Timer.scheduledTimer(withTimeInterval: usageInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkUsageStats()
+            }
+        }
+
+        reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self else { return }
+                if !(self.activeTransport?.isConnected ?? false) {
+                    self.attemptConnect()
+                } else if case .connecting = self.connectionState {
+                    // Update state if BLE connected asynchronously
+                    if self.bleTransport.isConnected {
+                        let name = self.bleTransport.connectedDeviceName ?? "Device"
+                        self.connectionState = .connected("BLE: \(name)")
+                        self.resetSessionState()
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopTimers() {
+        pollTimer?.invalidate()
+        heartbeatTimer?.invalidate()
+        usageTimer?.invalidate()
+        reconnectTimer?.invalidate()
+        pollTimer = nil
+        heartbeatTimer = nil
+        usageTimer = nil
+        reconnectTimer = nil
+    }
+
+    // MARK: - Core logic
+
+    private func sendHeartbeat() {
+        guard let transport = activeTransport, transport.isConnected else { return }
+        let msg = ProtocolBuilder.heartbeat()
+        if !transport.send(msg) {
+            handleDisconnect()
+        }
+    }
+
+    private func checkUsageStats() {
+        guard let transport = activeTransport, transport.isConnected else { return }
+
+        guard let data = UsageStatsReader.read() else { return }
+
+        // Only send if changed
+        if data != lastUsageData {
+            let msg = ProtocolBuilder.usageStats(
+                currentPct: data.currentPct,
+                weeklyPct: data.weeklyPct,
+                currentResetMin: data.currentResetMin,
+                weeklyResetMin: data.weeklyResetMin
+            )
+            if transport.send(msg) {
+                lastUsageData = data
+                usageStats = data
+            }
+        }
+    }
+
+    private func processTranscripts() {
+        guard let transport = activeTransport, transport.isConnected else { return }
+
+        let transcripts = watcher.findActiveTranscripts()
+
+        for transcript in transcripts {
+            let key = transcript.path
+            var agent = tracker.getOrCreate(key: key)
+
+            // Update last seen
+            tracker.update(key: key) { $0.lastSeen = Date() }
+
+            // Read new lines
+            let records = watcher.readNewLines(from: transcript)
+
+            for record in records {
+                agent = tracker.agents[key] ?? agent
+
+                if let (state, tool) = StateDeriver.derive(from: record, agent: &agent) {
+                    // Write back mutated agent state
+                    tracker.update(key: key) { a in
+                        a.hadToolInTurn = agent.hadToolInTurn
+                        a.activeTools = agent.activeTools
+                    }
+
+                    let stateKey = (state, tool)
+                    if lastStates[key]?.0 != stateKey.0 || lastStates[key]?.1 != stateKey.1 {
+                        let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: state, tool: tool)
+                        if transport.send(msg) {
+                            lastStates[key] = (state, tool)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Prune stale agents
+        let pruned = tracker.pruneStale(timeout: staleTimeout)
+        for agent in pruned {
+            let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
+            _ = transport.send(msg)
+        }
+        // Clean up lastStates for pruned keys
+        let activeKeys = Set(tracker.agents.keys)
+        lastStates = lastStates.filter { activeKeys.contains($0.key) }
+
+        // Send agent count if changed
+        let count = tracker.count
+        if count != lastCount {
+            let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
+            if transport.send(msg) {
+                lastCount = count
+            }
+        }
+
+        // Update published agents for UI
+        displayAgents = tracker.sortedAgents
+    }
+
+    // MARK: - Sleep/Wake
+
+    func handleSleep() {
+        stopTimers()
+    }
+
+    func handleWake() {
+        startTimers()
+        if !(activeTransport?.isConnected ?? false) {
+            attemptConnect()
+        }
+    }
+}
+
