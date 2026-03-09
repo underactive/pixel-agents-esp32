@@ -13,11 +13,11 @@ Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Cod
 ## How It Works
 
 ```
-Claude Code CLI  -->  JSONL transcripts  -->  Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
+Claude Code CLI  -->  JSONL transcripts  -->  macOS app / Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
 ```
 
 1. **Claude Code** writes JSONL transcript files as you work
-2. **Companion bridge** (Python) watches those files, detects agent state changes, and reads `~/.claude/rate-limits-cache.json` for usage stats
+2. **Companion app** (native macOS menu bar app or cross-platform Python bridge) watches those files, detects agent state changes, and fetches usage stats from the Anthropic API
 3. **ESP32 firmware** receives state updates over USB serial or BLE and animates the office scene
 
 Characters walk to their desks when active, sit and type/read while tools run, wander around the office when idle, and spawn/despawn with a matrix effect.
@@ -42,8 +42,9 @@ Either board works out of the box — just pick the right PlatformIO environment
 ### Prerequisites
 
 - [PlatformIO](https://platformio.org/) (CLI or VS Code extension)
-- Python 3.8+ with pip
 - One of the supported boards (see Hardware above)
+- **macOS companion**: macOS 13+, Xcode CLI tools, [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+- **Python companion**: Python 3.8+ with pip (cross-platform)
 
 ### 1. Generate Sprite Headers
 
@@ -84,27 +85,11 @@ PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically 
 
 **Option A: macOS app** (recommended for macOS users)
 
-A native menu bar app replaces the Python bridge — no Python, pip, or terminal required.
+See the [macOS Companion App](#macos-companion-app) section for full details.
 
 ```bash
-# Install XcodeGen if you don't have it
-brew install xcodegen
-
-# Generate the Xcode project and build
 cd macos/PixelAgents && xcodegen generate && xcodebuild build -scheme PixelAgents -configuration Debug
-
-# Run the app (launches as a menu bar icon, no Dock icon)
 open ~/Library/Developer/Xcode/DerivedData/PixelAgents-*/Build/Products/Debug/PixelAgents.app
-```
-
-Pick Serial or BLE transport from the menu bar popover to connect to the ESP32.
-
-> **Keychain access:** On first launch, macOS may prompt you to allow PixelAgents to access "Claude Code-credentials" from your Keychain. This is used to retrieve your OAuth token and fetch usage statistics from the Anthropic API. Granting access enables the usage stats display on both the companion app and the ESP32. If you deny the request, everything else works normally — usage stats will simply not be available.
-
-To run the test suite:
-
-```bash
-cd macos/PixelAgents && xcodebuild test -scheme PixelAgents -configuration Debug
 ```
 
 **Option B: Python bridge** (cross-platform)
@@ -135,6 +120,69 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
 - **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
 - **Multiple agents** each get their own desk and color palette
+
+## macOS Companion App
+
+The native macOS menu bar app is the recommended way to connect the ESP32 on macOS. It replaces the Python bridge with a standalone `.app` — no Python, pip, or terminal required after the initial build.
+
+### Features
+
+- **Menu bar presence** — runs as a menu bar icon with a popover UI, no Dock icon
+- **Serial and BLE transports** — switch between USB serial and Bluetooth Low Energy from the popover
+- **Auto-detection** — serial ports detected automatically via IOKit; BLE devices discovered via CoreBluetooth scan with PIN display
+- **Usage stats** — reads your Claude Code OAuth token from macOS Keychain to fetch usage stats directly from the Anthropic API
+- **Live agent list** — shows active agents with their current state (typing, reading, idle) in the popover
+- **Screenshot capture** — grab a screenshot from the ESP32 display over serial (saved to `~/Pictures/PixelAgents/`)
+- **Auto-reconnect** — reconnects automatically after USB unplug/replug or BLE disconnect
+- **Sleep/wake aware** — pauses timers on sleep, reconnects on wake
+- **Launch at login** — optional toggle via the popover menu
+
+### Requirements
+
+- macOS 13 (Ventura) or later
+- Xcode Command Line Tools (for building)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+
+### Build & Run
+
+```bash
+cd macos/PixelAgents
+xcodegen generate
+xcodebuild build -scheme PixelAgents -configuration Debug
+
+# Launch the app
+open ~/Library/Developer/Xcode/DerivedData/PixelAgents-*/Build/Products/Debug/PixelAgents.app
+```
+
+### Connecting
+
+1. Click the menu bar icon to open the popover
+2. Select **Serial** or **BLE** transport
+3. **Serial**: the app auto-detects USB serial ports. Select a port or leave on "Auto"
+4. **BLE**: the app scans for nearby PixelAgents devices and displays their 4-digit PINs. Click **Connect** next to the device you want
+
+> **Keychain access:** On first launch, macOS may prompt you to allow PixelAgents to access "Claude Code-credentials" from your Keychain. This is needed to fetch usage stats from the Anthropic API. If you deny, everything else works normally — usage stats just won't be available.
+
+### Architecture
+
+```
+PixelAgents.app (SwiftUI MenuBarExtra)
+├── Model        — AgentTracker, StateDeriver, ProtocolBuilder, TranscriptWatcher, UsageStats
+├── Transport    — SerialTransport (IOKit/POSIX), BLETransport (CoreBluetooth NUS)
+├── Services     — BridgeService (orchestrator), ScreenshotService, UsageStatsFetcher
+└── Views        — MenuBarView, ConnectionStatusView, AgentListView, UsageStatsView, TransportPicker
+```
+
+The app polls JSONL transcripts at 4 Hz (matching the Python bridge), sends heartbeats every 2s, and checks usage stats every 10s. All business logic is a direct port of the Python companion.
+
+### Tests
+
+```bash
+cd macos/PixelAgents
+xcodebuild test -scheme PixelAgents -configuration Debug
+```
+
+23 unit tests covering ProtocolBuilder, StateDeriver, and AgentTracker.
 
 ## Agent Characters
 
