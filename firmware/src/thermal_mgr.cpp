@@ -74,8 +74,8 @@ void ThermalManager::update(uint32_t nowMs, OfficeState& office) {
 #if defined(BOARD_CYD)
     // Critical thermal fault indicator — alternating channels
     uint32_t phase = (nowMs / THERMAL_ALERT_FLASH_MS) % 2;
-    ledcWrite(LED_LEDC_CH_R, phase == 0 ? 0 : 255);   // active-low: 0=ON
-    ledcWrite(LED_LEDC_CH_G, 255);                      // green always OFF
-    ledcWrite(LED_LEDC_CH_B, phase == 1 ? 0 : 255);   // active-low: 0=ON
+    ledcWrite(LED_PIN_R, phase == 0 ? 0 : 255);   // active-low: 0=ON
+    ledcWrite(LED_PIN_G, 255);                      // green always OFF
+    ledcWrite(LED_PIN_B, phase == 1 ? 0 : 255);   // active-low: 0=ON
 #endif
 }

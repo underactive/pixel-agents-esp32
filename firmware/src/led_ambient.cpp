@@ -13,20 +13,17 @@ static const uint8_t SINE_LUT[32] PROGMEM = {
 };
 
 void LedAmbient::begin() {
-    ledcSetup(LED_LEDC_CH_R, LED_PWM_FREQ, LED_PWM_RES);
-    ledcSetup(LED_LEDC_CH_G, LED_PWM_FREQ, LED_PWM_RES);
-    ledcSetup(LED_LEDC_CH_B, LED_PWM_FREQ, LED_PWM_RES);
-    ledcAttachPin(LED_PIN_R, LED_LEDC_CH_R);
-    ledcAttachPin(LED_PIN_G, LED_LEDC_CH_G);
-    ledcAttachPin(LED_PIN_B, LED_LEDC_CH_B);
+    ledcAttach(LED_PIN_R, LED_PWM_FREQ, LED_PWM_RES);
+    ledcAttach(LED_PIN_G, LED_PWM_FREQ, LED_PWM_RES);
+    ledcAttach(LED_PIN_B, LED_PWM_FREQ, LED_PWM_RES);
     setRGB(0, 0, 0);
 }
 
 void LedAmbient::setRGB(uint8_t r, uint8_t g, uint8_t b) {
     // Active-LOW: 255 - value inverts for common-anode LED
-    ledcWrite(LED_LEDC_CH_R, 255 - r);
-    ledcWrite(LED_LEDC_CH_G, 255 - g);
-    ledcWrite(LED_LEDC_CH_B, 255 - b);
+    ledcWrite(LED_PIN_R, 255 - r);
+    ledcWrite(LED_PIN_G, 255 - g);
+    ledcWrite(LED_PIN_B, 255 - b);
 }
 
 LedMode LedAmbient::resolveMode(const OfficeState& office) const {
