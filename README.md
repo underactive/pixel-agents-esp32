@@ -3,9 +3,9 @@
 A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
 <p>
-  <img src="assets/splash_screen.png" alt="Boot splash screen" height="320">
+  <img src="assets/screenshots/splash_screen.png" alt="Boot splash screen" height="320">
   &nbsp;&nbsp;
-  <img src="assets/office_screenshot.png" alt="Pixel Agents screenshot" height="320">
+  <img src="assets/screenshots/office_screenshot.png" alt="Pixel Agents screenshot" height="320">
 </p>
 
 Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Code extension by [@pablodelucca](https://github.com/pablodelucca).
@@ -122,6 +122,10 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Multiple agents** each get their own desk and color palette
 
 ## macOS Companion App
+
+<p>
+  <img src="assets/screenshots/macos_companion.png" alt="macOS companion app" height="400">
+</p>
 
 The native macOS menu bar app is the recommended way to connect the ESP32 on macOS. It replaces the Python bridge with a standalone `.app` — no Python, pip, or terminal required after the initial build.
 
@@ -254,9 +258,9 @@ On the CYD board, the dog can be toggled on/off and its color changed (black, br
 ## Layout Editor
 
 <p>
-  <img src="assets/layout_editor.png" alt="Layout Editor" height="400">
+  <img src="assets/screenshots/layout_editor.png" alt="Layout Editor" height="400">
   &nbsp;&nbsp;
-  <img src="assets/layout_editor-tile_picker.png" alt="Tile Picker" height="400">
+  <img src="assets/screenshots/layout_editor-tile_picker.png" alt="Tile Picker" height="400">
 </p>
 
 The layout editor (`tools/layout_editor.html`) is a browser-based visual tool for designing the office scene. It must be served over HTTP — opening the file directly (`file://`) will cause canvas security errors when exporting tile sprites.
