@@ -131,10 +131,10 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Agent spawns** with a matrix-style column reveal effect
 - **Active agent** walks to its desk and sits down to type or read
 - **Idle agent** stands up and wanders around the office
-- **Speech bubbles** show tool names while running, permission/waiting indicators
+- **Speech bubbles** show permission and waiting indicators; tool names appear in the status bar
 - **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
 - **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
-- **Multiple agents** each get their own desk and color palette
+- **Multiple agents** each get their own desk
 
 ## macOS Companion App
 
