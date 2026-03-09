@@ -4,6 +4,7 @@ import Foundation
 /// Opens /dev/cu.* at 115200 baud, 8N1, no flow control.
 final class SerialTransport: TransportProtocol {
     private var fd: Int32 = -1
+    private let fdLock = NSLock()
     private var readSource: DispatchSourceRead?
     private let queue = DispatchQueue(label: "com.pixelagents.serial", qos: .userInitiated)
 
@@ -11,10 +12,12 @@ final class SerialTransport: TransportProtocol {
     private var readBuffer = Data()
     private let readBufferLock = NSLock()
 
-    /// Callback for data received from device.
-    var onDataReceived: ((Data) -> Void)?
-
-    var isConnected: Bool { fd >= 0 }
+    var isConnected: Bool {
+        fdLock.lock()
+        let connected = fd >= 0
+        fdLock.unlock()
+        return connected
+    }
 
     /// Open a serial port at 115200 baud.
     func connect(port: String) -> Bool {
@@ -63,15 +66,23 @@ final class SerialTransport: TransportProtocol {
     }
 
     func send(_ data: Data) -> Bool {
-        guard fd >= 0 else { return false }
+        fdLock.lock()
+        let currentFd = fd
+        fdLock.unlock()
+        guard currentFd >= 0 else { return false }
 
         let result = data.withUnsafeBytes { buffer -> Int in
             guard let ptr = buffer.baseAddress else { return -1 }
-            return write(fd, ptr, buffer.count)
+            var totalWritten = 0
+            while totalWritten < buffer.count {
+                let n = write(currentFd, ptr + totalWritten, buffer.count - totalWritten)
+                if n < 0 { return -1 }
+                totalWritten += n
+            }
+            return totalWritten
         }
 
         if result < 0 {
-            // Device disconnected
             disconnect()
             return false
         }
@@ -81,10 +92,12 @@ final class SerialTransport: TransportProtocol {
     func disconnect() {
         readSource?.cancel()
         readSource = nil
+        fdLock.lock()
         if fd >= 0 {
             close(fd)
             fd = -1
         }
+        fdLock.unlock()
         readBufferLock.lock()
         readBuffer.removeAll()
         readBufferLock.unlock()
@@ -144,17 +157,19 @@ final class SerialTransport: TransportProtocol {
     }
 
     private func handleRead() {
-        guard fd >= 0 else { return }
+        fdLock.lock()
+        let currentFd = fd
+        fdLock.unlock()
+        guard currentFd >= 0 else { return }
 
         var buf = [UInt8](repeating: 0, count: 256)
-        let bytesRead = read(fd, &buf, buf.count)
+        let bytesRead = read(currentFd, &buf, buf.count)
 
         if bytesRead > 0 {
             let data = Data(buf[0..<bytesRead])
             readBufferLock.lock()
             readBuffer.append(data)
             readBufferLock.unlock()
-            onDataReceived?(data)
         }
     }
 }

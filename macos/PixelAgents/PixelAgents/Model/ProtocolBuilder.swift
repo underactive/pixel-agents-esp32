@@ -12,7 +12,6 @@ enum ProtocolBuilder {
     static let msgAgentUpdate: UInt8   = 0x01
     static let msgAgentCount: UInt8    = 0x02
     static let msgHeartbeat: UInt8     = 0x03
-    static let msgStatusText: UInt8    = 0x04
     static let msgUsageStats: UInt8    = 0x05
     static let msgScreenshotReq: UInt8 = 0x06
 

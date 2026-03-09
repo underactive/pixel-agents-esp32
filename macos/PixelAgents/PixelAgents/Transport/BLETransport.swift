@@ -42,7 +42,6 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     private var centralManager: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
     private var rxCharacteristic: CBCharacteristic?
-    private var lastConnectedDeviceID: UUID?
 
     /// Callback when connection is lost (for auto-reconnect).
     var onDisconnect: (() -> Void)?
@@ -75,7 +74,6 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
 
     func connect(to device: BLEDevice) {
         stopScanning()
-        lastConnectedDeviceID = device.id
         centralManager.connect(device.peripheral, options: nil)
     }
 

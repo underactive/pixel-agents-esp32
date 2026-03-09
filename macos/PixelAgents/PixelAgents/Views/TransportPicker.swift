@@ -7,15 +7,15 @@ struct TransportPicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Transport mode toggle
-            Picker("Transport", selection: $bridge.transportMode) {
+            Picker("Transport", selection: Binding(
+                get: { bridge.transportMode },
+                set: { bridge.setTransport($0) }
+            )) {
                 ForEach(TransportMode.allCases) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
-            .onChange(of: bridge.transportMode) { newValue in
-                bridge.setTransport(newValue)
-            }
 
             // Transport-specific options
             switch bridge.transportMode {
