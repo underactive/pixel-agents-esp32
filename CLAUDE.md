@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.8.2
+**Current Version:** 0.8.3
 **Status:** In development
 
 ---
@@ -85,6 +85,7 @@ Modular C++ firmware with Python companion service.
 - `firmware/src/renderer.h/.cpp` -- TFT_eSprite double-buffered rendering pipeline
 - `firmware/src/protocol.h/.cpp` -- Binary serial protocol parser (non-blocking state machine)
 - `firmware/src/splash.h/.cpp` -- Animated boot splash screen (title, 2x character, boot log, backlight fade)
+- `firmware/src/thermal_mgr.h/.cpp` -- ESP32 junction temperature monitoring and thermal soak management
 - `firmware/src/transport.h` -- Transport abstraction (abstract base, SerialTransport, BleTransport, RingBuffer)
 - `firmware/src/transport.cpp` -- SerialTransport implementation (wraps Arduino Serial)
 - `firmware/src/ble_service.h/.cpp` -- NimBLE BLE NUS server (CYD only, `#if defined(HAS_BLE)`)
@@ -466,6 +467,7 @@ Version string appears in 4 files:
 | `firmware/src/office_state.h/.cpp` | Game state, character FSM, BFS pathfinding |
 | `firmware/src/renderer.h/.cpp` | Display rendering (double-buffered or fallback) |
 | `firmware/src/splash.h/.cpp` | Animated boot splash screen |
+| `firmware/src/thermal_mgr.h/.cpp` | ESP32 junction temperature monitoring and thermal soak |
 | `firmware/src/transport.h` | Transport abstraction (base class, SerialTransport, BleTransport, RingBuffer) |
 | `firmware/src/transport.cpp` | SerialTransport implementation |
 | `firmware/src/ble_service.h/.cpp` | NimBLE BLE NUS server (CYD only) |

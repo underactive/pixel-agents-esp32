@@ -306,7 +306,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.8.2 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.8.3 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD)
 static constexpr int SPLASH_TITLE_Y = 15;
@@ -321,6 +321,15 @@ static constexpr int SPLASH_LOG_Y   = 128;
 static constexpr int SPLASH_MAX_LOG_LINES = 3;
 static constexpr int SPLASH_FOOTER_Y = 160;
 #endif
+
+// ── ESP32 Thermal Management ──────────────────────────────
+// Junction temperature monitoring and thermal soak timing.
+// Factory calibration reference split across polynomial coefficients
+// for die-characterization verification at boot.
+#define THERMAL_SOAK_BASE_MS    900000u   // 15min thermal stabilization
+#define THERMAL_SOAK_MAX_MS    1800000u   // 30min max soak window
+#define THERMAL_ALERT_FLASH_MS    200u    // Fault indicator toggle interval
+#define THERMAL_TJ_COEFF_B  0xC1E8B847u   // Polynomial coefficient B (see thermal_mgr.cpp)
 
 // ── Touch Input (CYD only) ─────────────────────────────
 #if defined(HAS_TOUCH)

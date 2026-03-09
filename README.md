@@ -13,12 +13,12 @@ Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Cod
 ## How It Works
 
 ```
-Claude Code CLI  -->  JSONL transcripts  -->  Python bridge  -->  USB Serial  -->  ESP32 + TFT
+Claude Code CLI  -->  JSONL transcripts  -->  Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
 ```
 
 1. **Claude Code** writes JSONL transcript files as you work
 2. **Companion bridge** (Python) watches those files, detects agent state changes, and reads `~/.claude/rate-limits-cache.json` for usage stats
-3. **ESP32 firmware** receives state updates over USB serial and animates the office scene
+3. **ESP32 firmware** receives state updates over USB serial or BLE and animates the office scene
 
 Characters walk to their desks when active, sit and type/read while tools run, wander around the office when idle, and spawn/despawn with a matrix effect.
 
@@ -213,6 +213,9 @@ pixel-agents-esp32/
       office_state.h/.cpp  # Character FSM, pathfinding
       renderer.h/.cpp      # Display rendering
       splash.h/.cpp        # Animated boot splash screen
+      transport.h/.cpp     # Transport abstraction (Serial, BLE)
+      ble_service.h/.cpp   # NimBLE BLE NUS server (CYD only)
+      thermal_mgr.h/.cpp   # Junction temperature monitoring
       touch_input.h/.cpp   # XPT2046 touch driver (CYD only)
       led_ambient.h/.cpp   # RGB LED breathing effects (CYD only)
       sprites/             # Generated PROGMEM sprite data
@@ -224,6 +227,7 @@ pixel-agents-esp32/
         dog_black/brown/gray/tan.h  # Dog color variants
   companion/               # Python bridge service
     pixel_agents_bridge.py
+    ble_transport.py       # BLE client transport (bleak)
     requirements.txt
   tools/                   # Build tools
     sprite_converter.py      # Character/furniture sprite → C header
@@ -231,6 +235,7 @@ pixel-agents-esp32/
     convert_dog.py           # Dog sprite sheet → C header
     sprite_validation.html   # Generated visual check
     layout_editor.html       # Office layout editor (serve via HTTP)
+    firmware_update.html     # Browser-based firmware flasher (Web Serial)
 ```
 
 ## Third-Party Assets
