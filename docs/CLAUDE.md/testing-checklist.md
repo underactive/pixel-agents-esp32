@@ -267,6 +267,18 @@
 - [ ] Full Flash mode with 4 files — progress bar advances smoothly without jumping back
 - [ ] Baud rate selector — confirmation summary reflects chosen baud rate
 
+### Strip-Buffer Rendering (CYD Only)
+- [ ] CYD boots into strip-buffer mode (serial log shows "[renderer] strip-buffer mode (320x30, 8 strips)")
+- [ ] Scene renders correctly with no visible horizontal tearing between strips
+- [ ] Characters crossing strip boundaries render without clipping artifacts
+- [ ] Speech bubbles above characters near strip edges render completely
+- [ ] Status bar renders correctly at bottom of screen
+- [ ] Floor tiles and furniture span strip boundaries without misalignment
+- [ ] Screenshot capture produces correct image matching on-screen content
+- [ ] Spawn/despawn matrix effect renders smoothly across strip boundaries
+- [ ] Dog pet renders correctly when crossing strip boundaries
+- [ ] FPS is acceptable in strip mode (~15 FPS target)
+
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)

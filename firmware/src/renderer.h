@@ -21,9 +21,14 @@ private:
     bool _screenshotRequested = false;
     OfficeState* _currentOffice = nullptr;
     bool _directMode = false;
-    bool _halfMode = false;
-    int _halfHeight = 0;
+
+    // Strip-buffer rendering state
+    bool _stripMode = false;
+    int _stripHeight = 0;
+    int _stripCount = 0;
     int _yOffset = 0;
+    int _clipYMin = 0;
+    int _clipYMax = 0;
     uint32_t _lastRenderMs = 0;
     float _fps = 0;
 

@@ -2,7 +2,7 @@
 
 ## High Priority
 - [ ] WiFi mode: send agent state over WebSocket instead of USB serial (untethered operation)
-- [ ] Strip-buffer fallback: render in 320x30 bands if PSRAM unavailable
+- [x] Strip-buffer fallback: render in 320x30 bands if PSRAM unavailable (v0.8.4)
 - [x] Boot animation: animated pixel-art logo on startup (v0.7.0)
 
 ## Medium Priority

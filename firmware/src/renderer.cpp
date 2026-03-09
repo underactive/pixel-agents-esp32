@@ -64,17 +64,23 @@ void Renderer::begin(TFT_eSPI& tft) {
     if (buf) {
         _frameBuffer = (uint16_t*)buf;  // save for screenshot access
         _canvas->setSwapBytes(true);
+        _clipYMin = 0;
+        _clipYMax = SCREEN_H;
         Serial.println("[renderer] full-screen buffer OK");
         return;
     }
 
-    // Try half-screen sprite (fits in ESP32 DRAM without PSRAM)
-    _halfHeight = SCREEN_H / 2;
-    buf = _canvas->createSprite(SCREEN_W, _halfHeight);
+    // Try strip buffer (fits in ESP32 DRAM without PSRAM)
+    _stripHeight = STRIP_HEIGHT;
+    buf = _canvas->createSprite(SCREEN_W, _stripHeight);
     if (buf) {
         _canvas->setSwapBytes(true);
-        _halfMode = true;
-        Serial.printf("[renderer] half-screen buffer (%dx%d)\n", SCREEN_W, _halfHeight);
+        _stripMode = true;
+        _stripCount = (SCREEN_H + _stripHeight - 1) / _stripHeight;
+        _clipYMin = 0;
+        _clipYMax = SCREEN_H;
+        Serial.printf("[renderer] strip-buffer mode (%dx%d, %d strips)\n",
+                      SCREEN_W, _stripHeight, _stripCount);
         return;
     }
 
@@ -83,6 +89,8 @@ void Renderer::begin(TFT_eSPI& tft) {
     delete _canvas;
     _canvas = nullptr;
     _directMode = true;
+    _clipYMin = 0;
+    _clipYMax = SCREEN_H;
     _tft->setSwapBytes(true);
     _tft->fillScreen(COLOR_BG);
 }
@@ -104,18 +112,20 @@ void Renderer::renderFrame(OfficeState& office) {
     }
     _lastRenderMs = now;
 
-    if (_halfMode) {
-        // Pass 1: top half
-        _canvas->fillSprite(COLOR_BG);
-        _yOffset = 0;
-        drawScene(office);
-        _canvas->pushSprite(0, 0);
+    if (_stripMode) {
+        for (int s = 0; s < _stripCount; s++) {
+            int stripTop = s * _stripHeight;
+            int stripBot = stripTop + _stripHeight;
+            if (stripBot > SCREEN_H) stripBot = SCREEN_H;
 
-        // Pass 2: bottom half
-        _canvas->fillSprite(COLOR_BG);
-        _yOffset = -_halfHeight;
-        drawScene(office);
-        _canvas->pushSprite(0, _halfHeight);
+            _clipYMin = stripTop;
+            _clipYMax = stripBot;
+            _yOffset = -stripTop;
+
+            _canvas->fillSprite(COLOR_BG);
+            drawScene(office);
+            _canvas->pushSprite(0, stripTop);
+        }
     } else if (_canvas) {
         // Full-screen buffered
         _canvas->fillSprite(COLOR_BG);
@@ -136,7 +146,7 @@ void Renderer::drawScene(OfficeState& office) {
     // 2. Fill gap between grid bottom and status bar
     int gridBottom = GRID_ROWS * TILE_SIZE;
     int statusTop = SCREEN_H - STATUS_BAR_H;
-    if (gridBottom < statusTop) {
+    if (gridBottom < statusTop && gridBottom < _clipYMax && statusTop > _clipYMin) {
         gfxFillRect(0, gridBottom, SCREEN_W, statusTop - gridBottom, COLOR_BG);
     }
 
@@ -214,9 +224,11 @@ void Renderer::drawScene(OfficeState& office) {
 
 void Renderer::drawFloor(const TileType* tiles) {
     for (int r = 0; r < GRID_ROWS; r++) {
+        int tileTop = r * TILE_SIZE;
+        if (tileTop + TILE_SIZE <= _clipYMin || tileTop >= _clipYMax) continue;
         for (int c = 0; c < GRID_COLS; c++) {
             int x = c * TILE_SIZE;
-            int y = r * TILE_SIZE;
+            int y = tileTop;
 #if defined(HAS_TILESET_TILES)
             drawRGB565Sprite(x, y, TILE_MAP[r][c], TILE_SIZE, TILE_SIZE);
 #else
@@ -302,6 +314,10 @@ void Renderer::drawFurniture() {
 }
 
 void Renderer::drawCharacter(const Character& ch) {
+    int sittingOff = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
+    int drawY = (int)(ch.y + sittingOff) - CHAR_H;
+    if (drawY + CHAR_H <= _clipYMin || drawY >= _clipYMax) return;
+
     // WHY: ACTIVITY frame selection is split here and in getFrameIndex() because
     // non-READING activities need a standing pose (frame 1) that bypasses the
     // state→frame mapping, while READING reuses the READ animation via getFrameIndex().
@@ -326,14 +342,15 @@ void Renderer::drawCharacter(const Character& ch) {
     int charIdx = ch.palette % NUM_PALETTES;
     const uint16_t* sprite = CHAR_SPRITES[charIdx][frameIdx];
 
-    int sittingOffset = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
     int drawX = (int)(ch.x) - CHAR_W / 2;
-    int drawY = (int)(ch.y + sittingOffset) - CHAR_H;
 
     drawRGB565SpriteFlip(drawX, drawY, sprite, CHAR_W, CHAR_H, flipH);
 }
 
 void Renderer::drawDog(const Pet& pet, DogColor color) {
+    int dogDrawY = (int)(pet.y) - DOG_H;
+    if (dogDrawY + DOG_H <= _clipYMin || dogDrawY >= _clipYMax) return;
+
     int frameIdx;
     bool flipH = (pet.dir == Dir::LEFT);
 
@@ -369,6 +386,9 @@ void Renderer::drawDog(const Pet& pet, DogColor color) {
 }
 
 void Renderer::drawSpawnEffect(const Character& ch) {
+    int spawnDrawY = (int)(ch.y) - CHAR_H;
+    if (spawnDrawY + CHAR_H <= _clipYMin || spawnDrawY >= _clipYMax) return;
+
     float progress = ch.effectTimer / SPAWN_DURATION_SEC;
     if (progress > 1.0f) progress = 1.0f;
     if (ch.state == CharState::DESPAWN) {
@@ -421,6 +441,12 @@ void Renderer::drawSpawnEffect(const Character& ch) {
 }
 
 void Renderer::drawBubble(const Character& ch) {
+    // Bubble is above the character's head — estimate worst-case Y for clip check
+    int sittingOff2 = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
+    int bubbleTopEst = (int)(ch.y + sittingOff2) - CHAR_H - 20;  // ~max bubble height
+    int bubbleBotEst = (int)(ch.y + sittingOff2) - CHAR_H;
+    if (bubbleBotEst <= _clipYMin || bubbleTopEst >= _clipYMax) return;
+
     const uint16_t* bubbleData;
     int bw, bh;
 
@@ -479,6 +505,7 @@ void Renderer::drawBubble(const Character& ch) {
 
 void Renderer::drawStatusBar(OfficeState& office) {
     int y = SCREEN_H - STATUS_BAR_H;
+    if (y + STATUS_BAR_H <= _clipYMin || y >= _clipYMax) return;
     gfxFillRect(0, y, SCREEN_W, STATUS_BAR_H, COLOR_STATUS);
 
     // Connection indicator (always shown)
@@ -707,6 +734,7 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
 #endif
 
 void Renderer::drawRGB565SpriteFlip(int x, int y, const uint16_t* data, int w, int h, bool flipH) {
+    if (y + h <= _clipYMin || y >= _clipYMax) return;
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
             int srcCol = flipH ? (w - 1 - col) : col;
@@ -827,7 +855,7 @@ void Renderer::sendScreenshot() {
         return;
     }
 
-    // Half-mode: not reachable here — handled in sendScreenshotFromDisplay()
+    // Strip-mode: re-render each strip and capture
     sendScreenshotFromDisplay();
 }
 
@@ -859,56 +887,77 @@ void Renderer::sendSplashScreenshot(Splash& splash) {
         rleEncodeBuffer(_frameBuffer, (uint32_t)SCREEN_W * SCREEN_H,
                         rleBuf, bufPos, runPixel, runCount, swapped);
     } else {
-        // CYD: half-height buffer — two passes
-        uint16_t* halfBuf = (uint16_t*)_canvas->getPointer();
-        uint32_t halfPixels = (uint32_t)SCREEN_W * _halfHeight;
+        // CYD: strip buffer — N passes
+        uint16_t* stripBuf = (uint16_t*)_canvas->getPointer();
+        if (!stripBuf) return;
 
-        _canvas->fillSprite(TFT_BLACK);
-        splash.drawTo(_canvas, 0);
-        rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
-                        runPixel, runCount, swapped);
+        for (int s = 0; s < _stripCount; s++) {
+            int stripTop = s * _stripHeight;
+            int stripBot = stripTop + _stripHeight;
+            if (stripBot > SCREEN_H) stripBot = SCREEN_H;
+            int thisStripH = stripBot - stripTop;
+            uint32_t stripPixels = (uint32_t)SCREEN_W * thisStripH;
 
-        _canvas->fillSprite(TFT_BLACK);
-        splash.drawTo(_canvas, -_halfHeight);
-        rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
-                        runPixel, runCount, swapped);
+            _canvas->fillSprite(TFT_BLACK);
+            splash.drawTo(_canvas, -stripTop);
+            rleEncodeBuffer(stripBuf, stripPixels, rleBuf, bufPos,
+                            runPixel, runCount, swapped);
+        }
     }
 
     rleFlushEnd(rleBuf, bufPos, runPixel, runCount);
 }
 
 void Renderer::sendScreenshotFromDisplay() {
-    // CYD half-mode: re-render each half into the sprite buffer and capture
-    // The sprite buffer holds SCREEN_W x _halfHeight pixels
+    // CYD strip-mode: re-render each strip into the sprite buffer and capture
+    if (!_currentOffice) {
+        // No office state yet — send empty screenshot response
+        uint8_t hdr[12];
+        hdr[0] = SCREENSHOT_SYNC1; hdr[1] = SCREENSHOT_SYNC2;
+        memset(&hdr[2], 0, 10);
+        Serial.write(hdr, 12);
+        uint8_t end[4] = {0, 0, 0, 0};
+        Serial.write(end, 4);
+        return;
+    }
+
+    uint16_t* stripBuf = (uint16_t*)_canvas->getPointer();
+    if (!stripBuf) return;
+
     sendScreenshotHeader(SCREEN_W, SCREEN_H);
+
+    // Save clip state — renderFrame() sets these per-strip, but callers may
+    // read them between sendScreenshotFromDisplay() and the next renderFrame().
+    int savedClipMin = _clipYMin, savedClipMax = _clipYMax, savedYOff = _yOffset;
 
     uint8_t rleBuf[256];
     int bufPos = 0;
     uint16_t runPixel = 0, runCount = 0;
-    uint16_t* halfBuf = (uint16_t*)_canvas->getPointer();
-    uint32_t halfPixels = (uint32_t)SCREEN_W * _halfHeight;
-
-    // setSwapBytes(true) causes byte-swapped storage in the sprite buffer
     bool swapped = _canvas->getSwapBytes();
 
-    // Pass 1: render top half
-    _canvas->fillSprite(COLOR_BG);
-    _yOffset = 0;
-    drawScene(*_currentOffice);
-    rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
-                    runPixel, runCount, swapped);
+    for (int s = 0; s < _stripCount; s++) {
+        int stripTop = s * _stripHeight;
+        int stripBot = stripTop + _stripHeight;
+        if (stripBot > SCREEN_H) stripBot = SCREEN_H;
+        int thisStripH = stripBot - stripTop;
+        uint32_t stripPixels = (uint32_t)SCREEN_W * thisStripH;
 
-    // Pass 2: render bottom half
-    _canvas->fillSprite(COLOR_BG);
-    _yOffset = -_halfHeight;
-    drawScene(*_currentOffice);
-    rleEncodeBuffer(halfBuf, halfPixels, rleBuf, bufPos,
-                    runPixel, runCount, swapped);
+        _clipYMin = stripTop;
+        _clipYMax = stripBot;
+        _yOffset = -stripTop;
 
+        _canvas->fillSprite(COLOR_BG);
+        drawScene(*_currentOffice);
+        rleEncodeBuffer(stripBuf, stripPixels, rleBuf, bufPos,
+                        runPixel, runCount, swapped);
+    }
+
+    _clipYMin = savedClipMin; _clipYMax = savedClipMax; _yOffset = savedYOff;
     rleFlushEnd(rleBuf, bufPos, runPixel, runCount);
 }
 
 void Renderer::drawRGB565Sprite(int x, int y, const uint16_t* data, int w, int h) {
+    if (y + h <= _clipYMin || y >= _clipYMax) return;
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
             uint16_t px = data[row * w + col];
