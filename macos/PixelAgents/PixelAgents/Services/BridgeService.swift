@@ -68,7 +68,7 @@ final class BridgeService: ObservableObject {
     private let pollInterval: TimeInterval = 0.25       // 4 Hz
     private let heartbeatInterval: TimeInterval = 2.0
     private let usageInterval: TimeInterval = 10.0
-    private let usageFetchInterval: TimeInterval = 300  // 5 min API poll
+    private let usageFetchInterval: TimeInterval = 900  // 15 min API poll
     private let staleTimeout: TimeInterval = 30.0
     private let reconnectInterval: TimeInterval = 2.0
 
