@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.6] - 2026-03-09
+
+- Fix CI release build: use pioarduino platform URL for Arduino Core 3.x support
+- Fix usage stats: fetch on launch, add logging, reduce poll interval to 15 minutes
+
 ## [0.8.5] - 2026-03-09
 
 - Add native macOS companion menu bar app (Swift/SwiftUI) with serial and BLE transport
