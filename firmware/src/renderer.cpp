@@ -523,7 +523,14 @@ void Renderer::drawStatusBar(OfficeState& office) {
             snprintf(buf, sizeof(buf), "%d/%d active", activeCount, MAX_AGENTS);
             gfxDrawString(buf, 12, y + 1);
             if (!office.isConnected()) {
-                gfxDrawString("Disconnected", SCREEN_W - 92, y + 1);
+                uint16_t pin = office.getBlePin();
+                if (pin > 0) {
+                    gfxDrawString("Disconnected", SCREEN_W - 137, y + 1);
+                    snprintf(buf, sizeof(buf), "BLE:%u", pin);
+                    gfxDrawString(buf, SCREEN_W - 61, y + 1);
+                } else {
+                    gfxDrawString("Disconnected", SCREEN_W - 92, y + 1);
+                }
             }
             break;
         }
