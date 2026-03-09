@@ -148,6 +148,8 @@ public:
     const TileType* getTileMap() const { return &_tiles[0][0]; }
     bool isConnected() const { return _connected; }
     void setConnected(bool c) { _connected = c; }
+    void setBlePin(uint16_t pin) { _blePin = pin; }
+    uint16_t getBlePin() const { return _blePin; }
     StatusMode getStatusMode() const { return _statusMode; }
 
     // Heartbeat
@@ -159,6 +161,7 @@ private:
     Pet _pet;
     TileType _tiles[GRID_ROWS][GRID_COLS];
     bool _connected = false;
+    uint16_t _blePin = 0;
     uint32_t _lastHeartbeatMs = 0;
     StatusMode _statusMode = StatusMode::OVERVIEW;
     UsageStats _usage = {};
