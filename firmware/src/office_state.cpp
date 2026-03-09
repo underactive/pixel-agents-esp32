@@ -1327,6 +1327,7 @@ void OfficeState::loadSettings() {
     } else {
         _dogSettings.color = DOG_DEFAULT_COLOR;
     }
+    _screenFlipped = prefs.getBool("flipScr", false);
     prefs.end();
 }
 
@@ -1335,6 +1336,7 @@ void OfficeState::saveSettings() {
     prefs.begin("pixelagent", false);  // read-write
     prefs.putBool("dogOn", _dogSettings.enabled);
     prefs.putUChar("dogColor", static_cast<uint8_t>(_dogSettings.color));
+    prefs.putBool("flipScr", _screenFlipped);
     prefs.end();
 }
 
@@ -1345,6 +1347,12 @@ void OfficeState::setDogEnabled(bool enabled) {
     if (enabled) {
         initPet();
     }
+}
+
+void OfficeState::setScreenFlipped(bool flipped) {
+    if (_screenFlipped == flipped) return;
+    _screenFlipped = flipped;
+    saveSettings();
 }
 
 void OfficeState::setDogColor(DogColor color) {
@@ -1401,6 +1409,9 @@ int OfficeState::hitTestMenuItem(int screenX, int screenY) const {
         }
         return -2;  // between swatches — inside menu, no action
     }
+
+    // Row 3: flip screen toggle
+    if (relY < MENU_ITEM_H * 4) return 5;
 
     // Bottom padding area — inside menu, no action
     return -2;

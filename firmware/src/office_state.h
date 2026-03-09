@@ -141,6 +141,8 @@ public:
     void closeMenu() { _menuOpen = false; }
     bool hitTestHamburger(int screenX, int screenY) const;
     int hitTestMenuItem(int screenX, int screenY) const;
+    bool isScreenFlipped() const { return _screenFlipped; }
+    void setScreenFlipped(bool flipped);  // Persists to NVS. Caller must also update TFT and touch rotation.
     int getActiveAgentCount() const;   // count of characters at TYPE/READ
     int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
@@ -162,6 +164,7 @@ private:
     UsageStats _usage = {};
     DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };
     bool _menuOpen = false;
+    bool _screenFlipped = false;
 
     void initTileMap();
     int findCharByAgentId(uint8_t agentId) const;

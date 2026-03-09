@@ -13,6 +13,7 @@ class TouchInput {
 public:
     void begin();
     TouchEvent poll();
+    void setDisplayRotation(int rotation);
 private:
     SPIClass _touchSPI = SPIClass(VSPI);
     XPT2046_Touchscreen _ts = XPT2046_Touchscreen(TOUCH_SPI_CS, TOUCH_IRQ_PIN);
