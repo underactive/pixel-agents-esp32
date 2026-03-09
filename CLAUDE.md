@@ -112,7 +112,7 @@ Modular C++ firmware with Python companion service.
 #### 1. Rendering Pipeline (`renderer.cpp`)
 - Landscape via `tft.setRotation(1)` -- 320x170 (LILYGO) or 320x240 (CYD)
 - Full-frame double buffer with `TFT_eSprite` in PSRAM -- `pushSprite(0,0)`
-- CYD (no PSRAM): half-height buffer fallback (`_halfMode`) or direct-draw (`_directMode`)
+- CYD (no PSRAM): strip-buffer fallback (`_stripMode`, 320x30 bands) or direct-draw (`_directMode`)
 - Render order: floor --> walls --> depth-sorted entities (furniture + characters by Y) --> speech bubbles --> status bar
 - 15 FPS target (~66ms/frame)
 - Character sprites: template index --> palette lookup --> RGB565 --> `fillRect` per pixel
@@ -215,7 +215,7 @@ Two environments in `platformio.ini`:
 - **board:** `esp32dev` -- generic ESP32 board definition
 - **-DBOARD_CYD=1** -- enables CYD-specific layout, grid size, and conditional compilation
 - **-DHAS_TOUCH=1** -- enables touch input subsystem compilation
-- No PSRAM; renderer uses half-height buffer or direct-draw fallback
+- No PSRAM; renderer uses strip-buffer fallback (`_stripMode`, 320x30 bands) or direct-draw
 
 **`[env:lilygo-t-display-s3]`**
 - **board:** `lilygo-t-display-s3` -- ESP32-S3 with built-in ST7789 display
@@ -275,7 +275,7 @@ Environment files / define sources:
 2. **JSONL format not a public API** -- Claude Code transcript format may change between versions
 3. **No WiFi mode** -- USB serial or BLE only (no WiFi/WebSocket)
 4. **No wireless OTA updates** -- Must flash via USB (browser-based flasher available at `tools/firmware_update.html`)
-5. **CYD has no PSRAM** -- Renderer uses fallback modes (half-buffer or direct-draw) which may have visual artifacts
+5. **CYD has no PSRAM** -- Renderer uses fallback modes (strip-buffer or direct-draw) which may have visual artifacts
 
 ---
 

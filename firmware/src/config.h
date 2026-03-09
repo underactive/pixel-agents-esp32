@@ -57,6 +57,10 @@ static constexpr int TARGET_FPS = 15;
 static constexpr int FRAME_MS = 1000 / TARGET_FPS;  // ~66ms
 static constexpr int STATUS_BAR_H = 10;  // pixels at bottom
 static constexpr int SITTING_OFFSET_PX = 6;
+static constexpr int STRIP_HEIGHT = 30;  // Strip-buffer height for no-PSRAM fallback (19KB per strip)
+#if defined(BOARD_CYD)
+static_assert(SCREEN_H % STRIP_HEIGHT == 0, "CYD SCREEN_H must be a multiple of STRIP_HEIGHT");
+#endif
 
 // ── Serial Protocol ─────────────────────────────────────
 static constexpr uint8_t SYNC_BYTE_1 = 0xAA;
