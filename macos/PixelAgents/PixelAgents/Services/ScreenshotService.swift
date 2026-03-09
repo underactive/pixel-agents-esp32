@@ -55,7 +55,8 @@ enum ScreenshotService {
             let pixel = UInt16(entry[2]) << 8 | UInt16(entry[3])
             let rgb = rgb565ToRGB888(pixel)
 
-            for _ in 0..<runCount {
+            let remaining = totalPixels - pixels.count
+            for _ in 0..<min(runCount, remaining) {
                 pixels.append(rgb)
             }
         }

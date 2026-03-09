@@ -37,21 +37,25 @@ enum UsageStatsReader {
         return UInt8(min(max(num.intValue, 0), 100))
     }
 
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoFormatterNoFrac: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
     private static func minutesUntilReset(_ value: Any?) -> UInt16 {
         guard let str = value as? String else { return 0 }
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        var date = formatter.date(from: str)
-        if date == nil {
-            // Retry without fractional seconds
-            formatter.formatOptions = [.withInternetDateTime]
-            date = formatter.date(from: str)
-        }
-
+        let date = isoFormatter.date(from: str) ?? isoFormatterNoFrac.date(from: str)
         guard let resetDate = date else { return 0 }
+
         let minutes = resetDate.timeIntervalSinceNow / 60.0
-        return UInt16(max(0, min(Int(minutes), Int(UInt16.max))))
+        let clamped = max(0.0, min(minutes, Double(UInt16.max)))
+        return UInt16(clamped)
     }
 }

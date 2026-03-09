@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 import AppKit
 
 /// Connection state for display.
@@ -267,18 +266,25 @@ final class BridgeService: ObservableObject {
                 agent = tracker.agents[key] ?? agent
 
                 if let (state, tool) = StateDeriver.derive(from: record, agent: &agent) {
-                    // Write back mutated agent state
+                    // Write back all mutated agent fields
                     tracker.update(key: key) { a in
+                        a.state = state
+                        a.toolName = tool
                         a.hadToolInTurn = agent.hadToolInTurn
                         a.activeTools = agent.activeTools
                     }
 
-                    let stateKey = (state, tool)
-                    if lastStates[key]?.0 != stateKey.0 || lastStates[key]?.1 != stateKey.1 {
+                    if lastStates[key]?.0 != state || lastStates[key]?.1 != tool {
                         let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: state, tool: tool)
                         if transport.send(msg) {
                             lastStates[key] = (state, tool)
                         }
+                    }
+                } else {
+                    // Write back hadToolInTurn/activeTools even when no state change
+                    tracker.update(key: key) { a in
+                        a.hadToolInTurn = agent.hadToolInTurn
+                        a.activeTools = agent.activeTools
                     }
                 }
             }

@@ -15,6 +15,10 @@ final class TranscriptWatcher {
             .appendingPathComponent(".claude/projects")
     }
 
+    deinit {
+        stopMonitoring()
+    }
+
     // MARK: - FSEvents monitoring
 
     /// Start FSEvents monitoring on the projects directory.
@@ -94,6 +98,10 @@ final class TranscriptWatcher {
                 results.append(file)
             }
         }
+
+        // Prune fileOffsets for files no longer active
+        let activePaths = Set(results.map { $0.path })
+        fileOffsets = fileOffsets.filter { activePaths.contains($0.key) }
 
         return results
     }
