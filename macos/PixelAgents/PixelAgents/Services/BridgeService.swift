@@ -104,6 +104,7 @@ final class BridgeService: ObservableObject {
 
     func setTransport(_ mode: TransportMode) {
         guard mode != transportMode else { return }
+        manualDisconnect = false
         activeTransport?.disconnect()
         transportMode = mode
         resetSessionState()
@@ -126,8 +127,27 @@ final class BridgeService: ObservableObject {
 
     // MARK: - Connection management
 
+    func connect() {
+        manualDisconnect = false
+        attemptConnect()
+    }
+
+    /// When true, suppress auto-reconnect so the user can pick a device manually.
+    private var manualDisconnect = false
+
+    func disconnect() {
+        manualDisconnect = true
+        if transportMode == .ble {
+            bleTransport.disconnectKeepDevices()
+        } else {
+            activeTransport?.disconnect()
+        }
+        connectionState = .disconnected
+    }
+
     private func attemptConnect() {
         guard !(activeTransport?.isConnected ?? false) else { return }
+        guard !manualDisconnect else { return }
 
         switch transportMode {
         case .serial:
@@ -167,6 +187,7 @@ final class BridgeService: ObservableObject {
     }
 
     func connectBLEDevice(_ device: BLEDevice) {
+        manualDisconnect = false
         selectedBLEPin = device.pin
         connectionState = .connecting
         bleTransport.connect(to: device)

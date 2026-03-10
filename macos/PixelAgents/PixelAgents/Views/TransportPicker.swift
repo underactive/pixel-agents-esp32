@@ -54,17 +54,15 @@ struct TransportPicker: View {
                 .foregroundColor(.secondary)
         } else if bridge.bleTransport.discoveredDevices.isEmpty {
             HStack {
-                if bridge.bleTransport.isScanning {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Scanning...")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                } else {
-                    Button("Scan for Devices") {
-                        bridge.bleTransport.startScanning()
-                    }
+                ProgressView()
+                    .controlSize(.small)
+                Text("Scanning...")
                     .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .onAppear {
+                if !bridge.bleTransport.isScanning {
+                    bridge.bleTransport.startScanning()
                 }
             }
         } else {
@@ -81,9 +79,13 @@ struct TransportPicker: View {
                     }
                     Spacer()
                     if bridge.bleTransport.isConnected && device.id == bridge.bleTransport.connectedPeripheralID {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 12))
+                        Button("Disconnect") {
+                            bridge.disconnect()
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .controlSize(.small)
                     } else if bridge.bleTransport.pendingPeripheralID == device.id {
                         ProgressView()
                             .controlSize(.small)
@@ -92,6 +94,8 @@ struct TransportPicker: View {
                             bridge.connectBLEDevice(device)
                         }
                         .font(.system(size: 11))
+                        .buttonStyle(.bordered)
+                        .tint(.green)
                         .controlSize(.small)
                     }
                 }
