@@ -20,3 +20,4 @@ companion/screenshots/
 *.o
 *.bin
 *.elf
+macos/PixelAgents/.build/
