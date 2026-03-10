@@ -335,7 +335,7 @@ int OfficeState::getCharacterCount() const {
 }
 
 void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolName) {
-    if (id >= MAX_AGENTS) return;  // Guard against int8_t truncation / -1 collision
+    if (id > MAX_AGENT_ID) return;  // int8_t storage: IDs above 127 wrap negative, colliding with -1 sentinel
 
     int idx;
 

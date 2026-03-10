@@ -82,6 +82,7 @@ static constexpr uint8_t SCREENSHOT_SYNC2 = 0x66;
 
 // ── Agent Limits ────────────────────────────────────────
 static constexpr int MAX_AGENTS = 6;
+static constexpr uint8_t MAX_AGENT_ID = 127;  // int8_t storage: 128+ wraps negative, 255 collides with -1 sentinel
 static constexpr int MAX_TOOL_NAME_LEN = 24;
 static constexpr int MAX_STATUS_TEXT_LEN = 32;
 

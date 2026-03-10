@@ -113,6 +113,8 @@
 - [ ] Re-activating an agent while character walks back to zone redirects character to desk
 - [ ] All 6 agents active simultaneously -- all 6 characters seated at desks
 - [ ] All 6 agents go idle -- all 6 characters walk back to their zones
+- [ ] Start 2 Claude Code sessions, let them be pruned (30s timeout), then start 4+ new sessions — all new agents appear on device (agent ID recycling)
+- [ ] After companion reconnects, previously recycled IDs do not cause stale agent state on device
 
 ### French Bulldog Pet
 - [ ] Dog appears on screen after boot, positioned on a walkable floor tile
