@@ -20,17 +20,19 @@ struct MenuBarView: View {
             Divider()
                 .padding(.vertical, 4)
 
-            // Agent list
-            AgentListView(agents: bridge.displayAgents)
+            if bridge.isConnected {
+                // Agent list
+                AgentListView(agents: bridge.displayAgents)
 
-            Divider()
-                .padding(.vertical, 4)
+                Divider()
+                    .padding(.vertical, 4)
 
-            // Usage stats
-            UsageStatsView(stats: bridge.usageStats)
+                // Usage stats
+                UsageStatsView(stats: bridge.usageStats)
 
-            Divider()
-                .padding(.vertical, 4)
+                Divider()
+                    .padding(.vertical, 4)
+            }
 
             // Bottom actions
             HStack {
@@ -79,6 +81,11 @@ struct MenuBarView: View {
 
 // Convenience to check serial connection from view
 extension BridgeService {
+    var isConnected: Bool {
+        if case .connected = connectionState { return true }
+        return false
+    }
+
     var serialTransportConnected: Bool {
         if case .connected = connectionState, transportMode == .serial {
             return true

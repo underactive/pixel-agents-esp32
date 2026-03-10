@@ -12,8 +12,8 @@ enum CharState: UInt8, CaseIterable {
 
     var label: String {
         switch self {
-        case .offline: return "Offline"
-        case .idle:    return "Idle"
+        case .offline: return "Off"
+        case .idle:    return "Ready"
         case .walk:    return "Walking"
         case .type:    return "Typing"
         case .read:    return "Reading"
