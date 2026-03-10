@@ -2,6 +2,12 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.8] - 2026-03-10
+
+- Fix agent IDs >= 6 silently rejected by firmware (conflated protocol IDs with array indices)
+- Add agent ID recycling in macOS and Python companions to keep IDs low across agent lifecycle
+- Add MAX_AGENT_ID constant for int8_t storage boundary guard
+
 ## [0.8.7] - 2026-03-09
 
 - Add custom pixel art app icon and menu bar silhouette icon for macOS companion
