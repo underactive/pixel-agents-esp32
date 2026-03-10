@@ -1,17 +1,26 @@
 import Foundation
 
 /// Manages the lifecycle of Claude Code agents. Keyed by project path.
+/// Agent IDs are recycled when agents are pruned (LIFO) to keep IDs low,
+/// preventing the monotonic counter from exceeding the firmware's int8_t limit (0-127).
 final class AgentTracker {
     private(set) var agents: [String: Agent] = [:]
     private var nextId: UInt8 = 0
+    private var recycledIds: [UInt8] = []
 
     /// Retrieve or create an agent for the given project key (transcript file path).
     func getOrCreate(key: String) -> Agent {
         if let existing = agents[key] {
             return existing
         }
-        let agent = Agent(id: nextId)
-        nextId &+= 1 // wraps at 256
+        let id: UInt8
+        if let recycled = recycledIds.popLast() {
+            id = recycled
+        } else {
+            id = nextId
+            nextId &+= 1 // wraps at 256
+        }
+        let agent = Agent(id: id)
         agents[key] = agent
         return agent
     }
@@ -30,6 +39,7 @@ final class AgentTracker {
         for (key, agent) in agents {
             if agent.lastSeen < cutoff {
                 pruned.append(agent)
+                recycledIds.append(agent.id)
                 agents.removeValue(forKey: key)
             }
         }
@@ -47,6 +57,7 @@ final class AgentTracker {
     /// Reset all tracking state (on reconnect).
     func reset() {
         agents.removeAll()
+        recycledIds.removeAll()
         nextId = 0
     }
 }

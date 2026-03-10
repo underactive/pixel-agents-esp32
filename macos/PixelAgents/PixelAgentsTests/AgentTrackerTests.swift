@@ -53,15 +53,53 @@ final class AgentTrackerTests: XCTestCase {
         XCTAssertEqual(c.id, 0)
     }
 
-    func testIdWrapsAt256() {
+    func testPrunedIdsAreRecycled() {
         let tracker = AgentTracker()
-        // Create 256 agents to fill the ID space
-        for i in 0..<256 {
-            _ = tracker.getOrCreate(key: "p\(i)")
-        }
-        // Next ID should wrap to 0
-        let overflow = tracker.getOrCreate(key: "overflow")
-        XCTAssertEqual(overflow.id, 0)
+        _ = tracker.getOrCreate(key: "project1") // id 0
+        _ = tracker.getOrCreate(key: "project2") // id 1
+
+        // Make project1 stale and prune it
+        tracker.update(key: "project1") { $0.lastSeen = Date().addingTimeInterval(-60) }
+        let pruned = tracker.pruneStale(timeout: 30)
+        XCTAssertEqual(pruned.count, 1)
+        XCTAssertEqual(pruned[0].id, 0)
+
+        // New agent should reuse recycled id 0, not get id 2
+        let c = tracker.getOrCreate(key: "project3")
+        XCTAssertEqual(c.id, 0)
+    }
+
+    func testNewIdAfterRecyclePoolExhausted() {
+        let tracker = AgentTracker()
+        _ = tracker.getOrCreate(key: "project1") // id 0
+        _ = tracker.getOrCreate(key: "project2") // id 1
+
+        // Prune project1, recycling id 0
+        tracker.update(key: "project1") { $0.lastSeen = Date().addingTimeInterval(-60) }
+        _ = tracker.pruneStale(timeout: 30)
+
+        // Use the recycled id
+        _ = tracker.getOrCreate(key: "project3") // reuses id 0
+
+        // Next agent should get id 2 (next fresh id)
+        let d = tracker.getOrCreate(key: "project4")
+        XCTAssertEqual(d.id, 2)
+    }
+
+    func testResetClearsRecycledIds() {
+        let tracker = AgentTracker()
+        _ = tracker.getOrCreate(key: "a") // id 0
+        tracker.update(key: "a") { $0.lastSeen = Date().addingTimeInterval(-60) }
+        _ = tracker.pruneStale(timeout: 30) // id 0 recycled
+        tracker.reset()
+
+        // After reset, next ID is 0 from fresh counter, not from recycled pool
+        let b = tracker.getOrCreate(key: "b")
+        XCTAssertEqual(b.id, 0)
+
+        // And the next one increments normally
+        let c = tracker.getOrCreate(key: "c")
+        XCTAssertEqual(c.id, 1)
     }
 
     func testSortedAgents() {

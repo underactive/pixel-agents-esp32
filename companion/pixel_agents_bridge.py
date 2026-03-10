@@ -224,18 +224,23 @@ class AgentTracker:
     def __init__(self):
         self.agents: Dict[str, dict] = {}  # project_key -> agent_info
         self._next_id: int = 0
+        self._recycled_ids: List[int] = []
 
     def get_or_create(self, project_key: str) -> dict:
         if project_key not in self.agents:
+            if self._recycled_ids:
+                agent_id = self._recycled_ids.pop()
+            else:
+                agent_id = self._next_id % 256
+                self._next_id += 1
             agent = {
-                "id": self._next_id % 256,
+                "id": agent_id,
                 "state": STATE_IDLE,
                 "tool_name": "",
                 "last_seen": time.time(),
                 "active_tools": set(),
                 "had_tool_in_turn": False,
             }
-            self._next_id += 1
             self.agents[project_key] = agent
         return self.agents[project_key]
 
@@ -246,6 +251,7 @@ class AgentTracker:
         removed = []
         for k in stale_keys:
             removed.append({"key": k, "id": self.agents[k]["id"]})
+            self._recycled_ids.append(self.agents[k]["id"])
             del self.agents[k]
         return removed
 
@@ -384,6 +390,7 @@ class PixelAgentsBridge:
         self.last_states.clear()
         self.last_usage_data = None
         self._last_count = -1
+        self.tracker._recycled_ids.clear()
 
     def _is_connected(self) -> bool:
         if self.transport_mode == "ble":
