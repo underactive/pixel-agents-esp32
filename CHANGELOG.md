@@ -2,6 +2,14 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.8.7] - 2026-03-09
+
+- Add custom pixel art app icon and menu bar silhouette icon for macOS companion
+- Improve BLE UX: auto-scan on BLE tab selection, green Connect / red Disconnect buttons per device
+- Preserve discovered BLE devices after manual disconnect for easy reconnection
+- Fix keepDevicesOnCleanup flag leak causing stale state across disconnect cycles
+- Fix zombie CoreBluetooth connections on service/characteristic discovery failure
+
 ## [0.8.6] - 2026-03-09
 
 - Fix CI release build: use pioarduino platform URL for Arduino Core 3.x support

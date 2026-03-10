@@ -19,3 +19,4 @@
 | 0.8.4 | CYD display improvements: flip screen toggle in hamburger menu, strip-buffer fallback replacing half-screen buffer for no-PSRAM rendering |
 | 0.8.5 | Native macOS companion menu bar app (Swift/SwiftUI, serial + BLE transport, usage stats API), BLE reconnection fix with explicit Connect button, spawn effect duration increase to 3s, README corrections, future improvements housekeeping |
 | 0.8.6 | Fix CI release build (pioarduino platform URL for Arduino Core 3.x), fix usage stats fetch-on-launch and reduce poll to 15min |
+| 0.8.7 | Custom pixel art app icon + menu bar silhouette for macOS companion, BLE UX improvements (auto-scan, colored connect/disconnect buttons, preserve devices after manual disconnect), fix keepDevicesOnCleanup flag leak, fix zombie CoreBluetooth connections on discovery failure |
