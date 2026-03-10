@@ -103,8 +103,7 @@ PlatformIO will download the ESP32 toolchain and TFT_eSPI library automatically 
 See the [macOS Companion App](#macos-companion-app) section for full details.
 
 ```bash
-cd macos/PixelAgents && xcodegen generate && xcodebuild build -scheme PixelAgents -configuration Debug
-open ~/Library/Developer/Xcode/DerivedData/PixelAgents-*/Build/Products/Debug/PixelAgents.app
+cd macos/PixelAgents && make install
 ```
 
 **Option B: Python bridge** (cross-platform)
@@ -166,11 +165,7 @@ The native macOS menu bar app is the recommended way to connect the ESP32 on mac
 
 ```bash
 cd macos/PixelAgents
-xcodegen generate
-xcodebuild build -scheme PixelAgents -configuration Debug
-
-# Launch the app
-open ~/Library/Developer/Xcode/DerivedData/PixelAgents-*/Build/Products/Debug/PixelAgents.app
+make install    # builds and copies to /Applications
 ```
 
 ### Connecting
@@ -198,7 +193,7 @@ The app polls JSONL transcripts at 4 Hz (matching the Python bridge), sends hear
 
 ```bash
 cd macos/PixelAgents
-xcodebuild test -scheme PixelAgents -configuration Debug
+make test
 ```
 
 23 unit tests covering ProtocolBuilder, StateDeriver, and AgentTracker.
