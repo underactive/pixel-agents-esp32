@@ -1,26 +1,18 @@
 import SwiftUI
 
-/// Displays the list of active agents with their current state.
+/// Displays all 6 character slots with their current state.
 struct AgentListView: View {
     let agents: [Agent]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Agents (\(agents.count))")
+            Text("Agents")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 12)
 
-            if agents.isEmpty {
-                Text("No active agents")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-            } else {
-                ForEach(agents) { agent in
-                    AgentRow(agent: agent)
-                }
+            ForEach(agents) { agent in
+                AgentRow(agent: agent)
             }
         }
     }
@@ -31,11 +23,6 @@ struct AgentRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("#\(agent.id)")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(.secondary)
-                .frame(width: 24, alignment: .trailing)
-
             Circle()
                 .fill(stateColor)
                 .frame(width: 6, height: 6)
@@ -62,7 +49,7 @@ struct AgentRow: View {
         case .idle:    return .yellow
         case .walk:    return .orange
         case .offline: return .gray
-        default:       return .purple
+        case .spawn, .despawn: return .purple
         }
     }
 }

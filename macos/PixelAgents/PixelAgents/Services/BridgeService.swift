@@ -21,10 +21,13 @@ enum TransportMode: String, CaseIterable, Identifiable {
 @MainActor
 final class BridgeService: ObservableObject {
 
+    /// Number of character slots shown in the UI (matches firmware workstation count).
+    static let maxDisplaySlots = 6
+
     // MARK: - Published state for SwiftUI
 
     @Published var connectionState: ConnectionState = .disconnected
-    @Published var displayAgents: [Agent] = []
+    @Published var displayAgents: [Agent] = (0..<maxDisplaySlots).map { Agent(id: UInt8($0), state: .offline) }
     @Published var usageStats: UsageStatsData?
     @Published var transportMode: TransportMode = .serial
 
@@ -351,8 +354,16 @@ final class BridgeService: ObservableObject {
             }
         }
 
-        // Update published agents for UI
-        displayAgents = tracker.sortedAgents
+        // Update published agents for UI — always show maxDisplaySlots slots.
+        // Use slot index as the Identifiable id to avoid duplicates in ForEach.
+        let active = tracker.sortedAgents
+        displayAgents = (0..<Self.maxDisplaySlots).map { i in
+            if i < active.count {
+                return Agent(id: UInt8(i), state: active[i].state, toolName: active[i].toolName)
+            } else {
+                return Agent(id: UInt8(i), state: .offline)
+            }
+        }
     }
 
     // MARK: - Sleep/Wake
