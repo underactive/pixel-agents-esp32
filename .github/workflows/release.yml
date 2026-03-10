@@ -39,7 +39,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install PlatformIO
-        run: pip install platformio
+        run: pip install "click<8.2" platformio
 
       - name: Build CYD firmware
         run: pio run -e cyd-2432s028r
