@@ -25,17 +25,8 @@ struct PixelAgentsApp: App {
 
     @ViewBuilder
     private var menuBarLabel: some View {
-        switch bridge.connectionState {
-        case .connected:
-            Image(systemName: "person.fill")
-                .font(.system(size: 12))
-        case .connecting:
-            Image(systemName: "person.badge.clock")
-                .font(.system(size: 12))
-        case .disconnected:
-            Image(systemName: "person")
-                .font(.system(size: 12))
-        }
+        Image("MenuBarIcon")
+            .opacity(bridge.connectionState == .disconnected ? 0.5 : 1.0)
     }
 
     private func registerLifecycleObservers() {
