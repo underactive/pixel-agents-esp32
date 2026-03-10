@@ -64,6 +64,9 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     /// Set after UUID-based reconnect times out — skip UUID and rely on scan + auto-connect.
     private var skipUUIDReconnect = false
 
+    /// When true, next cleanupConnection preserves discoveredDevices (for manual disconnect).
+    private var keepDevicesOnCleanup = false
+
     /// Callback when connection is lost (for auto-reconnect).
     var onDisconnect: (() -> Void)?
 
@@ -168,6 +171,19 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
         cleanupConnection()
     }
 
+    /// Disconnect but preserve discovered devices so the user can reconnect manually.
+    func disconnectKeepDevices() {
+        keepDevicesOnCleanup = true
+        cancelPendingConnect()
+        if let peripheral = connectedPeripheral {
+            // Keep connectedPeripheral set so didDisconnectPeripheral's guard passes
+            // and cleanupConnection() consumes keepDevicesOnCleanup.
+            centralManager.cancelPeripheralConnection(peripheral)
+        } else {
+            cleanupConnection()
+        }
+    }
+
     func send(_ data: Data) -> Bool {
         guard let peripheral = connectedPeripheral,
               let rx = rxCharacteristic,
@@ -225,8 +241,11 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
         rxCharacteristic = nil
         connectedDeviceName = nil
         isConnected = false
-        // Clear stale peripheral references so reconnect triggers a fresh scan
-        discoveredDevices.removeAll()
+        if keepDevicesOnCleanup {
+            keepDevicesOnCleanup = false
+        } else {
+            discoveredDevices.removeAll()
+        }
     }
 }
 
@@ -307,6 +326,7 @@ extension BLETransport: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard error == nil, let services = peripheral.services else {
             NSLog("[BLE] Service discovery failed: %@", error?.localizedDescription ?? "no services")
+            centralManager.cancelPeripheralConnection(peripheral)
             cleanupConnection()
             onDisconnect?()
             return
@@ -319,6 +339,7 @@ extension BLETransport: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         guard error == nil, let characteristics = service.characteristics else {
             NSLog("[BLE] Characteristic discovery failed: %@", error?.localizedDescription ?? "no characteristics")
+            centralManager.cancelPeripheralConnection(peripheral)
             cleanupConnection()
             onDisconnect?()
             return
