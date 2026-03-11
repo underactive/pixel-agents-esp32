@@ -1,5 +1,6 @@
 #pragma once
 #include "config.h"
+#include "sound.h"
 #include <stdint.h>
 
 struct PathNode {
@@ -43,8 +44,11 @@ struct Character {
     bool activityCooldown;        // force normal wander before next activity
 
     // Speech bubble
-    uint8_t bubbleType;       // 0=none, 1=permission, 2=waiting
+    uint8_t bubbleType;       // 0=none, 1=permission, 2=waiting, 3=info
     float bubbleTimer;
+
+    // Sound
+    bool hasPlayedJobSound;   // true once typing sound plays for this active job
 
     // Spawn/despawn effect
     float effectTimer;
@@ -87,6 +91,7 @@ struct Pet {
     float targetPickTimer;    // countdown to pick new follow target
     float repathTimer;        // re-pathfind interval during FOLLOW
     int8_t followTarget;      // character index to follow, -1 if none
+    SoundId pendingSound;     // SoundId::COUNT = none pending
     int8_t lastTargetCol;     // last known target tile (for hysteresis)
     int8_t lastTargetRow;
 
@@ -136,6 +141,8 @@ public:
     DogSettings getDogSettings() const { return _dogSettings; }
     void setDogEnabled(bool enabled);
     void setDogColor(DogColor color);
+    SoundId consumePendingSound();
+    void queueSound(SoundId id);  // single-slot, last-writer-wins; consumed once per frame
     bool isMenuOpen() const { return _menuOpen; }
     void toggleMenu() { _menuOpen = !_menuOpen; }
     void closeMenu() { _menuOpen = false; }

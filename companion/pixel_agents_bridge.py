@@ -64,6 +64,7 @@ STATE_DESPAWN = 6
 POLL_INTERVAL_SEC = 0.25  # 4 Hz
 HEARTBEAT_INTERVAL_SEC = 2.0
 STALE_AGENT_TIMEOUT_SEC = 30.0
+PERMISSION_DETECT_SEC = 1.0  # seconds after tool_use with no new records → assume permission prompt
 SERIAL_BAUD = 115200
 MAX_TOOL_NAME_LEN = 24
 USAGE_STATS_INTERVAL_SEC = 10.0
@@ -249,6 +250,7 @@ class AgentTracker:
                 "last_seen": time.time(),
                 "active_tools": set(),
                 "had_tool_in_turn": False,
+                "tool_use_ts": 0,  # timestamp of last tool_use with stop_reason=="tool_use"
             }
             self.agents[project_key] = agent
         return self.agents[project_key]
@@ -395,6 +397,9 @@ def derive_state(record: dict, agent: dict) -> Optional[tuple]:
         if has_tool_use:
             agent["had_tool_in_turn"] = True
             agent["active_tools"].add(tool_name)
+            # Track when model emits tool_use and ends its turn (waiting for results)
+            if stop_reason == "tool_use":
+                agent["tool_use_ts"] = time.time()
             if tool_name in READING_TOOLS:
                 return (STATE_READ, tool_name)
             else:
@@ -403,6 +408,7 @@ def derive_state(record: dict, agent: dict) -> Optional[tuple]:
         if stop_reason == "end_turn":
             agent["had_tool_in_turn"] = False
             agent["active_tools"].clear()
+            agent["tool_use_ts"] = 0
             return (STATE_IDLE, "")
 
     elif rec_type == "user":
@@ -411,13 +417,15 @@ def derive_state(record: dict, agent: dict) -> Optional[tuple]:
 
         for block in content:
             if isinstance(block, dict) and block.get("type") == "tool_result":
-                pass  # Tool results processed; state derived from next assistant message
+                agent["tool_use_ts"] = 0  # tool executed, no longer waiting
+                break
 
     elif rec_type == "system":
         # Check for turn completion
         if "turn_duration" in record:
             agent["had_tool_in_turn"] = False
             agent["active_tools"].clear()
+            agent["tool_use_ts"] = 0
             return (STATE_IDLE, "")
 
     return None
@@ -817,27 +825,38 @@ class PixelAgentsBridge:
             agent["last_seen"] = time.time()
 
             records = self.watcher.read_new_lines(filepath)
-            if not records:
-                continue
 
-            for record in records:
-                if source == SOURCE_CODEX:
-                    result = derive_codex_state(record, agent)
-                else:
-                    result = derive_state(record, agent)
-                if result is None:
-                    continue
+            if records:
+                for record in records:
+                    if source == SOURCE_CODEX:
+                        result = derive_codex_state(record, agent)
+                    else:
+                        result = derive_state(record, agent)
+                    if result is None:
+                        continue
 
-                new_state, tool_name = result
-                state_key = (new_state, tool_name)
+                    new_state, tool_name = result
+                    state_key = (new_state, tool_name)
 
-                # Only send if state actually changed
-                if self.last_states.get(project_key) != state_key:
-                    self.last_states[project_key] = state_key
-                    agent["state"] = new_state
-                    agent["tool_name"] = tool_name
-                    msg = build_agent_update(agent["id"], new_state, tool_name)
-                    self.send(msg)
+                    # Only send if state actually changed
+                    if self.last_states.get(project_key) != state_key:
+                        self.last_states[project_key] = state_key
+                        agent["state"] = new_state
+                        agent["tool_name"] = tool_name
+                        msg = build_agent_update(agent["id"], new_state, tool_name)
+                        self.send(msg)
+            else:
+                # No new records — check if agent is waiting for tool permission
+                tool_use_ts = agent.get("tool_use_ts", 0)
+                if tool_use_ts and time.time() - tool_use_ts > PERMISSION_DETECT_SEC:
+                    state_key = (STATE_TYPE, "PERMISSION")
+                    if self.last_states.get(project_key) != state_key:
+                        self.last_states[project_key] = state_key
+                        agent["state"] = STATE_TYPE
+                        agent["tool_name"] = "PERMISSION"
+                        msg = build_agent_update(agent["id"], STATE_TYPE, "PERMISSION")
+                        self.send(msg)
+                    agent["tool_use_ts"] = 0  # sent once, don't re-trigger
 
         # Prune stale agents and notify firmware
         removed = self.tracker.prune_stale(STALE_AGENT_TIMEOUT_SEC)

@@ -85,6 +85,7 @@
 - [ ] "Waiting for companion..." appears as last log line before connection
 - [ ] Starting companion → "Connected!" appears in the boot log
 - [ ] Splash holds for ~3 seconds after "Connected!" while character keeps animating
+- [ ] CYD-S3: startup sound plays once when the splash transitions to the office after first connection
 - [ ] Screen fades to black (backlight dims), then fades back in showing the office scene
 - [ ] Office scene renders correctly after fade-in (characters visible, status bar active)
 - [ ] CYD: splash layout accommodates taller screen (320x240), more log lines visible
@@ -133,6 +134,7 @@
 - [ ] Dog depth-sorts correctly with characters (behind higher-Y characters, in front of lower-Y)
 - [ ] Dog wanders to random tiles during WANDER phase (2-6s pauses between moves)
 - [ ] Dog follows a character during FOLLOW phase (stays within ~5 tiles)
+- [ ] CYD-S3: dog bark sound plays when a new follow target is selected
 - [ ] Dog does not walk through walls or furniture (respects BFS pathfinding)
 - [ ] Dog walks smoothly between tiles (no teleporting or jittering)
 - [ ] `python3 tools/convert_dog.py` generates 4 color headers + master `firmware/src/sprites/dog.h` without errors
@@ -300,6 +302,26 @@
 - [ ] Spawn/despawn matrix effect renders smoothly across strip boundaries
 - [ ] Dog pet renders correctly when crossing strip boundaries
 - [ ] FPS is acceptable in strip mode (~15 FPS target)
+
+### Sound Effects (CYD-S3 Only)
+- [ ] Startup sound plays on splash-to-office transition (CYD-S3)
+- [ ] Dog bark plays when dog picks new follow target (CYD-S3)
+- [ ] Short sound (bark) preempts long sound (startup) if triggered during playback
+- [ ] No sound output or crash on CYD / LILYGO builds (no HAS_SOUND)
+- [ ] `python3 tools/convert_sound.py assets/sounds/dragon-studio-dog-bark-494308.mp3` generates valid header
+- [ ] `python3 tools/convert_sound.py assets/sounds/*.mp3` batch mode generates all headers without error
+- [ ] `python3 tools/convert_sound.py -n custom_name assets/sounds/dragon-studio-dog-bark-494308.mp3` produces `custom_name_pcm.h`
+- [ ] `python3 tools/convert_sound.py` with no args prints usage and exits non-zero
+- [ ] Amp is silent (no pop/hiss) when no sound is playing (CYD-S3)
+- [ ] Keyboard typing sound plays on agent's first TYPE transition per job (CYD-S3)
+- [ ] Keyboard typing sound does NOT replay on TYPE→READ→TYPE within the same job (CYD-S3)
+- [ ] Notification click sound plays when agent finishes turn and goes IDLE (CYD-S3)
+- [ ] Pop sound plays when agent is waiting for tool permission approval (CYD-S3)
+- [ ] Permission bubble appears above character when companion sends TYPE with "PERMISSION" tool name
+- [ ] Permission bubble persists until agent state changes (not timed)
+- [ ] Waiting bubble appears above character when agent goes IDLE
+- [ ] Python companion detects permission prompt after ~1s of no new JSONL records following tool_use with stop_reason="tool_use"
+- [ ] Auto-approved tools (tool_result within <1s) do NOT trigger permission detection
 
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)

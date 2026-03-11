@@ -2,7 +2,7 @@
 
 All notable changes to Pixel Agents are documented here.
 
-## [0.9.0] - 2026-03-10
+## [0.9.0] - 2026-03-11
 
 - Add OpenAI Codex CLI support: watch `~/.codex/sessions/` rollout files alongside Claude Code transcripts
 - Both Python companion and macOS companion support Claude Code + Codex CLI simultaneously
@@ -15,6 +15,14 @@ All notable changes to Pixel Agents are documented here.
 - Unify LED ambient system across CYD (PWM) and CYD-S3 (NeoPixel) with `HAS_LED` abstraction
 - Fix TFT_eSPI SPI register address bug on ESP32-S3 with pioarduino (`USE_FSPI_PORT` workaround)
 - Fix ILI9341 color inversion on S3 CYD panel variant (`TFT_INVERSION_ON`)
+- Add event-driven sound system on CYD-S3 (I2S + ES8311 codec): table-driven SoundId enum with 5 clips
+  - Startup chime on splash → office transition
+  - Dog bark when dog picks a new follow target
+  - Keyboard typing sound on agent's first tool call per job
+  - Notification click when agent finishes turn (waiting for user input)
+  - Pop sound when agent is waiting for tool permission approval
+- Add `tools/convert_sound.py` for MP3 → C PCM header conversion (ffmpeg-based, batch mode)
+- Add permission bubble detection in Python companion: timeout-based heuristic detects when an agent is waiting for tool approval
 
 ## [0.8.8] - 2026-03-10
 
