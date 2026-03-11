@@ -1319,7 +1319,12 @@ void OfficeState::setUsageStats(uint8_t curPct, uint8_t wkPct, uint16_t curReset
 
 void OfficeState::loadSettings() {
     Preferences prefs;
-    prefs.begin("pixelagent", true);  // read-only
+    if (!prefs.begin("pixelagent", true)) {
+        _dogSettings.enabled = true;
+        _dogSettings.color = DOG_DEFAULT_COLOR;
+        _screenFlipped = false;
+        return;
+    }
     _dogSettings.enabled = prefs.getBool("dogOn", true);
     uint8_t colorVal = prefs.getUChar("dogColor", static_cast<uint8_t>(DOG_DEFAULT_COLOR));
     if (colorVal < DOG_COLOR_COUNT) {

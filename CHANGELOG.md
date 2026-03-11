@@ -10,6 +10,11 @@ All notable changes to Pixel Agents are documented here.
 - Codex state deriver handles `codex exec --json` events and `RolloutLine` envelope formats
 - Read/write detection uses command-name heuristic for Codex shell commands
 - No firmware changes needed — binary protocol is source-agnostic
+- Add ESP32-S3 CYD board support (`freenove-s3-28c`): 2.8" ILI9341, FT6336G capacitive touch, BLE, 16MB flash
+- Add WS2812B NeoPixel LED support on CYD-S3 (GPIO 42) with Adafruit NeoPixel library
+- Unify LED ambient system across CYD (PWM) and CYD-S3 (NeoPixel) with `HAS_LED` abstraction
+- Fix TFT_eSPI SPI register address bug on ESP32-S3 with pioarduino (`USE_FSPI_PORT` workaround)
+- Fix ILI9341 color inversion on S3 CYD panel variant (`TFT_INVERSION_ON`)
 
 ## [0.8.8] - 2026-03-10
 

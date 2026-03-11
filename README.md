@@ -39,15 +39,20 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 ## Hardware
 
-Either board works out of the box — just pick the right PlatformIO environment.
+Any of the boards below work out of the box — just pick the right PlatformIO environment.
 
-**Option A (recommended):** ESP32-2432S028R "Cheap Yellow Display" (CYD) (~$12)
+**Option A (recommended):** [Freenove ESP32-S3 ESP32 S3 Capacitive Touch Display CYD](https://www.amazon.com/dp/B0D8W9DSYZ) (~$12)
 - ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
 - 320x240 landscape → 20x14 tile grid (more room for wandering)
 - Touch input for cycling status modes, hamburger menu for dog settings
 - Build env: `cyd-2432s028r`
 
-**Option B:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
+**Option B:** [ESP32-S3 2.8" CYD (Black PCB) Capacitive](https://www.amazon.com/dp/B0FKG7WRWV)  (~$15)
+- ESP32-S3, 2.8" ILI9341 (240x320), FT6336G capacitive touch, USB-C, 16MB flash, 8MB PSRAM
+- Same 320x240 landscape → 20x14 tile grid as Option A, with capacitive touch + BLE
+- Build env: `freenove-s3-28c`
+
+**Option C:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
 - ESP32-S3, built-in 1.9" IPS display (170x320, ST7789), USB-C
 - 320x170 landscape → 20x10 tile grid
 - Build env: `lilygo-t-display-s3`
@@ -89,6 +94,9 @@ cd firmware
 
 # For CYD (ESP32-2432S028R):
 pio run -e cyd-2432s028r --target upload
+
+# For CYD S3 Capacitive:
+pio run -e freenove-s3-28c --target upload
 
 # For LILYGO T-Display S3:
 pio run -e lilygo-t-display-s3 --target upload
@@ -282,10 +290,10 @@ python3 -m http.server 8000
 
 ### Board Selection
 
-A dropdown at the top switches between the two supported boards. Each has a different grid size:
+A dropdown at the top switches between the supported boards. Each has a different grid size:
 
 - **LILYGO T-Display S3** — 20x10 tile grid (320x170 px)
-- **CYD ESP32-2432S028R** — 20x14 tile grid (320x240 px)
+- **CYD ESP32-2432S028R** / **CYD S3 Capacitive** — 20x14 tile grid (320x240 px)
 
 Switching boards resizes the canvas and adjusts the default layout accordingly.
 
@@ -376,10 +384,10 @@ pixel-agents-esp32/
       renderer.h/.cpp      # Display rendering
       splash.h/.cpp        # Animated boot splash screen
       transport.h/.cpp     # Transport abstraction (Serial, BLE)
-      ble_service.h/.cpp   # NimBLE BLE NUS server (CYD only)
+      ble_service.h/.cpp   # NimBLE BLE NUS server (CYD + CYD-S3)
       thermal_mgr.h/.cpp   # Junction temperature monitoring
-      touch_input.h/.cpp   # XPT2046 touch driver (CYD only)
-      led_ambient.h/.cpp   # RGB LED breathing effects (CYD only)
+      touch_input.h/.cpp   # Touch driver (CYD resistive + CYD-S3 capacitive)
+      led_ambient.h/.cpp   # RGB LED ambient effects (CYD PWM + CYD-S3 NeoPixel)
       sprites/             # Generated PROGMEM sprite data
         characters.h
         furniture.h

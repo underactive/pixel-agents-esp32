@@ -15,6 +15,7 @@
 		50E8221E52416C17A83A2904 /* StateDeriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED75B4AEF8F5AB6CD434A21 /* StateDeriverTests.swift */; };
 		5175A1A03056D0A505426A65 /* AgentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B0D27F0463B4A1F10B2D5C1 /* AgentState.swift */; };
 		700DEA01E5B526BBF7E0FA60 /* ProtocolBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1A8C89780115C27CFE09B3 /* ProtocolBuilder.swift */; };
+		7091BEBF6AE5D91EF57DD67A /* CodexStateDeriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281C9D7E3B64FC96D2BB97CC /* CodexStateDeriver.swift */; };
 		7472034F6C6FA4B83B2DBD60 /* AgentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68B10ACE3A166BA994784A90 /* AgentListView.swift */; };
 		7F35EF508F909ABDA2474B0B /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 447A0997ABF99A7C359177B4 /* MenuBarView.swift */; };
 		87395450A3C4FEEF1A576969 /* UsageStatsFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24DAB989BF4A571D341A0B4B /* UsageStatsFetcher.swift */; };
@@ -27,7 +28,6 @@
 		C519DBAC3964322414664A20 /* SerialPortDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC218E39B51EFD9E6F557B50 /* SerialPortDetector.swift */; };
 		C607D5C8D59A4FBF1F3CB246 /* AgentTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A0E18FA070179D39338E51 /* AgentTracker.swift */; };
 		C8E50E87E7C2DC8FF983CCD5 /* PixelAgentsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C69EBBAB869A5C7B4CBCCB /* PixelAgentsApp.swift */; };
-		CBA83E328DAA37A5CF112999 /* CodexStateDeriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C09ADF6AA0656F253C32B730 /* CodexStateDeriver.swift */; };
 		D42C285FD96B02A791B9510E /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B85FDDFE0320235F5D486A2 /* ScreenshotService.swift */; };
 		DC9926EF3720E5BC675F15B8 /* SerialTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC06DE2D390A4DE578AE3BC /* SerialTransport.swift */; };
 		E52835AE6B92902CC8990D45 /* BridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD7F6E2230B60E2B83CB8FF /* BridgeService.swift */; };
@@ -45,9 +45,9 @@
 
 /* Begin PBXFileReference section */
 		0B0D27F0463B4A1F10B2D5C1 /* AgentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentState.swift; sourceTree = "<group>"; };
-		C09ADF6AA0656F253C32B730 /* CodexStateDeriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexStateDeriver.swift; sourceTree = "<group>"; };
 		12E3D281E8ACAB797B0B4C1E /* BLETransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETransport.swift; sourceTree = "<group>"; };
 		24DAB989BF4A571D341A0B4B /* UsageStatsFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStatsFetcher.swift; sourceTree = "<group>"; };
+		281C9D7E3B64FC96D2BB97CC /* CodexStateDeriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexStateDeriver.swift; sourceTree = "<group>"; };
 		3B1A8C89780115C27CFE09B3 /* ProtocolBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolBuilder.swift; sourceTree = "<group>"; };
 		3ED75B4AEF8F5AB6CD434A21 /* StateDeriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateDeriverTests.swift; sourceTree = "<group>"; };
 		438D16E699ADC10874038173 /* ProtocolBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolBuilderTests.swift; sourceTree = "<group>"; };
@@ -112,7 +112,7 @@
 			children = (
 				0B0D27F0463B4A1F10B2D5C1 /* AgentState.swift */,
 				93A0E18FA070179D39338E51 /* AgentTracker.swift */,
-				C09ADF6AA0656F253C32B730 /* CodexStateDeriver.swift */,
+				281C9D7E3B64FC96D2BB97CC /* CodexStateDeriver.swift */,
 				3B1A8C89780115C27CFE09B3 /* ProtocolBuilder.swift */,
 				876E9601100F723B47900912 /* StateDeriver.swift */,
 				A19EC42F1372E6B78C30685C /* TranscriptWatcher.swift */,
@@ -254,7 +254,7 @@
 				C607D5C8D59A4FBF1F3CB246 /* AgentTracker.swift in Sources */,
 				042BD30E60B4CA6F32D59E6B /* BLETransport.swift in Sources */,
 				E52835AE6B92902CC8990D45 /* BridgeService.swift in Sources */,
-				CBA83E328DAA37A5CF112999 /* CodexStateDeriver.swift in Sources */,
+				7091BEBF6AE5D91EF57DD67A /* CodexStateDeriver.swift in Sources */,
 				B3394C29996D24D752C7BDCB /* ConnectionStatusView.swift in Sources */,
 				7F35EF508F909ABDA2474B0B /* MenuBarView.swift in Sources */,
 				C8E50E87E7C2DC8FF983CCD5 /* PixelAgentsApp.swift in Sources */,
