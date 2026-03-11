@@ -299,7 +299,7 @@ final class BridgeService: ObservableObject {
 
         for (transcript, source) in transcripts {
             let key = transcript.path
-            var agent = tracker.getOrCreate(key: key)
+            var agent = tracker.getOrCreate(key: key, source: source)
 
             // Update last seen
             tracker.update(key: key) { $0.lastSeen = Date() }
@@ -367,7 +367,7 @@ final class BridgeService: ObservableObject {
         let active = tracker.sortedAgents
         displayAgents = (0..<Self.maxDisplaySlots).map { i in
             if i < active.count {
-                return Agent(id: UInt8(i), state: active[i].state, toolName: active[i].toolName)
+                return Agent(id: UInt8(i), state: active[i].state, toolName: active[i].toolName, source: active[i].source)
             } else {
                 return Agent(id: UInt8(i), state: .offline)
             }

@@ -23,11 +23,18 @@ enum CharState: UInt8, CaseIterable {
     }
 }
 
+/// Identifies the source of a transcript file.
+enum TranscriptSource {
+    case claude
+    case codex
+}
+
 /// Tracks a single Claude Code agent session
 struct Agent: Identifiable {
     let id: UInt8
     var state: CharState = .idle
     var toolName: String = ""
+    var source: TranscriptSource = .claude
     var lastSeen: Date = Date()
     var activeTools: Set<String> = []
     var hadToolInTurn: Bool = false

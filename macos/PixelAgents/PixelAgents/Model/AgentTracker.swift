@@ -9,7 +9,7 @@ final class AgentTracker {
     private var recycledIds: [UInt8] = []
 
     /// Retrieve or create an agent for the given project key (transcript file path).
-    func getOrCreate(key: String) -> Agent {
+    func getOrCreate(key: String, source: TranscriptSource = .claude) -> Agent {
         if let existing = agents[key] {
             return existing
         }
@@ -20,7 +20,7 @@ final class AgentTracker {
             id = nextId
             nextId &+= 1 // wraps at 256
         }
-        let agent = Agent(id: id)
+        let agent = Agent(id: id, source: source)
         agents[key] = agent
         return agent
     }
