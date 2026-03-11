@@ -57,6 +57,9 @@ static constexpr int TARGET_FPS = 15;
 static constexpr int FRAME_MS = 1000 / TARGET_FPS;  // ~66ms
 static constexpr int STATUS_BAR_H = 10;  // pixels at bottom
 static constexpr int SITTING_OFFSET_PX = 6;
+// Speech bubbles: 0 means persist until state changes
+static constexpr float PERMISSION_BUBBLE_DURATION_SEC = 0.0f;
+static constexpr float WAITING_BUBBLE_DURATION_SEC = 0.0f;
 static constexpr int STRIP_HEIGHT = 30;  // Strip-buffer height for no-PSRAM fallback (19KB per strip)
 #if defined(BOARD_CYD)
 static_assert(SCREEN_H % STRIP_HEIGHT == 0, "CYD SCREEN_H must be a multiple of STRIP_HEIGHT");
@@ -300,6 +303,29 @@ static constexpr int   LED_BUSY_THRESHOLD     = 4;      // agents for BUSY mode
 static constexpr uint8_t LED_RATE_LIMIT_PCT   = 90;     // usage % to trigger rate-limited mode
 static constexpr uint8_t LED_ACTIVE_MIN_BRIGHT = 100;
 static constexpr uint8_t LED_ACTIVE_MAX_BRIGHT = 255;
+#endif
+
+// ── Audio / Speaker (CYD-S3) ────────────────────────────
+#if defined(BOARD_CYD_S3)
+#define HAS_SOUND 1
+// Freenove ESP32-S3 Display Board (FNK0104) I2S + ES8311 pins
+static constexpr int SOUND_I2S_MCK = 4;
+static constexpr int SOUND_I2S_BCK = 5;
+static constexpr int SOUND_I2S_DINT = 6;   // mic in (unused)
+static constexpr int SOUND_I2S_WS  = 7;
+static constexpr int SOUND_I2S_DOUT = 8;
+static constexpr int SOUND_AMP_ENABLE = 1; // AP_ENABLE
+static constexpr bool SOUND_AMP_ENABLE_ACTIVE_LOW = true;
+static constexpr int SOUND_I2C_SCL = 15;
+static constexpr int SOUND_I2C_SDA = 16;
+static constexpr int SOUND_I2C_FREQ = 100000;
+static constexpr int SOUND_SAMPLE_RATE = 24000;
+static constexpr int SOUND_MCLK_MULT = 256;
+static constexpr int SOUND_VOLUME_PCT = 70;
+static constexpr int SOUND_I2S_DMA_BUF_COUNT = 12;
+static constexpr int SOUND_I2S_DMA_BUF_LEN = 512;
+static constexpr int SOUND_PCM_CHUNK_SAMPLES = 512;
+static constexpr int SOUND_I2S_PREFILL_CHUNKS = 4;
 #endif
 
 // ── BLE ─────────────────────────────────────────────────

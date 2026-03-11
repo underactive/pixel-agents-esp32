@@ -352,6 +352,7 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
         ch.idleActivity = IdleActivity::NONE;
         ch.activityTimer = 0;
         ch.activityCooldown = false;
+        ch.hasPlayedJobSound = false;
         // Release seat
         ch.seatIdx = -1;
         walkToZone(ch);
@@ -377,6 +378,12 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
     }
 
     ch.isActive = (state == CharState::TYPE || state == CharState::READ);
+
+    // Queue typing sound on first TYPE transition in this job
+    if (state == CharState::TYPE && !ch.hasPlayedJobSound) {
+        ch.hasPlayedJobSound = true;
+        queueSound(SoundId::KEYBOARD_TYPE);
+    }
 
     // Determine actual animation state from protocol state
     if (state == CharState::TYPE || state == CharState::READ) {
@@ -410,6 +417,7 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
         }
         // Mark inactive -- updateCharacter() will handle the transition to zone walk
         ch.isActive = false;
+        ch.hasPlayedJobSound = false;
         ch.bubbleType = 0;
         ch.bubbleTimer = 0;
     }
@@ -417,10 +425,12 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
     // Handle bubble for special states
     if (state == CharState::TYPE && toolName && strcmp(toolName, "PERMISSION") == 0) {
         ch.bubbleType = 1; // permission
-        ch.bubbleTimer = 10.0f;
+        ch.bubbleTimer = PERMISSION_BUBBLE_DURATION_SEC;
+        queueSound(SoundId::MINIMAL_POP);
     } else if (state == CharState::IDLE) {
         ch.bubbleType = 2; // waiting
-        ch.bubbleTimer = 2.0f;
+        ch.bubbleTimer = WAITING_BUBBLE_DURATION_SEC;
+        queueSound(SoundId::NOTIFICATION_CLICK);
     } else {
         ch.bubbleType = 0;
     }
@@ -439,7 +449,13 @@ void OfficeState::onHeartbeat() {
 bool OfficeState::checkHeartbeat(uint32_t nowMs) {
     if (_lastHeartbeatMs == 0) return false;
     if (nowMs - _lastHeartbeatMs > HEARTBEAT_TIMEOUT_MS) {
-        _connected = false;
+        if (_connected) {
+            _connected = false;
+            for (int i = 0; i < MAX_AGENTS; i++) {
+                _chars[i].bubbleType = 0;
+                _chars[i].bubbleTimer = 0;
+            }
+        }
         return false;
     }
     return true;
@@ -534,8 +550,10 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
                 ch.state = CharState::IDLE;
                 ch.frame = 0;
                 ch.frameTimer = 0;
-                ch.bubbleType = 0;
-                ch.bubbleTimer = 0;
+                if (ch.bubbleType == 0) {
+                    ch.bubbleType = 2; // waiting
+                    ch.bubbleTimer = WAITING_BUBBLE_DURATION_SEC;
+                }
                 ch.seatIdx = -1;
                 walkToZone(ch);
             }
@@ -1027,6 +1045,7 @@ void OfficeState::initPet() {
     _pet.napTimer = DOG_NAP_INTERVAL_SEC;
     _pet.targetPickTimer = DOG_PICK_TARGET_SEC;
     _pet.followTarget = -1;
+    _pet.pendingSound = SoundId::COUNT;
     _pet.lastTargetCol = -1;
     _pet.lastTargetRow = -1;
     _pet.wanderTimer = randomRange(DOG_WANDER_PAUSE_MIN_SEC, DOG_WANDER_PAUSE_MAX_SEC);
@@ -1078,15 +1097,20 @@ void OfficeState::petWander() {
 
 void OfficeState::petPickTarget() {
     // Pick a random alive character
+    int8_t prevTarget = _pet.followTarget;
     int candidates[MAX_AGENTS];
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (_chars[i].alive) candidates[count++] = i;
     }
     if (count > 0) {
-        _pet.followTarget = (int8_t)candidates[randomInt(0, count - 1)];
-        _pet.lastTargetCol = -1;
-        _pet.lastTargetRow = -1;
+        int8_t nextTarget = (int8_t)candidates[randomInt(0, count - 1)];
+        if (nextTarget != prevTarget) {
+            _pet.followTarget = nextTarget;
+            _pet.lastTargetCol = -1;
+            _pet.lastTargetRow = -1;
+            queueSound(SoundId::DOG_BARK);
+        }
     }
 }
 
@@ -1351,6 +1375,8 @@ void OfficeState::setDogEnabled(bool enabled) {
     saveSettings();
     if (enabled) {
         initPet();
+    } else {
+        _pet.pendingSound = SoundId::COUNT;  // clear any queued sound
     }
 }
 
@@ -1365,6 +1391,16 @@ void OfficeState::setDogColor(DogColor color) {
     if (_dogSettings.color == color) return;
     _dogSettings.color = color;
     saveSettings();
+}
+
+SoundId OfficeState::consumePendingSound() {
+    SoundId id = _pet.pendingSound;
+    _pet.pendingSound = SoundId::COUNT;
+    return id;
+}
+
+void OfficeState::queueSound(SoundId id) {
+    _pet.pendingSound = id;
 }
 
 bool OfficeState::hitTestHamburger(int screenX, int screenY) const {

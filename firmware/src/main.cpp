@@ -30,6 +30,9 @@ TouchInput touchInput;
 #if defined(HAS_LED)
 LedAmbient ledAmbient;
 #endif
+#if defined(HAS_SOUND)
+SoundPlayer sound;
+#endif
 #if defined(HAS_BLE)
 Protocol bleProtocol;
 BleTransport bleTransport;
@@ -132,6 +135,11 @@ void setup() {
     splash.addLog("LED ambient ready");
 #endif
 
+#if defined(HAS_SOUND)
+    sound.begin();
+    splash.addLog("Audio ready");
+#endif
+
     splash.addLog("Waiting for companion...", true);
 
     lastFrameMs = millis();
@@ -144,6 +152,9 @@ void loop() {
     serialProtocol.process(serialTransport);
 #if defined(HAS_BLE)
     bleProtocol.process(bleTransport);
+#endif
+#if defined(HAS_SOUND)
+    sound.update();
 #endif
 
     // Splash screen mode: animate character + wait for connection
@@ -160,6 +171,9 @@ void loop() {
 #if defined(HAS_BLE)
                 bleProtocol.process(bleTransport);
 #endif
+#if defined(HAS_SOUND)
+                sound.update();
+#endif
             };
             splash.fadeOut(drainSerial);
             // Render first office frame while screen is dark
@@ -167,6 +181,9 @@ void loop() {
             float dt = 0.016f;
             office.update(dt);
             renderer.renderFrame(office);
+#if defined(HAS_SOUND)
+            sound.play(SoundId::STARTUP);
+#endif
             splash.fadeIn(drainSerial);
             splashActive = false;
             lastFrameMs = now;
@@ -193,6 +210,15 @@ void loop() {
 
     // Update office state
     office.update(dt);
+
+#if defined(HAS_SOUND)
+    {
+        SoundId pending = office.consumePendingSound();
+        if (pending != SoundId::COUNT) {
+            sound.play(pending);
+        }
+    }
+#endif
 
 #if defined(HAS_LED)
     // Update ambient LED based on office state
