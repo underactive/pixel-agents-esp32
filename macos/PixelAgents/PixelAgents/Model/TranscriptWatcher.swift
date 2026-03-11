@@ -1,8 +1,16 @@
 import Foundation
 
-/// Watches ~/.claude/projects/ for active JSONL transcript files and reads new lines incrementally.
+/// Identifies the source of a transcript file.
+enum TranscriptSource {
+    case claude
+    case codex
+}
+
+/// Watches Claude Code and Codex CLI directories for active JSONL transcript files
+/// and reads new lines incrementally.
 final class TranscriptWatcher {
-    private let projectsDir: URL
+    private let claudeProjectsDir: URL
+    private let codexSessionsDir: URL
     private var fileOffsets: [String: UInt64] = [:]
     private var fsEventStream: FSEventStreamRef?
     private var onFilesChanged: (() -> Void)?
@@ -11,8 +19,9 @@ final class TranscriptWatcher {
     private let recencyWindow: TimeInterval = 300 // 5 minutes
 
     init() {
-        self.projectsDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/projects")
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        self.claudeProjectsDir = home.appendingPathComponent(".claude/projects")
+        self.codexSessionsDir = home.appendingPathComponent(".codex/sessions")
     }
 
     deinit {
@@ -21,15 +30,23 @@ final class TranscriptWatcher {
 
     // MARK: - FSEvents monitoring
 
-    /// Start FSEvents monitoring on the projects directory.
+    /// Start FSEvents monitoring on both transcript directories.
     func startMonitoring(onChanged: @escaping () -> Void) {
         self.onFilesChanged = onChanged
-        guard FileManager.default.fileExists(atPath: projectsDir.path) else { return }
+
+        var paths: [String] = []
+        if FileManager.default.fileExists(atPath: claudeProjectsDir.path) {
+            paths.append(claudeProjectsDir.path)
+        }
+        if FileManager.default.fileExists(atPath: codexSessionsDir.path) {
+            paths.append(codexSessionsDir.path)
+        }
+        guard !paths.isEmpty else { return }
 
         var context = FSEventStreamContext()
         context.info = Unmanaged.passUnretained(self).toOpaque()
 
-        let pathsToWatch = [projectsDir.path] as CFArray
+        let pathsToWatch = paths as CFArray
         let flags: FSEventStreamCreateFlags =
             UInt32(kFSEventStreamCreateFlagUseCFTypes) |
             UInt32(kFSEventStreamCreateFlagFileEvents) |
@@ -66,16 +83,29 @@ final class TranscriptWatcher {
 
     // MARK: - Transcript discovery
 
-    /// Find active JSONL transcript files (modified within the last 5 minutes).
-    func findActiveTranscripts() -> [URL] {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: projectsDir.path) else { return [] }
+    /// Find active JSONL transcript files from all sources (modified within the last 5 minutes).
+    func findActiveTranscripts() -> [(URL, TranscriptSource)] {
+        var results: [(URL, TranscriptSource)] = []
+        results.append(contentsOf: findClaudeTranscripts())
+        results.append(contentsOf: findCodexTranscripts())
 
-        var results: [URL] = []
+        // Prune fileOffsets for files no longer active
+        let activePaths = Set(results.map { $0.0.path })
+        fileOffsets = fileOffsets.filter { activePaths.contains($0.key) }
+
+        return results
+    }
+
+    /// Find active Claude Code transcripts in ~/.claude/projects/
+    private func findClaudeTranscripts() -> [(URL, TranscriptSource)] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: claudeProjectsDir.path) else { return [] }
+
+        var results: [(URL, TranscriptSource)] = []
         let cutoff = Date().addingTimeInterval(-recencyWindow)
 
         guard let subdirs = try? fm.contentsOfDirectory(
-            at: projectsDir,
+            at: claudeProjectsDir,
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         ) else { return [] }
@@ -95,13 +125,67 @@ final class TranscriptWatcher {
                 guard let attrs = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
                       let modDate = attrs.contentModificationDate,
                       modDate > cutoff else { continue }
-                results.append(file)
+                results.append((file, .claude))
             }
         }
 
-        // Prune fileOffsets for files no longer active
-        let activePaths = Set(results.map { $0.path })
-        fileOffsets = fileOffsets.filter { activePaths.contains($0.key) }
+        return results
+    }
+
+    /// Find active Codex CLI rollout files in ~/.codex/sessions/YYYY/MM/DD/
+    private func findCodexTranscripts() -> [(URL, TranscriptSource)] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: codexSessionsDir.path) else { return [] }
+
+        var results: [(URL, TranscriptSource)] = []
+        let cutoff = Date().addingTimeInterval(-recencyWindow)
+
+        // Walk YYYY/MM/DD directory structure
+        guard let yearDirs = try? fm.contentsOfDirectory(
+            at: codexSessionsDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        for yearDir in yearDirs {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: yearDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            guard let monthDirs = try? fm.contentsOfDirectory(
+                at: yearDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+
+            for monthDir in monthDirs {
+                guard fm.fileExists(atPath: monthDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+                guard let dayDirs = try? fm.contentsOfDirectory(
+                    at: monthDir,
+                    includingPropertiesForKeys: nil,
+                    options: [.skipsHiddenFiles]
+                ) else { continue }
+
+                for dayDir in dayDirs {
+                    guard fm.fileExists(atPath: dayDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+                    guard let files = try? fm.contentsOfDirectory(
+                        at: dayDir,
+                        includingPropertiesForKeys: [.contentModificationDateKey],
+                        options: [.skipsHiddenFiles]
+                    ) else { continue }
+
+                    for file in files {
+                        guard file.pathExtension == "jsonl",
+                              file.lastPathComponent.hasPrefix("rollout-") else { continue }
+                        guard let attrs = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
+                              let modDate = attrs.contentModificationDate,
+                              modDate > cutoff else { continue }
+                        results.append((file, .codex))
+                    }
+                }
+            }
+        }
 
         return results
     }

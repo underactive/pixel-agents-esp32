@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.0] - 2026-03-10
+
+- Add OpenAI Codex CLI support: watch `~/.codex/sessions/` rollout files alongside Claude Code transcripts
+- Both Python companion and macOS companion support Claude Code + Codex CLI simultaneously
+- Each active session (from either source) appears as a separate character on the ESP32 display
+- Codex state deriver handles `codex exec --json` events and `RolloutLine` envelope formats
+- Read/write detection uses command-name heuristic for Codex shell commands
+- No firmware changes needed — binary protocol is source-agnostic
+
 ## [0.8.8] - 2026-03-10
 
 - Fix agent IDs >= 6 silently rejected by firmware (conflated protocol IDs with array indices)

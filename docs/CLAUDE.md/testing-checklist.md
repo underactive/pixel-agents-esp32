@@ -238,6 +238,18 @@
 - [ ] Multiple characters can perform activities simultaneously without overlap at interaction points
 - [ ] Characters face correct direction during activities (UP for furniture, toward target for socializing)
 
+### Codex CLI Support
+- [ ] With Codex CLI running: rollout file appears in `~/.codex/sessions/YYYY/MM/DD/` and companion picks it up within 5 seconds
+- [ ] Codex agent appears as a separate character on the ESP32 display alongside any Claude Code agents
+- [ ] Codex `command_execution` events show the shell command name on the status bar (e.g., "grep", "cat")
+- [ ] Codex read commands (cat, grep, find, ls, etc.) display character in READ pose
+- [ ] Codex write commands display character in TYPE pose
+- [ ] Codex turn completion returns character to IDLE (wander) behavior
+- [ ] Running Claude Code and Codex CLI simultaneously shows both as separate characters
+- [ ] Stopping Codex CLI session causes character to go idle after 30s prune timeout
+- [ ] macOS companion correctly watches both `~/.claude/projects/` and `~/.codex/sessions/`
+- [ ] Python companion correctly watches both directories
+
 ### Stress Testing
 - [ ] 6 agents simultaneously — all render, no crashes
 - [ ] Rapid state changes (TYPE→IDLE→TYPE) — smooth transitions
