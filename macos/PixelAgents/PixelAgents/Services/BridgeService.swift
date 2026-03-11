@@ -297,7 +297,7 @@ final class BridgeService: ObservableObject {
 
         let transcripts = watcher.findActiveTranscripts()
 
-        for transcript in transcripts {
+        for (transcript, source) in transcripts {
             let key = transcript.path
             var agent = tracker.getOrCreate(key: key)
 
@@ -310,7 +310,15 @@ final class BridgeService: ObservableObject {
             for record in records {
                 agent = tracker.agents[key] ?? agent
 
-                if let (state, tool) = StateDeriver.derive(from: record, agent: &agent) {
+                let result: (CharState, String)?
+                switch source {
+                case .codex:
+                    result = CodexStateDeriver.derive(from: record, agent: &agent)
+                case .claude:
+                    result = StateDeriver.derive(from: record, agent: &agent)
+                }
+
+                if let (state, tool) = result {
                     // Write back all mutated agent fields
                     tracker.update(key: key) { a in
                         a.state = state

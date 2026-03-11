@@ -2,8 +2,8 @@
 """
 Pixel Agents Bridge — JSONL transcript watcher + ESP32 serial sender.
 
-Watches Claude Code JSONL transcript files and sends binary protocol
-messages to the ESP32 display over USB serial.
+Watches Claude Code and OpenAI Codex CLI transcript files and sends
+binary protocol messages to the ESP32 display over USB serial or BLE.
 
 Usage:
     python3 pixel_agents_bridge.py [--port /dev/cu.usbmodemXXXX]
@@ -71,9 +71,18 @@ USAGE_STATS_INTERVAL_SEC = 10.0
 # Tools that indicate reading behavior (vs typing/writing)
 READING_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 
-# Claude Code transcript directories
+# Transcript directories
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+CODEX_SESSIONS_DIR = Path.home() / ".codex" / "sessions"
 RATE_LIMITS_CACHE = Path.home() / ".claude" / "rate-limits-cache.json"
+
+# Transcript sources
+SOURCE_CLAUDE = "claude"
+SOURCE_CODEX = "codex"
+
+# Codex commands that indicate reading behavior
+CODEX_READING_COMMANDS = {"cat", "head", "tail", "less", "more", "grep", "rg",
+                          "find", "ls", "tree", "wc", "file", "stat", "diff"}
 
 
 def find_esp32_port() -> Optional[str]:
@@ -265,23 +274,71 @@ class TranscriptWatcher:
     def __init__(self):
         self.file_offsets: Dict[str, int] = {}  # filepath -> byte offset
 
-    def find_active_transcripts(self) -> List[Path]:
+    def find_active_transcripts(self) -> List[tuple]:
+        """Find active JSONL files from all supported sources.
+
+        Returns list of (path, source) tuples where source is SOURCE_CLAUDE or SOURCE_CODEX.
+        """
+        transcripts = []
+        transcripts.extend(self._find_claude_transcripts())
+        transcripts.extend(self._find_codex_transcripts())
+        return transcripts
+
+    def _find_claude_transcripts(self) -> List[tuple]:
         """Find JSONL files in Claude projects directory."""
         if not CLAUDE_PROJECTS_DIR.exists():
             return []
-        transcripts = []
+        results = []
         for project_dir in CLAUDE_PROJECTS_DIR.iterdir():
             if not project_dir.is_dir():
                 continue
             for jsonl_file in project_dir.glob("*.jsonl"):
-                # Only watch files modified recently (within 5 minutes)
                 try:
                     mtime = jsonl_file.stat().st_mtime
                     if time.time() - mtime < 300:
-                        transcripts.append(jsonl_file)
+                        results.append((jsonl_file, SOURCE_CLAUDE))
                 except OSError:
                     continue
-        return transcripts
+        return results
+
+    def _find_codex_transcripts(self) -> List[tuple]:
+        """Find rollout JSONL files in Codex sessions directory.
+
+        Codex stores sessions at ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
+        """
+        if not CODEX_SESSIONS_DIR.exists():
+            return []
+        results = []
+        # Walk date-structured directories
+        try:
+            year_dirs = list(CODEX_SESSIONS_DIR.iterdir())
+        except OSError:
+            return []
+        for year_dir in year_dirs:
+            if not year_dir.is_dir():
+                continue
+            try:
+                month_dirs = list(year_dir.iterdir())
+            except OSError:
+                continue
+            for month_dir in month_dirs:
+                if not month_dir.is_dir():
+                    continue
+                try:
+                    day_dirs = list(month_dir.iterdir())
+                except OSError:
+                    continue
+                for day_dir in day_dirs:
+                    if not day_dir.is_dir():
+                        continue
+                    for jsonl_file in day_dir.glob("rollout-*.jsonl"):
+                        try:
+                            mtime = jsonl_file.stat().st_mtime
+                            if time.time() - mtime < 300:
+                                results.append((jsonl_file, SOURCE_CODEX))
+                        except OSError:
+                            continue
+        return results
 
     def read_new_lines(self, filepath: Path) -> List[dict]:
         """Read new JSONL lines from a file since last read."""
@@ -364,6 +421,119 @@ def derive_state(record: dict, agent: dict) -> Optional[tuple]:
             return (STATE_IDLE, "")
 
     return None
+
+
+def derive_codex_state(record: dict, agent: dict) -> Optional[tuple]:
+    """
+    Derive agent state from a Codex CLI rollout JSONL record.
+    Returns (state, tool_name) or None if no change.
+
+    Handles two formats:
+    - codex exec --json events: type is "item.started", "turn.completed", etc.
+    - RolloutLine envelopes: type is "ResponseItem", "EventMsg", etc.
+    """
+    rec_type = record.get("type", "")
+
+    # ── codex exec --json format ──────────────────────────────
+    if rec_type == "item.started" or rec_type == "item.completed":
+        item = record.get("item", {})
+        item_type = item.get("type", "")
+
+        if item_type == "command_execution":
+            command = item.get("command", "")
+            tool_label = _codex_tool_label(command)
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add(tool_label)
+            if _is_codex_read_command(command):
+                return (STATE_READ, tool_label)
+            return (STATE_TYPE, tool_label)
+
+        if item_type == "file_change":
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add("Edit")
+            return (STATE_TYPE, "Edit")
+
+        if item_type == "mcp_tool_call":
+            tool = item.get("tool", "tool")
+            tool_label = tool[:MAX_TOOL_NAME_LEN]
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add(tool_label)
+            return (STATE_TYPE, tool_label)
+
+        if item_type == "web_search":
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add("WebSearch")
+            return (STATE_READ, "WebSearch")
+
+        # agent_message, reasoning, todo_list — no state change
+        return None
+
+    if rec_type == "turn.completed":
+        agent["had_tool_in_turn"] = False
+        agent["active_tools"].clear()
+        return (STATE_IDLE, "")
+
+    if rec_type == "turn.started":
+        # Turn beginning — no state change yet, wait for items
+        return None
+
+    # ── RolloutLine envelope format ───────────────────────────
+    if rec_type == "ResponseItem":
+        payload = record.get("payload", record)
+        # Look for function_call items in the payload
+        item_type = payload.get("type", "")
+        if item_type == "function_call":
+            name = payload.get("name", "tool")
+            tool_label = name[:MAX_TOOL_NAME_LEN] if name else "tool"
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add(tool_label)
+            return (STATE_TYPE, tool_label)
+        return None
+
+    if rec_type == "EventMsg":
+        payload = record.get("payload", record)
+        # token_count events may indicate turn completion
+        if "token_count" in payload or "token_count" in record:
+            return None
+        msg_type = payload.get("type", "")
+        if msg_type == "turn_complete" or msg_type == "turn.completed":
+            agent["had_tool_in_turn"] = False
+            agent["active_tools"].clear()
+            return (STATE_IDLE, "")
+        return None
+
+    return None
+
+
+def _strip_codex_command(command: str) -> str:
+    """Strip bash prefix and quotes from a Codex shell command."""
+    cmd = command
+    if cmd.startswith("bash "):
+        parts = cmd.split(None, 2)
+        cmd = parts[-1] if len(parts) > 1 else cmd
+    # Strip surrounding quotes (e.g. 'grep foo' or "cat bar")
+    cmd = cmd.strip()
+    if len(cmd) >= 2 and cmd[0] in ("'", '"') and cmd[-1] == cmd[0]:
+        cmd = cmd[1:-1]
+    return cmd
+
+
+def _codex_tool_label(command: str) -> str:
+    """Extract a short label from a Codex shell command for display."""
+    cmd = _strip_codex_command(command)
+    # Get the first word (the actual command)
+    first = cmd.strip().split()[0] if cmd.strip() else "shell"
+    # Remove path prefix
+    first = first.rsplit("/", 1)[-1]
+    return first[:MAX_TOOL_NAME_LEN]
+
+
+def _is_codex_read_command(command: str) -> bool:
+    """Check if a Codex shell command is a read-like operation."""
+    cmd = _strip_codex_command(command)
+    first_word = cmd.strip().split()[0] if cmd.strip() else ""
+    first_word = first_word.rsplit("/", 1)[-1]  # remove path
+    return first_word in CODEX_READING_COMMANDS
 
 
 class PixelAgentsBridge:
@@ -641,7 +811,7 @@ class PixelAgentsBridge:
         """Scan transcripts and send state updates."""
         transcripts = self.watcher.find_active_transcripts()
 
-        for filepath in transcripts:
+        for filepath, source in transcripts:
             project_key = str(filepath)
             agent = self.tracker.get_or_create(project_key)
             agent["last_seen"] = time.time()
@@ -651,7 +821,10 @@ class PixelAgentsBridge:
                 continue
 
             for record in records:
-                result = derive_state(record, agent)
+                if source == SOURCE_CODEX:
+                    result = derive_codex_state(record, agent)
+                else:
+                    result = derive_state(record, agent)
                 if result is None:
                     continue
 
@@ -683,6 +856,7 @@ class PixelAgentsBridge:
         print("Pixel Agents Bridge starting...")
         print(f"Transport: {self.transport_mode}")
         print(f"Watching: {CLAUDE_PROJECTS_DIR}")
+        print(f"Watching: {CODEX_SESSIONS_DIR}")
 
         use_keyboard = sys.stdin.isatty()
         old_settings = None
@@ -730,7 +904,7 @@ class PixelAgentsBridge:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Pixel Agents Bridge - Claude Code to ESP32")
+    parser = argparse.ArgumentParser(description="Pixel Agents Bridge - Claude Code & Codex CLI to ESP32")
     parser.add_argument("--port", type=str, default=None,
                         help="Serial port (auto-detected if not specified)")
     parser.add_argument("--transport", type=str, default="serial",
