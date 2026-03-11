@@ -1,4 +1,5 @@
-#if defined(BOARD_CYD)
+#include "config.h"
+#if defined(HAS_LED)
 #include "led_ambient.h"
 #include "office_state.h"
 #include <Arduino.h>
@@ -13,17 +14,27 @@ static const uint8_t SINE_LUT[32] PROGMEM = {
 };
 
 void LedAmbient::begin() {
+#if defined(LED_TYPE_PWM)
     ledcAttach(LED_PIN_R, LED_PWM_FREQ, LED_PWM_RES);
     ledcAttach(LED_PIN_G, LED_PWM_FREQ, LED_PWM_RES);
     ledcAttach(LED_PIN_B, LED_PWM_FREQ, LED_PWM_RES);
+#elif defined(LED_TYPE_NEOPIXEL)
+    _pixel.begin();
+    _pixel.setBrightness(128);
+#endif
     setRGB(0, 0, 0);
 }
 
 void LedAmbient::setRGB(uint8_t r, uint8_t g, uint8_t b) {
+#if defined(LED_TYPE_PWM)
     // Active-LOW: 255 - value inverts for common-anode LED
     ledcWrite(LED_PIN_R, 255 - r);
     ledcWrite(LED_PIN_G, 255 - g);
     ledcWrite(LED_PIN_B, 255 - b);
+#elif defined(LED_TYPE_NEOPIXEL)
+    _pixel.setPixelColor(0, _pixel.Color(r, g, b));
+    _pixel.show();
+#endif
 }
 
 LedMode LedAmbient::resolveMode(const OfficeState& office) const {

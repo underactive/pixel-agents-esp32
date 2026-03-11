@@ -1,13 +1,34 @@
 #pragma once
 #if defined(HAS_TOUCH)
-#include <SPI.h>
-#include <XPT2046_Touchscreen.h>
 #include "config.h"
 
 struct TouchEvent {
     bool tapped;
     int16_t x, y;
 };
+
+#if defined(CAP_TOUCH)
+// ── Capacitive touch (FT6336G over I2C) ──────────────────
+#include <Wire.h>
+
+class TouchInput {
+public:
+    void begin();
+    TouchEvent poll();
+    void setDisplayRotation(int rotation);
+private:
+    uint32_t _lastTapMs = 0;
+    bool _wasTouched = false;
+    int16_t _lastTouchX = 0;
+    int16_t _lastTouchY = 0;
+    int _rotation = 1;
+    bool readTouch(int16_t& x, int16_t& y);
+};
+
+#else
+// ── Resistive touch (XPT2046 over SPI) ───────────────────
+#include <SPI.h>
+#include <XPT2046_Touchscreen.h>
 
 class TouchInput {
 public:
@@ -22,4 +43,6 @@ private:
     int16_t _lastTouchX = 0;
     int16_t _lastTouchY = 0;
 };
+#endif
+
 #endif

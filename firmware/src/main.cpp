@@ -10,7 +10,7 @@
 #if defined(HAS_TOUCH)
 #include "touch_input.h"
 #endif
-#if defined(BOARD_CYD)
+#if defined(HAS_LED)
 #include "led_ambient.h"
 #endif
 #if defined(HAS_BLE)
@@ -27,7 +27,7 @@ SerialTransport serialTransport;
 #if defined(HAS_TOUCH)
 TouchInput touchInput;
 #endif
-#if defined(BOARD_CYD)
+#if defined(HAS_LED)
 LedAmbient ledAmbient;
 #endif
 #if defined(HAS_BLE)
@@ -74,6 +74,7 @@ void onScreenshotReq() {
 
 void setup() {
     Serial.begin(115200);
+    delay(3000); // Wait for USB-CDC
 
     // Initialize office state first so persisted settings (e.g. flip) are available
     office.init();
@@ -126,7 +127,7 @@ void setup() {
     splash.addLog("Touch input ready");
 #endif
 
-#if defined(BOARD_CYD)
+#if defined(HAS_LED)
     ledAmbient.begin();
     splash.addLog("LED ambient ready");
 #endif
@@ -193,7 +194,7 @@ void loop() {
     // Update office state
     office.update(dt);
 
-#if defined(BOARD_CYD)
+#if defined(HAS_LED)
     // Update ambient LED based on office state
     if (!thermalMgr.isThrottled()) {
         ledAmbient.update(office, dt);

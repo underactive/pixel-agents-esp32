@@ -4,7 +4,7 @@
 // ── Display ─────────────────────────────────────────────
 // Landscape orientation via setRotation(1)
 static constexpr int SCREEN_W = 320;
-#if defined(BOARD_CYD)
+#if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SCREEN_H = 240;
 #else
 static constexpr int SCREEN_H = 170;
@@ -13,7 +13,7 @@ static constexpr int SCREEN_H = 170;
 // ── Tile Grid ───────────────────────────────────────────
 static constexpr int TILE_SIZE = 16;
 static constexpr int GRID_COLS = 20;   // 320 / 16
-#if defined(BOARD_CYD)
+#if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int GRID_ROWS = 14;   // 240 / 16 = 15, minus 1 for status bar
 #else
 static constexpr int GRID_ROWS = 10;   // 170 / 16 = 10 (with 10px for status bar)
@@ -61,6 +61,7 @@ static constexpr int STRIP_HEIGHT = 30;  // Strip-buffer height for no-PSRAM fal
 #if defined(BOARD_CYD)
 static_assert(SCREEN_H % STRIP_HEIGHT == 0, "CYD SCREEN_H must be a multiple of STRIP_HEIGHT");
 #endif
+// CYD-S3: no strip_assert needed — has PSRAM for full-frame buffer
 
 // ── Serial Protocol ─────────────────────────────────────
 static constexpr uint8_t SYNC_BYTE_1 = 0xAA;
@@ -193,7 +194,7 @@ static constexpr int ZONE_BREAK_ROW_MAX = 4;
 // Library: reading nook area with seats
 static constexpr int ZONE_LIB_COL_MIN = 12;
 static constexpr int ZONE_LIB_COL_MAX = 19;
-#if defined(BOARD_CYD)
+#if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int ZONE_LIB_ROW_MIN = 8;
 static constexpr int ZONE_LIB_ROW_MAX = 13;
 #else
@@ -267,13 +268,23 @@ enum class DogColor : uint8_t { BLACK = 0, BROWN = 1, GRAY = 2, TAN = 3 };
 static constexpr int DOG_COLOR_COUNT = 4;
 static constexpr DogColor DOG_DEFAULT_COLOR = DogColor::BROWN;
 
-// ── RGB LED (CYD only) ──────────────────────────────────
+// ── RGB LED ──────────────────────────────────────────────
 #if defined(BOARD_CYD)
+// CYD: common-anode GPIO-driven RGB LED (active-low PWM)
+#define LED_TYPE_PWM 1
 static constexpr int LED_PIN_R = 4;
 static constexpr int LED_PIN_G = 16;
 static constexpr int LED_PIN_B = 17;
 static constexpr int LED_PWM_FREQ = 5000;    // 5kHz
 static constexpr int LED_PWM_RES  = 8;       // 8-bit (0-255)
+#elif defined(BOARD_CYD_S3)
+// CYD-S3: WS2812B addressable RGB LED on GPIO 42
+#define LED_TYPE_NEOPIXEL 1
+static constexpr int LED_NEOPIXEL_PIN = 42;
+#endif
+
+#if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
+#define HAS_LED 1
 
 enum class LedMode : uint8_t {
     OFF          = 0,
@@ -309,7 +320,7 @@ static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
 #define SPLASH_VERSION_STR "v0.9.0 (c) 2026 TARS Industrial Technical Solutions"
 
-#if defined(BOARD_CYD)
+#if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SPLASH_TITLE_Y = 15;
 static constexpr int SPLASH_CHAR_Y  = 48;
 static constexpr int SPLASH_LOG_Y   = 142;
@@ -352,9 +363,20 @@ static constexpr int SWATCH_W      = 16;   // each swatch width
 static constexpr int SWATCH_GAP    = 6;    // gap between swatches
 
 // CYD XPT2046 touch SPI pins (separate from display SPI)
+#if !defined(CAP_TOUCH)
 static constexpr int TOUCH_SPI_CLK  = 25;
 static constexpr int TOUCH_SPI_MISO = 39;
 static constexpr int TOUCH_SPI_MOSI = 32;
 static constexpr int TOUCH_SPI_CS   = 33;
 static constexpr int TOUCH_IRQ_PIN  = 36;
+#endif
+
+// CYD-S3 FT6336G capacitive touch I2C pins
+#if defined(CAP_TOUCH)
+static constexpr int CAP_TOUCH_PIN_SDA = 16;
+static constexpr int CAP_TOUCH_PIN_SCL = 15;
+static constexpr int CAP_TOUCH_PIN_INT = 21;   // best guess — may need adjustment
+static constexpr int CAP_TOUCH_PIN_RST = -1;   // likely tied to EN or not connected
+static constexpr uint8_t CAP_TOUCH_ADDR = 0x38; // FT6336G default I2C address
+#endif
 #endif
