@@ -31,6 +31,7 @@
 		D42C285FD96B02A791B9510E /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B85FDDFE0320235F5D486A2 /* ScreenshotService.swift */; };
 		DC9926EF3720E5BC675F15B8 /* SerialTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC06DE2D390A4DE578AE3BC /* SerialTransport.swift */; };
 		E52835AE6B92902CC8990D45 /* BridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD7F6E2230B60E2B83CB8FF /* BridgeService.swift */; };
+		F3E641EC0E17D9B2835FD2FB /* CodexStateDeriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0261890A2004A6CC8147EDEA /* CodexStateDeriverTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0261890A2004A6CC8147EDEA /* CodexStateDeriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexStateDeriverTests.swift; sourceTree = "<group>"; };
 		0B0D27F0463B4A1F10B2D5C1 /* AgentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentState.swift; sourceTree = "<group>"; };
 		12E3D281E8ACAB797B0B4C1E /* BLETransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETransport.swift; sourceTree = "<group>"; };
 		24DAB989BF4A571D341A0B4B /* UsageStatsFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStatsFetcher.swift; sourceTree = "<group>"; };
@@ -101,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				9AD99CE0598B3589EE999422 /* AgentTrackerTests.swift */,
+				0261890A2004A6CC8147EDEA /* CodexStateDeriverTests.swift */,
 				438D16E699ADC10874038173 /* ProtocolBuilderTests.swift */,
 				3ED75B4AEF8F5AB6CD434A21 /* StateDeriverTests.swift */,
 			);
@@ -277,6 +280,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2599D48A123D3BA4379EF977 /* AgentTrackerTests.swift in Sources */,
+				F3E641EC0E17D9B2835FD2FB /* CodexStateDeriverTests.swift in Sources */,
 				A3F384CFD310446731DDC1FC /* ProtocolBuilderTests.swift in Sources */,
 				50E8221E52416C17A83A2904 /* StateDeriverTests.swift in Sources */,
 			);

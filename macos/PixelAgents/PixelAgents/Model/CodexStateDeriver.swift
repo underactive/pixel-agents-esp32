@@ -1,7 +1,8 @@
 import Foundation
 
 /// Derives agent state from OpenAI Codex CLI rollout JSONL records.
-/// Handles both `codex exec --json` event format and `RolloutLine` envelope format.
+/// Handles three formats: `codex exec --json` events, current snake_case rollout,
+/// and legacy PascalCase `RolloutLine` envelopes.
 enum CodexStateDeriver {
 
     /// Shell commands that indicate reading behavior.
@@ -67,12 +68,71 @@ enum CodexStateDeriver {
             return nil
         }
 
-        // ── RolloutLine envelope format ───────────────────────
+        // ── Current rollout format (snake_case) ───────────────
+        if type == "response_item" {
+            let payload = record["payload"] as? [String: Any] ?? record
+            guard let payloadType = payload["type"] as? String else { return nil }
+
+            if payloadType == "function_call" {
+                let name = payload["name"] as? String ?? "tool"
+                if name == "exec_command" {
+                    let command = parseExecCommandArgs(payload)
+                    let label = command.isEmpty ? "exec_command" : toolLabel(from: command)
+                    agent.hadToolInTurn = true
+                    agent.activeTools.insert(label)
+                    if !command.isEmpty && isReadCommand(command) {
+                        return (.read, label)
+                    }
+                    return (.type, label)
+                } else {
+                    let label = String((name.isEmpty ? "tool" : name).prefix(maxToolNameLen))
+                    agent.hadToolInTurn = true
+                    agent.activeTools.insert(label)
+                    return (.type, label)
+                }
+            }
+
+            if payloadType == "custom_tool_call" {
+                let name = payload["name"] as? String ?? "tool"
+                let label = String((name.isEmpty ? "tool" : name).prefix(maxToolNameLen))
+                agent.hadToolInTurn = true
+                agent.activeTools.insert(label)
+                return (.type, label)
+            }
+
+            if payloadType == "web_search_call" {
+                agent.hadToolInTurn = true
+                agent.activeTools.insert("WebSearch")
+                return (.read, "WebSearch")
+            }
+
+            // reasoning, message, *_output — no state change
+            return nil
+        }
+
+        if type == "event_msg" {
+            let payload = record["payload"] as? [String: Any] ?? record
+            let payloadType = payload["type"] as? String ?? ""
+            if payloadType == "task_complete" || payloadType == "turn_aborted" {
+                agent.hadToolInTurn = false
+                agent.activeTools.removeAll()
+                return (.idle, "")
+            }
+            // task_started, agent_reasoning, token_count, etc. — no state change
+            return nil
+        }
+
+        // session_meta, turn_context, compacted — no state change
+        if type == "session_meta" || type == "turn_context" || type == "compacted" {
+            return nil
+        }
+
+        // ── Legacy RolloutLine envelope format (PascalCase) ───
         if type == "ResponseItem" {
             let payload = record["payload"] as? [String: Any] ?? record
             if let payloadType = payload["type"] as? String, payloadType == "function_call" {
                 let name = payload["name"] as? String ?? "tool"
-                let label = String(name.prefix(maxToolNameLen))
+                let label = String((name.isEmpty ? "tool" : name).prefix(maxToolNameLen))
                 agent.hadToolInTurn = true
                 agent.activeTools.insert(label)
                 return (.type, label)
@@ -95,6 +155,23 @@ enum CodexStateDeriver {
     }
 
     // MARK: - Helpers
+
+    /// Parse the `cmd` field from an `exec_command` function_call's `arguments`.
+    /// The `arguments` field may be a JSON string or a dict.
+    private static func parseExecCommandArgs(_ payload: [String: Any]) -> String {
+        if let argsStr = payload["arguments"] as? String, !argsStr.isEmpty {
+            guard let data = argsStr.data(using: .utf8),
+                  let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let cmd = parsed["cmd"] as? String else {
+                return ""
+            }
+            return cmd
+        }
+        if let argsDict = payload["arguments"] as? [String: Any] {
+            return argsDict["cmd"] as? String ?? ""
+        }
+        return ""
+    }
 
     /// Strip bash prefix and surrounding quotes from a Codex shell command.
     private static func stripCommand(_ command: String) -> String {

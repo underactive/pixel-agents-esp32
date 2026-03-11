@@ -436,9 +436,10 @@ def derive_codex_state(record: dict, agent: dict) -> Optional[tuple]:
     Derive agent state from a Codex CLI rollout JSONL record.
     Returns (state, tool_name) or None if no change.
 
-    Handles two formats:
+    Handles three formats:
     - codex exec --json events: type is "item.started", "turn.completed", etc.
-    - RolloutLine envelopes: type is "ResponseItem", "EventMsg", etc.
+    - Current rollout format (snake_case): type is "response_item", "event_msg", etc.
+    - Legacy RolloutLine envelopes (PascalCase): type is "ResponseItem", "EventMsg", etc.
     """
     rec_type = record.get("type", "")
 
@@ -485,7 +486,67 @@ def derive_codex_state(record: dict, agent: dict) -> Optional[tuple]:
         # Turn beginning — no state change yet, wait for items
         return None
 
-    # ── RolloutLine envelope format ───────────────────────────
+    # ── Current rollout format (snake_case) ───────────────────
+    if rec_type == "response_item":
+        payload = record.get("payload", record)
+        payload_type = payload.get("type", "")
+
+        if payload_type == "function_call":
+            name = payload.get("name", "tool")
+            if name == "exec_command":
+                # Parse arguments JSON string for the actual command
+                args_str = payload.get("arguments", "")
+                command = ""
+                if isinstance(args_str, str) and args_str:
+                    try:
+                        args = json.loads(args_str)
+                        command = args.get("cmd", "") if isinstance(args, dict) else ""
+                    except (json.JSONDecodeError, ValueError):
+                        command = ""
+                elif isinstance(args_str, dict):
+                    command = args_str.get("cmd", "")
+                tool_label = _codex_tool_label(command) if command else "exec_command"
+                agent["had_tool_in_turn"] = True
+                agent["active_tools"].add(tool_label)
+                if command and _is_codex_read_command(command):
+                    return (STATE_READ, tool_label)
+                return (STATE_TYPE, tool_label)
+            else:
+                tool_label = (name or "tool")[:MAX_TOOL_NAME_LEN]
+                agent["had_tool_in_turn"] = True
+                agent["active_tools"].add(tool_label)
+                return (STATE_TYPE, tool_label)
+
+        if payload_type == "custom_tool_call":
+            name = payload.get("name", "tool")
+            tool_label = (name or "tool")[:MAX_TOOL_NAME_LEN]
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add(tool_label)
+            return (STATE_TYPE, tool_label)
+
+        if payload_type == "web_search_call":
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add("WebSearch")
+            return (STATE_READ, "WebSearch")
+
+        # reasoning, message, *_output — no state change
+        return None
+
+    if rec_type == "event_msg":
+        payload = record.get("payload", record)
+        payload_type = payload.get("type", "")
+        if payload_type == "task_complete" or payload_type == "turn_aborted":
+            agent["had_tool_in_turn"] = False
+            agent["active_tools"].clear()
+            return (STATE_IDLE, "")
+        # task_started, agent_reasoning, token_count, etc. — no state change
+        return None
+
+    # session_meta, turn_context, compacted — no state change
+    if rec_type in ("session_meta", "turn_context", "compacted"):
+        return None
+
+    # ── Legacy RolloutLine envelope format (PascalCase) ───────
     if rec_type == "ResponseItem":
         payload = record.get("payload", record)
         # Look for function_call items in the payload

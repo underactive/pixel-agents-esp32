@@ -200,7 +200,10 @@ Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no hear
 - Polls at 4Hz, sends HEARTBEAT every 2s
 - Derives agent state from JSONL records:
   - **Claude Code:** `tool_use` in assistant message --> TYPE (or READ if tool in `READING_TOOLS` set: Read, Grep, Glob, WebFetch, WebSearch); `turn_duration` / `end_turn` --> IDLE
-  - **Codex CLI:** `item.started`/`item.completed` with `command_execution` --> TYPE (or READ for read-like commands: cat, grep, find, ls, etc.); `turn.completed` --> IDLE; also handles `RolloutLine` envelope format
+  - **Codex CLI (3 formats):**
+    - *Current rollout (snake_case):* `response_item` with `function_call`/`custom_tool_call` --> TYPE (or READ for read commands via `exec_command`); `web_search_call` --> READ; `event_msg` with `task_complete`/`turn_aborted` --> IDLE; `session_meta`/`turn_context`/`compacted` ignored
+    - *codex exec --json:* `item.started`/`item.completed` with `command_execution` --> TYPE/READ; `turn.completed` --> IDLE
+    - *Legacy RolloutLine (PascalCase):* `ResponseItem`/`EventMsg` envelopes (backward compat)
 - Sends binary AGENT_UPDATE on state change only
 - Prunes stale agents after 30s, auto-reconnects on disconnect
 - BLE mode: scans for device by name using bleak, writes to NUS RX characteristic, resets tracking state on reconnect
@@ -299,8 +302,8 @@ Non-blocking state machine parser. Heartbeat watchdog: "Disconnected" if no hear
 - IOKit-based serial port auto-detection with USB device notifications
 - Launch at login via `SMAppService`
 - UI: connection status dot, transport picker (serial/BLE), agent list with state indicators, usage bars with reset timers
-- Codex CLI support: `CodexStateDeriver` parses rollout JSONL alongside Claude's `StateDeriver`
-- Unit tests: StateDeriverTests, ProtocolBuilderTests, AgentTrackerTests
+- Codex CLI support: `CodexStateDeriver` parses rollout JSONL alongside Claude's `StateDeriver` (supports current snake_case, codex exec --json, and legacy PascalCase formats)
+- Unit tests: StateDeriverTests, CodexStateDeriverTests, ProtocolBuilderTests, AgentTrackerTests
 
 ---
 
