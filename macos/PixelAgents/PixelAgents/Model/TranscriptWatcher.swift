@@ -1,11 +1,5 @@
 import Foundation
 
-/// Identifies the source of a transcript file.
-enum TranscriptSource {
-    case claude
-    case codex
-}
-
 /// Watches Claude Code and Codex CLI directories for active JSONL transcript files
 /// and reads new lines incrementally.
 final class TranscriptWatcher {

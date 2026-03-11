@@ -27,6 +27,12 @@ struct AgentRow: View {
                 .fill(stateColor)
                 .frame(width: 6, height: 6)
 
+            if agent.state != .offline {
+                Image(systemName: agent.source == .claude ? "sparkle" : "apple.terminal")
+                    .font(.system(size: 10))
+                    .foregroundColor(.black)
+            }
+
             Text(agent.state.label)
                 .font(.system(size: 12, weight: .medium))
 

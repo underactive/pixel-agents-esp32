@@ -24,6 +24,7 @@ All notable changes to Pixel Agents are documented here.
   - Pop sound when agent is waiting for tool permission approval
 - Add `tools/convert_sound.py` for MP3 → C PCM header conversion (ffmpeg-based, batch mode)
 - Add permission bubble detection in Python companion: timeout-based heuristic detects when an agent is waiting for tool approval
+- Simplify agent list UI in macOS companion: use black source icons (sparkle/terminal), hide source icon for offline agents
 
 ## [0.8.8] - 2026-03-10
 

@@ -114,4 +114,16 @@ final class AgentTrackerTests: XCTestCase {
         XCTAssertEqual(sorted[1].id, 1)
         XCTAssertEqual(sorted[2].id, 2)
     }
+
+    func testSourceIsStoredOnCreation() {
+        let tracker = AgentTracker()
+        let claude = tracker.getOrCreate(key: "claude-project", source: .claude)
+        let codex = tracker.getOrCreate(key: "codex-project", source: .codex)
+        XCTAssertEqual(claude.source, .claude)
+        XCTAssertEqual(codex.source, .codex)
+
+        // Re-fetching returns the same source
+        let claudeAgain = tracker.getOrCreate(key: "claude-project", source: .codex)
+        XCTAssertEqual(claudeAgain.source, .claude)
+    }
 }
