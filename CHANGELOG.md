@@ -7,7 +7,8 @@ All notable changes to Pixel Agents are documented here.
 - Add OpenAI Codex CLI support: watch `~/.codex/sessions/` rollout files alongside Claude Code transcripts
 - Both Python companion and macOS companion support Claude Code + Codex CLI simultaneously
 - Each active session (from either source) appears as a separate character on the ESP32 display
-- Codex state deriver handles `codex exec --json` events and `RolloutLine` envelope formats
+- Codex state deriver handles three JSONL formats: current snake_case (`response_item`/`event_msg`), `codex exec --json` events, and legacy PascalCase (`RolloutLine` envelopes)
+- Parse `exec_command` function_call's `arguments` JSON string for shell command classification
 - Read/write detection uses command-name heuristic for Codex shell commands
 - No firmware changes needed — binary protocol is source-agnostic
 - Add ESP32-S3 CYD board support (`freenove-s3-28c`): 2.8" ILI9341, FT6336G capacitive touch, BLE, 16MB flash

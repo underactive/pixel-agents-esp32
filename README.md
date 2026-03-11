@@ -29,9 +29,10 @@ Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Cod
 
 ```
 Claude Code CLI  -->  JSONL transcripts  -->  macOS app / Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
+Codex CLI        -->  JSONL rollouts  --|
 ```
 
-1. **Claude Code** writes JSONL transcript files as you work
+1. **Claude Code** and/or **OpenAI Codex CLI** write JSONL files as you work
 2. **Companion app** (native macOS menu bar app or cross-platform Python bridge) watches those files, detects agent state changes, and fetches usage stats from the Anthropic API
 3. **ESP32 firmware** receives state updates over USB serial or BLE and animates the office scene
 
@@ -205,7 +206,7 @@ cd macos/PixelAgents
 make test
 ```
 
-23 unit tests covering ProtocolBuilder, StateDeriver, and AgentTracker.
+47 unit tests covering ProtocolBuilder, StateDeriver, CodexStateDeriver, and AgentTracker.
 
 ## Agent Characters
 
@@ -411,7 +412,7 @@ pixel-agents-esp32/
       Transport/           # SerialTransport (IOKit/POSIX), BLETransport (CoreBluetooth)
       Services/            # BridgeService orchestrator, ScreenshotService
       Views/               # SwiftUI menu bar popover UI
-    PixelAgentsTests/      # Unit tests (23 tests)
+    PixelAgentsTests/      # Unit tests (47 tests)
   tools/                   # Build tools
     sprite_converter.py      # Character/furniture sprite → C header
     convert_characters.py    # Character sprite sheet converter
