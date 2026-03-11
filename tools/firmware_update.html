@@ -430,6 +430,7 @@
           <label for="board-select">Board</label>
           <select id="board-select">
             <option value="cyd">CYD (ESP32-2432S028R)</option>
+            <option value="freenove">Freenove ESP32-S3 2.8"</option>
             <option value="lilygo">LILYGO T-Display S3</option>
           </select>
         </div>
@@ -570,6 +571,15 @@
       chip: 'ESP32',
       flashSize: '4MB',
       bootloaderOffset: 0x1000,
+      partitionsOffset: 0x8000,
+      bootApp0Offset: 0xe000,
+      firmwareOffset: 0x10000,
+    },
+    freenove: {
+      name: 'Freenove ESP32-S3 2.8"',
+      chip: 'ESP32-S3',
+      flashSize: '16MB',
+      bootloaderOffset: 0x0,
       partitionsOffset: 0x8000,
       bootApp0Offset: 0xe000,
       firmwareOffset: 0x10000,
