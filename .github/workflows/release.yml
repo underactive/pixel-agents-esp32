@@ -51,6 +51,10 @@ jobs:
         run: pio run -e lilygo-t-display-s3
         working-directory: firmware
 
+      - name: Build Freenove S3 firmware
+        run: pio run -e freenove-s3-28c
+        working-directory: firmware
+
       - name: Prepare release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -75,6 +79,15 @@ jobs:
           cp firmware/.pio/build/lilygo-t-display-s3/partitions.bin "$LILYGO_DIR/"
           find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$LILYGO_DIR/"
           (cd releases && zip -r "pixel-agents-lilygo-v${VERSION}.zip" "pixel-agents-lilygo-v${VERSION}/")
+
+          # Freenove S3 package
+          FREENOVE_DIR="releases/pixel-agents-freenove-s3-v${VERSION}"
+          mkdir -p "$FREENOVE_DIR"
+          cp firmware/.pio/build/freenove-s3-28c/firmware.bin "$FREENOVE_DIR/"
+          cp firmware/.pio/build/freenove-s3-28c/bootloader.bin "$FREENOVE_DIR/"
+          cp firmware/.pio/build/freenove-s3-28c/partitions.bin "$FREENOVE_DIR/"
+          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$FREENOVE_DIR/"
+          (cd releases && zip -r "pixel-agents-freenove-s3-v${VERSION}.zip" "pixel-agents-freenove-s3-v${VERSION}/")
 
       - name: Extract changelog entry
         if: startsWith(github.ref, 'refs/tags/v')

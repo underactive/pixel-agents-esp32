@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.1] - 2026-03-11
+
+- Add Freenove ESP32-S3 build and artifact packaging to GitHub Actions release workflow
+
 ## [0.9.0] - 2026-03-11
 
 - Add OpenAI Codex CLI support: watch `~/.codex/sessions/` rollout files alongside Claude Code transcripts
