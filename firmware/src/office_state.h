@@ -143,6 +143,10 @@ public:
     void setDogColor(DogColor color);
     SoundId consumePendingSound();
     void queueSound(SoundId id);  // single-slot, last-writer-wins; consumed once per frame
+#if defined(HAS_SOUND)
+    bool isSoundEnabled() const { return _soundEnabled; }
+    void setSoundEnabled(bool enabled);
+#endif
     bool isMenuOpen() const { return _menuOpen; }
     void toggleMenu() { _menuOpen = !_menuOpen; }
     void closeMenu() { _menuOpen = false; }
@@ -175,6 +179,9 @@ private:
     DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };
     bool _menuOpen = false;
     bool _screenFlipped = false;
+#if defined(HAS_SOUND)
+    bool _soundEnabled = false;
+#endif
 
     void initTileMap();
     int findCharByAgentId(uint8_t agentId) const;

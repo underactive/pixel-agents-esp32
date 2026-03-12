@@ -97,7 +97,7 @@ void Renderer::begin(TFT_eSPI& tft) {
 
 // ── Frame rendering ───────────────────────────────────────
 
-void Renderer::renderFrame(OfficeState& office) {
+void Renderer::renderFrame(OfficeState& office, void (*interStripCb)()) {
     if (!_canvas && !_directMode) return;
     _currentOffice = &office;
 
@@ -125,6 +125,7 @@ void Renderer::renderFrame(OfficeState& office) {
             _canvas->fillSprite(COLOR_BG);
             drawScene(office);
             _canvas->pushSprite(0, stripTop);
+            if (interStripCb) interStripCb();
         }
     } else if (_canvas) {
         // Full-screen buffered
@@ -748,6 +749,19 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     gfxDrawString("Flip:", menuX + 4, row3Y + 5);
     gfxSetTextColor(flipped ? COLOR_ACTIVE : COLOR_DISCONNECTED);
     gfxDrawString(flipped ? "ON" : "OFF", menuX + 38, row3Y + 5);
+
+#if defined(HAS_SOUND)
+    // Separator
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 4 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 4: Sound toggle
+    bool soundOn = office.isSoundEnabled();
+    int row4Y = menuY + MENU_ITEM_H * 4;
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Sound:", menuX + 4, row4Y + 5);
+    gfxSetTextColor(soundOn ? COLOR_ACTIVE : COLOR_DISCONNECTED);
+    gfxDrawString(soundOn ? "ON" : "OFF", menuX + 46, row4Y + 5);
+#endif
 }
 #endif
 

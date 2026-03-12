@@ -23,6 +23,9 @@ All notable changes to Pixel Agents are documented here.
   - Notification click when agent finishes turn (waiting for user input)
   - Pop sound when agent is waiting for tool permission approval
 - Add `tools/convert_sound.py` for MP3 → C PCM header conversion (ffmpeg-based, batch mode)
+- Add sound support to CYD board via ESP32 internal DAC (GPIO 26 → SC8002B amp), same 5 sound events as CYD-S3
+- Add sound on/off toggle to hamburger menu (CYD defaults off, CYD-S3 defaults on), persisted to NVS
+- Switch CYD to `huge_app.csv` partition (3MB app, no OTA) to fit PCM sound data
 - Add permission bubble detection in Python companion: timeout-based heuristic detects when an agent is waiting for tool approval
 - Simplify agent list UI in macOS companion: use black source icons (sparkle/terminal), hide source icon for offline agents
 

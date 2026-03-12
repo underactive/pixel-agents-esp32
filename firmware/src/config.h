@@ -305,10 +305,24 @@ static constexpr uint8_t LED_ACTIVE_MIN_BRIGHT = 100;
 static constexpr uint8_t LED_ACTIVE_MAX_BRIGHT = 255;
 #endif
 
-// ── Audio / Speaker (CYD-S3) ────────────────────────────
-#if defined(BOARD_CYD_S3)
+// ── Audio / Speaker ──────────────────────────────────────
+#if defined(BOARD_CYD)
+// CYD: ESP32 internal 8-bit DAC on GPIO 26 → SC8002B mono amp → speaker header
 #define HAS_SOUND 1
-// Freenove ESP32-S3 Display Board (FNK0104) I2S + ES8311 pins
+#define SOUND_DAC_INTERNAL 1
+#define SOUND_HAS_AMP_ENABLE 0
+static constexpr int SOUND_DAC_GPIO = 26;
+static constexpr int SOUND_SAMPLE_RATE = 24000;
+static constexpr int SOUND_VOLUME_SHIFT = 2;          // software attenuation (>>2 = /4)
+static constexpr int SOUND_I2S_DMA_BUF_COUNT = 16;
+static constexpr int SOUND_I2S_DMA_BUF_LEN = 512;
+static constexpr int SOUND_PCM_CHUNK_SAMPLES = 512;
+static constexpr int SOUND_I2S_PREFILL_CHUNKS = 8;
+
+#elif defined(BOARD_CYD_S3)
+// CYD-S3: Freenove ESP32-S3 (FNK0104) I2S + ES8311 codec + speaker amp
+#define HAS_SOUND 1
+#define SOUND_HAS_AMP_ENABLE 1
 static constexpr int SOUND_I2S_MCK = 4;
 static constexpr int SOUND_I2S_BCK = 5;
 static constexpr int SOUND_I2S_DINT = 6;   // mic in (unused)
@@ -380,7 +394,11 @@ static constexpr int HAMBURGER_W = 7;
 static constexpr int HAMBURGER_H = 5;  // 3 bars of 1px + 2 gaps of 1px
 static constexpr int HAMBURGER_MARGIN = 4;
 static constexpr int MENU_W = 130;
+#if defined(HAS_SOUND)
+static constexpr int MENU_H = 110; // 5 rows * MENU_ITEM_H + 10px padding
+#else
 static constexpr int MENU_H = 90;  // 4 rows * MENU_ITEM_H + 10px padding
+#endif
 static constexpr int MENU_ITEM_H = 20;
 static constexpr uint16_t COLOR_MENU_BG     = 0x2104;
 static constexpr uint16_t COLOR_MENU_BORDER = 0x7BEF;

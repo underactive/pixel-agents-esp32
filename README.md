@@ -1,6 +1,6 @@
 # Pixel Agents ESP32
 
-A standalone hardware display that renders Claude Code agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
+A standalone hardware display that renders Claude Code and Codex agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
 <p>
   <img src="assets/screenshots/splash_screen.png" alt="Boot splash screen" height="320">
@@ -42,16 +42,15 @@ Characters walk to their desks when active, sit and type/read while tools run, w
 
 Any of the boards below work out of the box — just pick the right PlatformIO environment.
 
-**Option A (recommended):** [Freenove ESP32-S3 ESP32 S3 Capacitive Touch Display CYD](https://www.amazon.com/dp/B0D8W9DSYZ) (~$12)
-- ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
-- 320x240 landscape → 20x14 tile grid (more room for wandering)
-- Touch input for cycling status modes, hamburger menu for dog settings
-- Build env: `cyd-2432s028r`
-
-**Option B:** [ESP32-S3 2.8" CYD (Black PCB) Capacitive](https://www.amazon.com/dp/B0FKG7WRWV)  (~$15)
+**Option A (recommended):** [Freenove ESP32-S3 ESP32 S3 Capacitive Touch Display CYD](https://www.amazon.com/dp/B0FKG7WRWV)  (~$15)
 - ESP32-S3, 2.8" ILI9341 (240x320), FT6336G capacitive touch, USB-C, 16MB flash, 8MB PSRAM
-- Same 320x240 landscape → 20x14 tile grid as Option A, with capacitive touch + BLE
+- 320x240 landscape → 20x14 tile grid
 - Build env: `freenove-s3-28c`
+
+**Option B:** [ESP32-2432S028R "Cheap Yellow Display" (CYD)](https://www.amazon.com/dp/B0D8W9DSYZ) (~$12)
+- ESP32-WROOM, built-in 2.8" ILI9341 (240x320), resistive touch, micro USB
+- 320x240 landscape → 20x14 tile grid
+- Build env: `cyd-2432s028r`
 
 **Option C:** [LILYGO T-Display S3](https://www.lilygo.cc/products/t-display-s3) (~$15)
 - ESP32-S3, built-in 1.9" IPS display (170x320, ST7789), USB-C
@@ -140,7 +139,7 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Active agent** walks to its desk and sits down to type or read
 - **Idle agent** stands up and wanders around the office
 - **Speech bubbles** show permission and waiting indicators; tool names appear in the status bar
-- **Sound effects** (CYD-S3) play on key events: startup chime, keyboard typing on first tool call, notification click when waiting for input, pop when waiting for tool permission, dog bark on new follow target
+- **Sound effects** (CYD and CYD-S3) play on key events: startup chime, keyboard typing on first tool call, notification click when waiting for input, pop when waiting for tool permission, dog bark on new follow target. Toggleable via hamburger menu (CYD defaults to off, CYD-S3 defaults to on)
 - **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
 - **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
 - **Multiple agents** each get their own desk
@@ -273,7 +272,7 @@ WANDER (20 min) → FOLLOW (20 min) → WANDER → FOLLOW → ...
 
 The dog sprite is side-view only — LEFT facing is rendered by flipping the RIGHT sprite horizontally. The dog uses BFS pathfinding and depth-sorts with characters.
 
-On the CYD board, the dog can be toggled on/off and its color changed (black, brown, gray, tan) via the hamburger menu. Settings persist across reboots via NVS.
+On the CYD and CYD-S3 boards, the dog can be toggled on/off and its color changed (black, brown, gray, tan) via the hamburger menu. Sound effects can also be toggled on/off from the same menu. All settings persist across reboots via NVS.
 
 ## Layout Editor
 
@@ -390,7 +389,7 @@ pixel-agents-esp32/
       thermal_mgr.h/.cpp   # Junction temperature monitoring
       touch_input.h/.cpp   # Touch driver (CYD resistive + CYD-S3 capacitive)
       led_ambient.h/.cpp   # RGB LED ambient effects (CYD PWM + CYD-S3 NeoPixel)
-      sound.h/.cpp         # Event-driven sound system (CYD-S3 I2S + ES8311)
+      sound.h/.cpp         # Event-driven sound system (CYD + CYD-S3)
       codec/es8311/        # ES8311 codec driver (Apache-2.0)
       sounds/              # PCM sound data headers (PROGMEM)
       sprites/             # Generated PROGMEM sprite data

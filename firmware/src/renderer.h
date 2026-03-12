@@ -8,7 +8,7 @@ class Splash;  // forward declaration
 class Renderer {
 public:
     void begin(TFT_eSPI& tft);
-    void renderFrame(OfficeState& office);
+    void renderFrame(OfficeState& office, void (*interStripCb)() = nullptr);
     void requestScreenshot();
     bool isScreenshotPending();
     void sendScreenshot();
