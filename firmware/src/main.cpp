@@ -117,7 +117,7 @@ void setup() {
     }
 #endif
 
-    randomSeed(analogRead(0) ^ millis());
+    randomSeed(esp_random());
     thermalMgr.begin();
     office.spawnAllCharacters();
     splash.addLog("Characters spawned");
@@ -182,7 +182,7 @@ void loop() {
             office.update(dt);
             renderer.renderFrame(office);
 #if defined(HAS_SOUND)
-            sound.play(SoundId::STARTUP);
+            if (office.isSoundEnabled()) sound.play(SoundId::STARTUP);
 #endif
             splash.fadeIn(drainSerial);
             splashActive = false;
@@ -233,7 +233,7 @@ void loop() {
     if (te.tapped) {
         if (office.isMenuOpen()) {
             // hitTestMenuItem returns: 0=dog toggle, 1-4=color, 5=flip screen,
-            // -1=outside menu (close), -2=inside menu no-op (keep open)
+            // 6=sound toggle, -1=outside menu (close), -2=inside menu no-op (keep open)
             int item = office.hitTestMenuItem(te.x, te.y);
             if (item == 0) {
                 // Toggle dog on/off
@@ -241,6 +241,11 @@ void loop() {
             } else if (item >= 1 && item <= DOG_COLOR_COUNT) {
                 // Select dog color (1=BLACK, 2=BROWN, 3=GRAY, 4=TAN)
                 office.setDogColor(static_cast<DogColor>(item - 1));
+#if defined(HAS_SOUND)
+            } else if (item == 6) {
+                // Toggle sound on/off
+                office.setSoundEnabled(!office.isSoundEnabled());
+#endif
             } else if (item == 5) {
                 // Toggle screen flip
                 bool newFlip = !office.isScreenFlipped();
@@ -269,7 +274,11 @@ void loop() {
 #endif
 
     // Render
+#if defined(HAS_SOUND)
+    renderer.renderFrame(office, []() { sound.update(); });
+#else
     renderer.renderFrame(office);
+#endif
 
     // Screenshot capture (after render so buffer has latest frame)
     if (renderer.isScreenshotPending()) {

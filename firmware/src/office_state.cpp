@@ -1357,6 +1357,13 @@ void OfficeState::loadSettings() {
         _dogSettings.color = DOG_DEFAULT_COLOR;
     }
     _screenFlipped = prefs.getBool("flipScr", false);
+#if defined(HAS_SOUND)
+#if defined(BOARD_CYD)
+    _soundEnabled = prefs.getBool("soundOn", false);
+#else
+    _soundEnabled = prefs.getBool("soundOn", true);
+#endif
+#endif
     prefs.end();
 }
 
@@ -1366,6 +1373,9 @@ void OfficeState::saveSettings() {
     prefs.putBool("dogOn", _dogSettings.enabled);
     prefs.putUChar("dogColor", static_cast<uint8_t>(_dogSettings.color));
     prefs.putBool("flipScr", _screenFlipped);
+#if defined(HAS_SOUND)
+    prefs.putBool("soundOn", _soundEnabled);
+#endif
     prefs.end();
 }
 
@@ -1400,8 +1410,19 @@ SoundId OfficeState::consumePendingSound() {
 }
 
 void OfficeState::queueSound(SoundId id) {
+#if defined(HAS_SOUND)
+    if (!_soundEnabled) return;
+#endif
     _pet.pendingSound = id;
 }
+
+#if defined(HAS_SOUND)
+void OfficeState::setSoundEnabled(bool enabled) {
+    if (_soundEnabled == enabled) return;
+    _soundEnabled = enabled;
+    saveSettings();
+}
+#endif
 
 bool OfficeState::hitTestHamburger(int screenX, int screenY) const {
 #if defined(HAS_TOUCH)
@@ -1453,6 +1474,11 @@ int OfficeState::hitTestMenuItem(int screenX, int screenY) const {
 
     // Row 3: flip screen toggle
     if (relY < MENU_ITEM_H * 4) return 5;
+
+#if defined(HAS_SOUND)
+    // Row 4: sound toggle
+    if (relY < MENU_ITEM_H * 5) return 6;
+#endif
 
     // Bottom padding area — inside menu, no action
     return -2;

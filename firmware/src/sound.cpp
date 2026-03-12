@@ -3,10 +3,14 @@
 
 #if defined(HAS_SOUND)
 #include <Arduino.h>
-#include <Wire.h>
 #include <pgmspace.h>
 #include "driver/i2s.h"
+
+#if !defined(SOUND_DAC_INTERNAL)
+#include <Wire.h>
 #include "codec/es8311/es8311.h"
+#endif
+
 #include "sounds/startup_sound_pcm.h"
 #include "sounds/dog_bark_pcm.h"
 #include "sounds/keyboard_type_pcm.h"
@@ -16,8 +20,10 @@
 namespace {
 
 // ── Amp GPIO helpers ────────────────────────────────────
+#if SOUND_HAS_AMP_ENABLE
 static constexpr uint8_t AMP_ON  = SOUND_AMP_ENABLE_ACTIVE_LOW ? LOW  : HIGH;
 static constexpr uint8_t AMP_OFF = SOUND_AMP_ENABLE_ACTIVE_LOW ? HIGH : LOW;
+#endif
 
 // ── Clip table ──────────────────────────────────────────
 struct SoundClip {
@@ -39,11 +45,13 @@ static_assert(sizeof(CLIPS) / sizeof(CLIPS[0]) == static_cast<uint8_t>(SoundId::
 static constexpr i2s_port_t SOUND_I2S_PORT = I2S_NUM_0;
 static constexpr size_t PCM_BYTES_PER_SAMPLE = 2;
 static int16_t stereoBuf[SOUND_PCM_CHUNK_SAMPLES * 2];
+
+#if !defined(SOUND_DAC_INTERNAL)
 static es8311_handle_t codecHandle = nullptr;
+#endif
 
 static bool initI2S() {
     i2s_config_t cfg = {};
-    cfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX);
     cfg.sample_rate = SOUND_SAMPLE_RATE;
     cfg.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
     cfg.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
@@ -51,8 +59,28 @@ static bool initI2S() {
     cfg.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
     cfg.dma_buf_count = SOUND_I2S_DMA_BUF_COUNT;
     cfg.dma_buf_len = SOUND_I2S_DMA_BUF_LEN;
-    cfg.use_apll = true;
     cfg.tx_desc_auto_clear = true;
+
+#if defined(SOUND_DAC_INTERNAL)
+    // ESP32 internal DAC mode: 8-bit DAC uses top 8 bits of 16-bit samples
+    cfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN);
+    cfg.use_apll = false;
+    cfg.fixed_mclk = 0;
+
+    if (i2s_driver_install(SOUND_I2S_PORT, &cfg, 0, nullptr) != ESP_OK) {
+        return false;
+    }
+
+    // Enable only DAC channel on GPIO 26 (left channel = DAC2)
+    if (i2s_set_dac_mode(I2S_DAC_CHANNEL_LEFT_EN) != ESP_OK) {
+        i2s_driver_uninstall(SOUND_I2S_PORT);
+        return false;
+    }
+
+#else
+    // CYD-S3: external I2S codec (ES8311) with explicit pin config
+    cfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX);
+    cfg.use_apll = true;
     cfg.fixed_mclk = 0;
     cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
 
@@ -69,6 +97,7 @@ static bool initI2S() {
     if (i2s_set_pin(SOUND_I2S_PORT, &pins) != ESP_OK) {
         return false;
     }
+#endif
 
     return true;
 }
@@ -77,17 +106,20 @@ static bool initI2S() {
 void SoundPlayer::begin() {
     if (_ready) return;
 
+#if SOUND_HAS_AMP_ENABLE
     // Amp off until first clip plays
     pinMode(SOUND_AMP_ENABLE, OUTPUT);
     digitalWrite(SOUND_AMP_ENABLE, AMP_OFF);
-
-    Wire.begin(SOUND_I2C_SDA, SOUND_I2C_SCL);
-    Wire.setClock(SOUND_I2C_FREQ);
+#endif
 
     if (!initI2S()) {
         Serial.println("Audio init failed: I2S setup");
         return;
     }
+
+#if !defined(SOUND_DAC_INTERNAL)
+    Wire.begin(SOUND_I2C_SDA, SOUND_I2C_SCL);
+    Wire.setClock(SOUND_I2C_FREQ);
 
     codecHandle = es8311_create(I2C_NUM_0, ES8311_ADDRESS_0);
     if (!codecHandle) {
@@ -107,6 +139,8 @@ void SoundPlayer::begin() {
 
     es8311_voice_volume_set(codecHandle, SOUND_VOLUME_PCT, nullptr);
     es8311_voice_mute(codecHandle, false);
+#endif
+
     i2s_zero_dma_buffer(SOUND_I2S_PORT);
 
     _ready = true;
@@ -120,9 +154,11 @@ void SoundPlayer::play(SoundId id) {
 
 void SoundPlayer::startClip(const uint8_t* data, uint32_t len) {
     if (!_ready || data == nullptr || len == 0) return;
+#if SOUND_HAS_AMP_ENABLE
     // Enable amp
     digitalWrite(SOUND_AMP_ENABLE, AMP_ON);
     delay(10);
+#endif
     _pcm = data;
     _pcmLen = len & ~1u;  // truncate to even (16-bit PCM samples)
     _byteOffset = 0;
@@ -134,7 +170,9 @@ void SoundPlayer::endClip() {
     _playing = false;
     _pcm = nullptr;
     _pcmLen = 0;
+#if SOUND_HAS_AMP_ENABLE
     digitalWrite(SOUND_AMP_ENABLE, AMP_OFF);
+#endif
 }
 
 void SoundPlayer::update() {
@@ -154,8 +192,15 @@ void SoundPlayer::update() {
             uint16_t lo = pgm_read_byte(&_pcm[_byteOffset + i * 2]);
             uint16_t hi = pgm_read_byte(&_pcm[_byteOffset + i * 2 + 1]);
             int16_t sample = static_cast<int16_t>((hi << 8) | lo);
-            stereoBuf[i * 2] = sample;
-            stereoBuf[i * 2 + 1] = sample;
+#if defined(SOUND_DAC_INTERNAL)
+            // Internal DAC: attenuate + convert signed PCM to unsigned (DAC uses top 8 bits)
+            sample >>= SOUND_VOLUME_SHIFT;
+            uint16_t out = static_cast<uint16_t>(sample + 0x8000);
+#else
+            uint16_t out = static_cast<uint16_t>(sample);
+#endif
+            stereoBuf[i * 2]     = static_cast<int16_t>(out);
+            stereoBuf[i * 2 + 1] = static_cast<int16_t>(out);
         }
 
         size_t bytesToWrite = chunkSamples * 2 * sizeof(int16_t);

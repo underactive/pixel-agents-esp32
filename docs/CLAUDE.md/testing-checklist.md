@@ -303,11 +303,24 @@
 - [ ] Dog pet renders correctly when crossing strip boundaries
 - [ ] FPS is acceptable in strip mode (~15 FPS target)
 
-### Sound Effects (CYD-S3 Only)
+### Sound Effects (CYD and CYD-S3)
 - [ ] Startup sound plays on splash-to-office transition (CYD-S3)
 - [ ] Dog bark plays when dog picks new follow target (CYD-S3)
 - [ ] Short sound (bark) preempts long sound (startup) if triggered during playback
-- [ ] No sound output or crash on CYD / LILYGO builds (no HAS_SOUND)
+- [ ] No sound output or crash on LILYGO build (no HAS_SOUND)
+- [ ] CYD: startup sound plays through speaker on splash-to-office transition
+- [ ] CYD: dog bark plays through speaker when dog picks new follow target
+- [ ] CYD: keyboard typing sound plays on agent's first TYPE transition per job
+- [ ] CYD: notification click plays when agent finishes turn
+- [ ] CYD: pop sound plays when agent is waiting for tool permission
+- [ ] CYD: no audible pop/click artifacts when no sound is playing (SC8002B always-on amp)
+- [ ] CYD: audio volume is reasonable with SOUND_VOLUME_SHIFT=2 (not too loud/quiet)
+- [ ] Sound toggle in hamburger menu shows "Sound: ON/OFF" with green/red indicator
+- [ ] CYD: sound defaults to OFF on first boot (no NVS key yet)
+- [ ] CYD-S3: sound defaults to ON on first boot (no NVS key yet)
+- [ ] Toggling sound OFF suppresses all 5 sound events (startup, bark, keyboard, notification, pop)
+- [ ] Toggling sound ON resumes sound playback without reboot
+- [ ] Sound toggle setting persists across reboots (NVS)
 - [ ] `python3 tools/convert_sound.py assets/sounds/dragon-studio-dog-bark-494308.mp3` generates valid header
 - [ ] `python3 tools/convert_sound.py assets/sounds/*.mp3` batch mode generates all headers without error
 - [ ] `python3 tools/convert_sound.py -n custom_name assets/sounds/dragon-studio-dog-bark-494308.mp3` produces `custom_name_pcm.h`
