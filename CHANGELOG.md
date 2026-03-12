@@ -2,6 +2,16 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.2] - 2026-03-12
+
+- Add ESP-SR WakeNet9 wake word detection on CYD-S3: say "Computer" to trigger DOG_BARK sound effect
+- Wake word detection runs on Core 0 via dedicated FreeRTOS task, pauses during sound playback to avoid false triggers
+- 24kHz stereo I2S RX → mono left-channel extraction → 3:2 downsample → 16kHz WakeNet feed pipeline
+- Custom partition table (`partitions_sr_16MB.csv`) for CYD-S3: drops OTA to fit ESP-SR model in dedicated `srmodels` partition
+- Remove microphone loopback test feature (replaced by wake word detection)
+- Wake word bark now routes through `queueSound()` to respect sound on/off toggle
+- Audit fixes: `std::atomic<bool>` for cross-core sync, double-begin guard, chunk size validation, partial PSRAM allocation cleanup, named constants replacing magic numbers
+
 ## [0.9.1] - 2026-03-11
 
 - Add Freenove ESP32-S3 build and artifact packaging to GitHub Actions release workflow

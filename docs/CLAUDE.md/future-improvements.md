@@ -12,8 +12,10 @@
 - [ ] NTP time sync: accurate clock for uptime display and schedule-based night mode
 - [ ] Multiple display support: daisy-chain ESP32 boards for wider scenes
 - [ ] Multi-device sync: multiple displays showing same scene or different "rooms", one companion broadcasts to all
-- [ ] Sound effects: piezo buzzer for spawn/despawn events
+- [x] Sound effects: piezo buzzer for spawn/despawn events
 - [ ] Night mode: dimmer palette + reduced backlight on schedule
+- [ ] Voice input via mic: stream mic audio to companion for speech-to-text, send transcribed text as agent input (CYD-S3 only). Deferred during v0.9.2 wake word work — the mic loopback POC validated the audio capture chain but streaming continuous audio over USB serial or BLE requires a transport-layer protocol extension (chunked audio framing, flow control) and companion-side STT integration that are out of scope for the current architecture. Wake word detection was prioritized instead as a self-contained on-device feature with no companion dependency.
+- [ ] Custom wake word "Hi Jojo" via microWakeWord: train TFLite model on Mac using [microWakeWord-Trainer-AppleSilicon](https://github.com/TaterTotterson/microWakeWord-Trainer-AppleSilicon), integrate TFLite Micro into firmware alongside or replacing ESP-SR WakeNet (CYD-S3 only)
 - [ ] Remote status API: ESP32 exposes REST endpoint for external tools (Home Assistant, Stream Deck) to query agent state
 
 ## Low Priority

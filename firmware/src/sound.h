@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include "config.h"
 
 enum class SoundId : uint8_t {
     STARTUP,

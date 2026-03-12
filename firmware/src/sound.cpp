@@ -11,6 +11,10 @@
 #include "codec/es8311/es8311.h"
 #endif
 
+#if defined(HAS_WAKEWORD)
+#include "wakeword.h"
+#endif
+
 #include "sounds/startup_sound_pcm.h"
 #include "sounds/dog_bark_pcm.h"
 #include "sounds/keyboard_type_pcm.h"
@@ -55,10 +59,10 @@ static bool initI2S() {
     cfg.sample_rate = SOUND_SAMPLE_RATE;
     cfg.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
     cfg.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
-    cfg.communication_format = I2S_COMM_FORMAT_I2S;
+    cfg.communication_format = I2S_COMM_FORMAT_STAND_I2S;
     cfg.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
-    cfg.dma_buf_count = SOUND_I2S_DMA_BUF_COUNT;
-    cfg.dma_buf_len = SOUND_I2S_DMA_BUF_LEN;
+    cfg.dma_desc_num = SOUND_I2S_DMA_BUF_COUNT;
+    cfg.dma_frame_num = SOUND_I2S_DMA_BUF_LEN;
     cfg.tx_desc_auto_clear = true;
 
 #if defined(SOUND_DAC_INTERNAL)
@@ -79,7 +83,8 @@ static bool initI2S() {
 
 #else
     // CYD-S3: external I2S codec (ES8311) with explicit pin config
-    cfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX);
+    // Full-duplex (TX+RX) so mic recording can share the same I2S port
+    cfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_RX);
     cfg.use_apll = true;
     cfg.fixed_mclk = 0;
     cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
@@ -92,9 +97,10 @@ static bool initI2S() {
     pins.bck_io_num = SOUND_I2S_BCK;
     pins.ws_io_num = SOUND_I2S_WS;
     pins.data_out_num = SOUND_I2S_DOUT;
-    pins.data_in_num = I2S_PIN_NO_CHANGE;
+    pins.data_in_num = SOUND_I2S_DINT;
     pins.mck_io_num = SOUND_I2S_MCK;
     if (i2s_set_pin(SOUND_I2S_PORT, &pins) != ESP_OK) {
+        i2s_driver_uninstall(SOUND_I2S_PORT);
         return false;
     }
 #endif
@@ -139,6 +145,14 @@ void SoundPlayer::begin() {
 
     es8311_voice_volume_set(codecHandle, SOUND_VOLUME_PCT, nullptr);
     es8311_voice_mute(codecHandle, false);
+
+#if defined(HAS_WAKEWORD)
+    // Enable analog microphone and set PGA gain for wake word detection.
+    // WHY 42dB: the board's built-in analog mic produces a weak signal;
+    // 24dB was insufficient for reliable detection at conversational distance.
+    es8311_microphone_config(codecHandle, false);
+    es8311_microphone_gain_set(codecHandle, ES8311_MIC_GAIN_42DB);
+#endif
 #endif
 
     i2s_zero_dma_buffer(SOUND_I2S_PORT);
@@ -154,6 +168,9 @@ void SoundPlayer::play(SoundId id) {
 
 void SoundPlayer::startClip(const uint8_t* data, uint32_t len) {
     if (!_ready || data == nullptr || len == 0) return;
+#if defined(HAS_WAKEWORD)
+    wakeword_pause();
+#endif
 #if SOUND_HAS_AMP_ENABLE
     // Enable amp
     digitalWrite(SOUND_AMP_ENABLE, AMP_ON);
@@ -172,6 +189,9 @@ void SoundPlayer::endClip() {
     _pcmLen = 0;
 #if SOUND_HAS_AMP_ENABLE
     digitalWrite(SOUND_AMP_ENABLE, AMP_OFF);
+#endif
+#if defined(HAS_WAKEWORD)
+    wakeword_resume();
 #endif
 }
 
@@ -219,6 +239,7 @@ void SoundPlayer::update() {
         }
     }
 }
+
 #else
 void SoundPlayer::begin() {}
 void SoundPlayer::play(SoundId) {}

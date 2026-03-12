@@ -336,6 +336,18 @@
 - [ ] Python companion detects permission prompt after ~1s of no new JSONL records following tool_use with stop_reason="tool_use"
 - [ ] Auto-approved tools (tool_result within <1s) do NOT trigger permission detection
 
+### Wake Word Detection (CYD-S3 Only)
+- [ ] Boot log shows "Wake word ready" on CYD-S3
+- [ ] Saying "Computer" triggers DOG_BARK sound through speaker
+- [ ] Wake word does not trigger when sound is toggled OFF in hamburger menu
+- [ ] Cooldown prevents re-trigger within 5 seconds of last detection
+- [ ] Wake word detection pauses during sound playback and resumes after
+- [ ] No false detection immediately after sound playback ends
+- [ ] CYD build compiles without wake word code (no `HAS_WAKEWORD`)
+- [ ] LILYGO build compiles without wake word code (no `HAS_WAKEWORD`)
+- [ ] Wake word init failure is non-fatal (logs message, device continues normally)
+- [ ] Hamburger menu no longer shows "Mic Test" row (removed feature)
+
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)

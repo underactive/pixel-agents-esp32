@@ -16,6 +16,9 @@
 #if defined(HAS_BLE)
 #include "ble_service.h"
 #endif
+#if defined(HAS_WAKEWORD)
+#include "wakeword.h"
+#endif
 
 TFT_eSPI tft;
 Protocol serialProtocol;
@@ -37,6 +40,10 @@ SoundPlayer sound;
 Protocol bleProtocol;
 BleTransport bleTransport;
 BleService bleService;
+#endif
+#if defined(HAS_WAKEWORD)
+WakeWord wakeword;
+uint32_t lastWakeMs = 0;
 #endif
 
 uint32_t lastFrameMs = 0;
@@ -140,6 +147,14 @@ void setup() {
     splash.addLog("Audio ready");
 #endif
 
+#if defined(HAS_WAKEWORD)
+    if (wakeword.begin()) {
+        splash.addLog("Wake word ready");
+    } else {
+        splash.addLog("Wake word init failed");
+    }
+#endif
+
     splash.addLog("Waiting for companion...", true);
 
     lastFrameMs = millis();
@@ -217,6 +232,14 @@ void loop() {
         if (pending != SoundId::COUNT) {
             sound.play(pending);
         }
+    }
+#endif
+
+#if defined(HAS_WAKEWORD)
+    if (wakeword.poll() && now - lastWakeMs >= WAKEWORD_COOLDOWN_MS) {
+        lastWakeMs = now;
+        office.queueSound(SoundId::DOG_BARK);
+        Serial.println("Wake word detected!");
     }
 #endif
 

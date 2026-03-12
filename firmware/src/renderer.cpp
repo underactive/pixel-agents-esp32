@@ -216,7 +216,7 @@ void Renderer::drawScene(OfficeState& office) {
     drawStatusBar(office);
 
 #if defined(HAS_TOUCH)
-    // 8. Draw menu overlay (on top of everything)
+    // 9. Draw menu overlay (on top of everything)
     if (office.isMenuOpen()) {
         drawMenuOverlay(office);
     }
@@ -762,6 +762,7 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     gfxSetTextColor(soundOn ? COLOR_ACTIVE : COLOR_DISCONNECTED);
     gfxDrawString(soundOn ? "ON" : "OFF", menuX + 46, row4Y + 5);
 #endif
+
 }
 #endif
 

@@ -325,7 +325,7 @@ static constexpr int SOUND_I2S_PREFILL_CHUNKS = 8;
 #define SOUND_HAS_AMP_ENABLE 1
 static constexpr int SOUND_I2S_MCK = 4;
 static constexpr int SOUND_I2S_BCK = 5;
-static constexpr int SOUND_I2S_DINT = 6;   // mic in (unused)
+static constexpr int SOUND_I2S_DINT = 6;   // mic in (ES8311 ADC)
 static constexpr int SOUND_I2S_WS  = 7;
 static constexpr int SOUND_I2S_DOUT = 8;
 static constexpr int SOUND_AMP_ENABLE = 1; // AP_ENABLE
@@ -340,6 +340,14 @@ static constexpr int SOUND_I2S_DMA_BUF_COUNT = 12;
 static constexpr int SOUND_I2S_DMA_BUF_LEN = 512;
 static constexpr int SOUND_PCM_CHUNK_SAMPLES = 512;
 static constexpr int SOUND_I2S_PREFILL_CHUNKS = 4;
+
+// Wake word detection (ESP-SR WakeNet9)
+#define HAS_WAKEWORD 1
+#endif
+
+// ── Wake Word ───────────────────────────────────────────
+#if defined(HAS_WAKEWORD)
+static constexpr int WAKEWORD_COOLDOWN_MS = 5000;  // min ms between detections
 #endif
 
 // ── BLE ─────────────────────────────────────────────────
@@ -358,7 +366,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.9.1 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.9.2 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SPLASH_TITLE_Y = 15;
