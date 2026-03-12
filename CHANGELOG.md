@@ -2,6 +2,12 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.3] - 2026-03-12
+
+- Add "Remaining" usage display mode in macOS companion: tap the "Usage" header to toggle between used percentage and remaining percentage (gas gauge style)
+- Toggle persists across app restarts via `@AppStorage`
+- Color thresholds always based on used percentage so red/orange/green warnings stay correct in both modes
+
 ## [0.9.2] - 2026-03-12
 
 - Add ESP-SR WakeNet9 wake word detection on CYD-S3: say "Computer" to trigger DOG_BARK sound effect

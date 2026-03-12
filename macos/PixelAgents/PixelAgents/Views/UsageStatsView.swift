@@ -1,18 +1,40 @@
 import SwiftUI
 
 /// Displays Claude Code usage statistics with progress bars.
+/// Supports "used" (default) and "remaining" display modes, toggled via the header.
 struct UsageStatsView: View {
     let stats: UsageStatsData?
+    @Binding var showRemaining: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Usage")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.secondary)
+            Button(action: { showRemaining.toggle() }) {
+                HStack(spacing: 4) {
+                    Text(showRemaining ? "Remaining" : "Usage")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    Image(systemName: "arrow.triangle.swap")
+                        .font(.system(size: 8))
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+            }
+            .buttonStyle(.plain)
 
             if let stats = stats {
-                UsageBar(label: "Current", pct: Int(stats.currentPct), resetMin: stats.currentResetMin)
-                UsageBar(label: "Weekly", pct: Int(stats.weeklyPct), resetMin: stats.weeklyResetMin)
+                let currentUsed = Int(stats.currentPct)
+                let weeklyUsed = Int(stats.weeklyPct)
+                UsageBar(
+                    label: "Current",
+                    displayPct: showRemaining ? 100 - currentUsed : currentUsed,
+                    usedPct: currentUsed,
+                    resetMin: stats.currentResetMin
+                )
+                UsageBar(
+                    label: "Weekly",
+                    displayPct: showRemaining ? 100 - weeklyUsed : weeklyUsed,
+                    usedPct: weeklyUsed,
+                    resetMin: stats.weeklyResetMin
+                )
             } else {
                 Text("No usage data")
                     .font(.system(size: 12))
@@ -25,7 +47,8 @@ struct UsageStatsView: View {
 
 struct UsageBar: View {
     let label: String
-    let pct: Int
+    let displayPct: Int
+    let usedPct: Int
     let resetMin: UInt16
 
     var body: some View {
@@ -34,7 +57,7 @@ struct UsageBar: View {
                 Text(label)
                     .font(.system(size: 11))
                 Spacer()
-                Text("\(pct)%")
+                Text("\(displayPct)%")
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
             }
@@ -46,7 +69,7 @@ struct UsageBar: View {
 
                     RoundedRectangle(cornerRadius: 2)
                         .fill(barColor)
-                        .frame(width: max(0, geo.size.width * CGFloat(pct) / 100.0))
+                        .frame(width: max(0, geo.size.width * CGFloat(displayPct) / 100.0))
                 }
             }
             .frame(height: 6)
@@ -59,9 +82,11 @@ struct UsageBar: View {
         }
     }
 
+    /// Color is always based on usedPct so warning semantics stay correct:
+    /// red = almost out of quota, regardless of display mode.
     private var barColor: Color {
-        if pct >= 90 { return .red }
-        if pct >= 70 { return .orange }
+        if usedPct >= 90 { return .red }
+        if usedPct >= 70 { return .orange }
         return .green
     }
 
