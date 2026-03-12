@@ -348,6 +348,16 @@
 - [ ] Wake word init failure is non-fatal (logs message, device continues normally)
 - [ ] Hamburger menu no longer shows "Mic Test" row (removed feature)
 
+### macOS Companion App
+- [ ] Usage stats display as "Usage" header with used percentages by default
+- [ ] Tapping the "Usage" header toggles to "Remaining" mode — header changes to "Remaining", percentages show 100 minus used value
+- [ ] Bar width matches the displayed percentage in both modes
+- [ ] Colors reflect warning level based on used percentage: red when used >= 90%, orange when used >= 70%, green otherwise — regardless of display mode
+- [ ] Swap icon (arrow.triangle.swap) appears next to the header text
+- [ ] Toggle state persists across app quit and relaunch
+- [ ] Reset timer text ("Resets in Xh Xm") unchanged in both modes
+- [ ] "No usage data" message displays correctly when no stats available (both modes)
+
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)

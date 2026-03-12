@@ -5,6 +5,7 @@ import ServiceManagement
 struct MenuBarView: View {
     @EnvironmentObject var bridge: BridgeService
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @AppStorage("showRemaining") private var showRemaining = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,7 +29,7 @@ struct MenuBarView: View {
                     .padding(.vertical, 4)
 
                 // Usage stats
-                UsageStatsView(stats: bridge.usageStats)
+                UsageStatsView(stats: bridge.usageStats, showRemaining: $showRemaining)
 
                 Divider()
                     .padding(.vertical, 4)
