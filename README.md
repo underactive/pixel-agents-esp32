@@ -140,6 +140,7 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Idle agent** stands up and wanders around the office
 - **Speech bubbles** show permission and waiting indicators; tool names appear in the status bar
 - **Sound effects** (CYD and CYD-S3) play on key events: startup chime, keyboard typing on first tool call, notification click when waiting for input, pop when waiting for tool permission, dog bark on new follow target. Toggleable via hamburger menu (CYD defaults to off, CYD-S3 defaults to on)
+- **Wake word detection** (CYD-S3 only) listens for "Computer" via ESP-SR WakeNet9 and triggers a dog bark sound — runs on a dedicated core so the display stays smooth
 - **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
 - **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
 - **Multiple agents** each get their own desk
@@ -390,6 +391,7 @@ pixel-agents-esp32/
       touch_input.h/.cpp   # Touch driver (CYD resistive + CYD-S3 capacitive)
       led_ambient.h/.cpp   # RGB LED ambient effects (CYD PWM + CYD-S3 NeoPixel)
       sound.h/.cpp         # Event-driven sound system (CYD + CYD-S3)
+      wakeword.h/.cpp      # ESP-SR wake word detection (CYD-S3)
       codec/es8311/        # ES8311 codec driver (Apache-2.0)
       sounds/              # PCM sound data headers (PROGMEM)
       sprites/             # Generated PROGMEM sprite data

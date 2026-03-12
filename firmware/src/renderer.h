@@ -13,7 +13,6 @@ public:
     bool isScreenshotPending();
     void sendScreenshot();
     void sendSplashScreenshot(Splash& splash);
-
 private:
     TFT_eSPI* _tft = nullptr;
     TFT_eSprite* _canvas = nullptr;
@@ -31,7 +30,6 @@ private:
     int _clipYMax = 0;
     uint32_t _lastRenderMs = 0;
     float _fps = 0;
-
     void drawScene(OfficeState& office);
     void drawFloor(const TileType* tiles);
     void drawFurniture();

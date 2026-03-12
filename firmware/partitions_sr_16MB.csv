@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# Custom partition table for ESP32-S3 with ESP-SR wake word models.
+# Drops OTA (app1) and SPIFFS to make room for the ~2.4MB srmodels.bin.
+# Flash srmodels.bin separately:
+#   esptool.py --chip esp32s3 write_flash 0xCC0000 srmodels.bin
+nvs,      data, nvs,       0x9000,   0x5000,
+otadata,  data, ota,       0xe000,   0x2000,
+app0,     app,  ota_0,    0x10000, 0xCB0000,
+model,    data, spiffs,  0xCC0000, 0x330000,
+coredump, data, coredump,0xFF0000,  0x10000,
