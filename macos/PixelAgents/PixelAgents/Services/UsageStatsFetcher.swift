@@ -24,6 +24,12 @@ final class UsageStatsFetcher {
     /// Latest data from the API. Falls back to cache file if nil.
     private(set) var latestData: UsageStatsData?
 
+    /// Cached OAuth token to avoid repeated Keychain prompts.
+    /// Each access triggers a macOS Keychain permission dialog for dev-signed builds,
+    /// so we cache the token and only re-read when it expires.
+    private var cachedToken: String?
+    private var cachedTokenExpiresAt: Double = 0
+
     /// Returns latest fetched data, or falls back to reading the cache file.
     func currentStats() -> UsageStatsData? {
         return latestData ?? UsageStatsReader.read()
@@ -50,8 +56,19 @@ final class UsageStatsFetcher {
 
     // MARK: - Keychain
 
-    /// Reads the Claude Code OAuth access token from macOS Keychain.
+    /// Reads the Claude Code OAuth access token, returning a cached copy when still valid
+    /// to avoid repeated Keychain access prompts on dev-signed builds.
     private func readOAuthToken() -> String? {
+        // Return cached token if still valid (with 60s safety margin)
+        let nowMs = Date().timeIntervalSince1970 * 1000
+        if let token = cachedToken, cachedTokenExpiresAt > nowMs + 60_000 {
+            return token
+        }
+
+        // Cache miss or expired — read from Keychain
+        cachedToken = nil
+        cachedTokenExpiresAt = 0
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
@@ -78,12 +95,17 @@ final class UsageStatsFetcher {
 
         // Check expiry
         if let expiresAt = oauth["expiresAt"] as? Double {
-            let nowMs = Date().timeIntervalSince1970 * 1000
             if expiresAt < nowMs {
                 let expiredAgo = Int((nowMs - expiresAt) / 1000 / 60)
                 Self.log.error("OAuth token expired \(expiredAgo) minutes ago — start Claude Code to refresh")
                 return nil
             }
+            cachedToken = accessToken
+            cachedTokenExpiresAt = expiresAt
+        } else {
+            // No expiry info — cache for 1 hour as a reasonable default
+            cachedToken = accessToken
+            cachedTokenExpiresAt = nowMs + 3_600_000
         }
 
         return accessToken
