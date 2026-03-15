@@ -157,23 +157,27 @@ public:
     int getActiveAgentCount() const;   // count of characters at TYPE/READ
     int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
-    bool isConnected() const { return _connected; }
-    void setConnected(bool c) { _connected = c; }
+    bool isConnected() const { return _serialConnected || _bleConnected; }
+    bool isSerialConnected() const { return _serialConnected; }
+    bool isBleConnected() const { return _bleConnected; }
     void setBlePin(uint16_t pin) { _blePin = pin; }
     uint16_t getBlePin() const { return _blePin; }
     StatusMode getStatusMode() const { return _statusMode; }
 
-    // Heartbeat
-    void onHeartbeat();
-    bool checkHeartbeat(uint32_t nowMs);
+    // Per-transport heartbeat
+    void onSerialHeartbeat();
+    void onBleHeartbeat();
+    void checkHeartbeat(uint32_t nowMs);
 
 private:
     Character _chars[MAX_AGENTS];
     Pet _pet;
     TileType _tiles[GRID_ROWS][GRID_COLS];
-    bool _connected = false;
+    bool _serialConnected = false;
+    bool _bleConnected = false;
     uint16_t _blePin = 0;
-    uint32_t _lastHeartbeatMs = 0;
+    uint32_t _lastSerialHeartbeatMs = 0;
+    uint32_t _lastBleHeartbeatMs = 0;
     StatusMode _statusMode = StatusMode::OVERVIEW;
     UsageStats _usage = {};
     DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };

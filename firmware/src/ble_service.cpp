@@ -10,6 +10,10 @@ static const char* NUS_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 static const char* NUS_RX_UUID     = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 static const char* NUS_TX_UUID     = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 
+// BLE Battery Service (BAS) — standard 16-bit UUIDs
+static constexpr uint16_t BAS_SERVICE_UUID = 0x180F;
+static constexpr uint16_t BAS_LEVEL_UUID   = 0x2A19;
+
 static BleService* _instance = nullptr;
 
 // ── Server connection callbacks ──────────────────────────
@@ -96,6 +100,23 @@ bool BleService::begin(BleTransport& transport) {
 
     pService->start();
 
+#if defined(HAS_BATTERY)
+    // BLE Battery Service (standard BAS)
+    NimBLEService* pBatService = pServer->createService(BAS_SERVICE_UUID);
+    if (pBatService) {
+        _battLevelChar = pBatService->createCharacteristic(
+            BAS_LEVEL_UUID,
+            NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
+        );
+        if (_battLevelChar) {
+            uint8_t initLevel = 0;
+            _battLevelChar->setValue(&initLevel, 1);
+        }
+        pBatService->start();
+        Serial.println("[BLE] Battery service started");
+    }
+#endif
+
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     if (!pAdvertising) { Serial.println("[BLE] FAIL: getAdvertising"); return false; }
 
@@ -129,5 +150,17 @@ bool BleService::begin(BleTransport& transport) {
     Serial.println("[BLE] Advertising started OK");
     return true;
 }
+
+#if defined(HAS_BATTERY)
+void BleService::updateBatteryLevel(uint8_t percent) {
+    if (!_battLevelChar) return;
+    if (percent == _lastBattLevel) return;  // only update on change
+    _lastBattLevel = percent;
+    _battLevelChar->setValue(&percent, 1);
+    if (_connected.load(std::memory_order_acquire)) {
+        _battLevelChar->notify();
+    }
+}
+#endif
 
 #endif // HAS_BLE

@@ -10,7 +10,8 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Connection status
-            ConnectionStatusView(state: bridge.connectionState)
+            ConnectionStatusView(state: bridge.connectionState,
+                                 batteryLevel: bridge.deviceBatteryLevel)
 
             Divider()
                 .padding(.vertical, 4)
@@ -92,5 +93,11 @@ extension BridgeService {
             return true
         }
         return false
+    }
+
+    /// Battery level from BLE Battery Service (nil when serial or not available).
+    var deviceBatteryLevel: UInt8? {
+        guard transportMode == .ble, isConnected else { return nil }
+        return bleTransport.batteryLevel
     }
 }

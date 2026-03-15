@@ -60,6 +60,10 @@ private:
     // Get local frame index (0-6) for animation state
     int getFrameIndex(CharState state, uint8_t frame) const;
 
+    // Monochrome bitmap helper (MSB-first, 1 byte per row for w<=8)
+    void gfxDrawMonoBitmap(int32_t x, int32_t y, const uint8_t* bitmap,
+                           int32_t w, int32_t h, uint32_t color);
+
     // Drawing wrappers — dispatch to _canvas or _tft, applying _yOffset
     inline void gfxFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t c);
     inline void gfxDrawPixel(int32_t x, int32_t y, uint32_t c);

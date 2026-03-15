@@ -19,8 +19,10 @@ void OfficeState::init() {
         _chars[i].agentId = -1;
     }
     initTileMap();
-    _connected = false;
-    _lastHeartbeatMs = 0;
+    _serialConnected = false;
+    _bleConnected = false;
+    _lastSerialHeartbeatMs = 0;
+    _lastBleHeartbeatMs = 0;
     loadSettings();
 }
 
@@ -441,24 +443,35 @@ void OfficeState::setAgentCount(uint8_t count) {
     (void)count;
 }
 
-void OfficeState::onHeartbeat() {
-    _lastHeartbeatMs = millis();
-    _connected = true;
+void OfficeState::onSerialHeartbeat() {
+    _lastSerialHeartbeatMs = millis();
+    _serialConnected = true;
 }
 
-bool OfficeState::checkHeartbeat(uint32_t nowMs) {
-    if (_lastHeartbeatMs == 0) return false;
-    if (nowMs - _lastHeartbeatMs > HEARTBEAT_TIMEOUT_MS) {
-        if (_connected) {
-            _connected = false;
-            for (int i = 0; i < MAX_AGENTS; i++) {
-                _chars[i].bubbleType = 0;
-                _chars[i].bubbleTimer = 0;
-            }
-        }
-        return false;
+void OfficeState::onBleHeartbeat() {
+    _lastBleHeartbeatMs = millis();
+    _bleConnected = true;
+}
+
+void OfficeState::checkHeartbeat(uint32_t nowMs) {
+    bool wasConnected = _serialConnected || _bleConnected;
+
+    // Check serial timeout
+    if (_lastSerialHeartbeatMs > 0 && nowMs - _lastSerialHeartbeatMs > HEARTBEAT_TIMEOUT_MS) {
+        _serialConnected = false;
     }
-    return true;
+    // Check BLE timeout
+    if (_lastBleHeartbeatMs > 0 && nowMs - _lastBleHeartbeatMs > HEARTBEAT_TIMEOUT_MS) {
+        _bleConnected = false;
+    }
+
+    // Clear bubbles on transition from any-connected to fully-disconnected
+    if (wasConnected && !(_serialConnected || _bleConnected)) {
+        for (int i = 0; i < MAX_AGENTS; i++) {
+            _chars[i].bubbleType = 0;
+            _chars[i].bubbleTimer = 0;
+        }
+    }
 }
 
 int OfficeState::hitTestCharacter(int screenX, int screenY) const {

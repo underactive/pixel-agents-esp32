@@ -358,6 +358,31 @@
 - [ ] Reset timer text ("Resets in Xh Xm") unchanged in both modes
 - [ ] "No usage data" message displays correctly when no stats available (both modes)
 
+### Status Bar: Transport Icons (all boards)
+- [ ] USB icon is visible in status bar left side (green when serial companion connected, dim gray when disconnected)
+- [ ] BT icon appears next to USB icon on CYD and CYD-S3 (blue when BLE connected, dim gray when disconnected)
+- [ ] BT icon does not appear on LILYGO (no `HAS_BLE`)
+- [ ] Disconnecting serial causes USB icon to dim (within 6s heartbeat timeout)
+- [ ] Connecting BLE causes BT icon to turn blue
+- [ ] Status text content (all 5 modes) does not overlap transport icons on the left or battery/hamburger on the right
+- [ ] Tapping status bar still cycles through all 5 modes on CYD/CYD-S3
+
+### Status Bar: Battery Indicator (CYD-S3 + LILYGO)
+- [ ] Battery percentage is displayed on the right side of status bar (just left of hamburger on CYD-S3)
+- [ ] Battery percentage is green when >50%, yellow when 20-50%, red when <20%
+- [ ] Lightning bolt icon appears when USB serial connected and battery voltage >4.1V
+- [ ] Lightning bolt disappears when serial disconnects
+- [ ] Percentage reading is stable (no rapid flickering) due to EMA smoothing
+- [ ] No battery indicator appears on CYD (no `HAS_BATTERY`)
+
+### BLE Battery Service (CYD-S3 over BLE)
+- [ ] macOS System Settings → Bluetooth shows battery percentage for connected PixelAgents device
+- [ ] macOS companion app shows battery icon and percentage next to connection status when connected via BLE
+- [ ] Battery icon uses appropriate SF Symbol (battery.100/75/50/25/0) based on level
+- [ ] Battery percentage color: green >50%, yellow 20-50%, red <=20%
+- [ ] Battery indicator disappears from companion when connected via serial (not available)
+- [ ] Battery indicator disappears from companion on BLE disconnect
+
 ### Performance
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)

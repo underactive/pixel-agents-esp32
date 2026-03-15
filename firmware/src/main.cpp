@@ -19,6 +19,9 @@
 #if defined(HAS_WAKEWORD)
 #include "wakeword.h"
 #endif
+#if defined(HAS_BATTERY)
+#include "battery.h"
+#endif
 
 TFT_eSPI tft;
 Protocol serialProtocol;
@@ -60,9 +63,17 @@ void onAgentCount(uint8_t count) {
     office.setAgentCount(count);
 }
 
-void onHeartbeat(uint32_t timestamp) {
+void onSerialHeartbeat(uint32_t timestamp) {
     (void)timestamp;
-    office.onHeartbeat();
+    office.onSerialHeartbeat();
+    if (splashActive) {
+        splash.onHeartbeat();
+    }
+}
+
+void onBleHeartbeat(uint32_t timestamp) {
+    (void)timestamp;
+    office.onBleHeartbeat();
     if (splashActive) {
         splash.onHeartbeat();
     }
@@ -108,13 +119,13 @@ void setup() {
     renderer.begin(tft);
     splash.addLog("Render buffer allocated");
 
-    serialProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
+    serialProtocol.begin(onAgentUpdate, onAgentCount, onSerialHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
     splash.addLog("Protocol ready");
 
 #if defined(HAS_BLE)
     // Separate protocol instance for BLE to avoid state corruption
     // when partial messages arrive on both transports simultaneously
-    bleProtocol.begin(onAgentUpdate, onAgentCount, onHeartbeat, onStatusText, onUsageStats, nullptr);
+    bleProtocol.begin(onAgentUpdate, onAgentCount, onBleHeartbeat, onStatusText, onUsageStats, nullptr);
     if (bleService.begin(bleTransport)) {
         splash.setPinCode(bleService.getPin());
         office.setBlePin(bleService.getPin());
@@ -153,6 +164,11 @@ void setup() {
     } else {
         splash.addLog("Wake word init failed");
     }
+#endif
+
+#if defined(HAS_BATTERY)
+    battery_begin();
+    splash.addLog("Battery monitor ready");
 #endif
 
     splash.addLog("Waiting for companion...", true);
@@ -206,12 +222,20 @@ void loop() {
         return;
     }
 
-    // Capture time AFTER serial processing so now >= _lastHeartbeatMs
+    // Capture time AFTER serial processing so now >= heartbeat timestamps
     // (avoids unsigned underflow in timeout check)
     uint32_t now = millis();
 
     // Check heartbeat
     office.checkHeartbeat(now);
+
+#if defined(HAS_BATTERY)
+    battery_update(now);
+#if defined(HAS_BLE)
+    // Update BLE Battery Service characteristic (notifies only on change)
+    bleService.updateBatteryLevel(battery_getPercent());
+#endif
+#endif
 
     // Junction temperature monitoring
     thermalMgr.update(now, office);

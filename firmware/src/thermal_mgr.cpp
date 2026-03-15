@@ -80,6 +80,6 @@ void ThermalManager::update(uint32_t nowMs, OfficeState& office) {
 #elif defined(LED_TYPE_NEOPIXEL)
     // Critical thermal fault indicator — alternating red/blue
     uint32_t phase = (nowMs / THERMAL_ALERT_FLASH_MS) % 2;
-    neopixelWrite(LED_NEOPIXEL_PIN, phase == 0 ? 128 : 0, 0, phase == 1 ? 128 : 0);
+    rgbLedWrite(LED_NEOPIXEL_PIN, phase == 0 ? 128 : 0, 0, phase == 1 ? 128 : 0);
 #endif
 }

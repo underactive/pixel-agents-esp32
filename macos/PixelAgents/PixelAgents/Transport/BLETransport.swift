@@ -26,6 +26,11 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     static let nusRxUUID      = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E") // write to device
     static let nusTxUUID      = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E") // notify from device
 
+    // MARK: - BLE Battery Service (BAS) UUIDs
+
+    static let basServiceUUID = CBUUID(string: "180F")
+    static let basLevelUUID   = CBUUID(string: "2A19")
+
     /// Manufacturer data company ID (must match firmware BLE_MFG_COMPANY_ID)
     static let mfgCompanyID: UInt16 = 0xFFFF
 
@@ -39,6 +44,7 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
     @Published private(set) var isScanning = false
     @Published private(set) var bluetoothState: CBManagerState = .unknown
     @Published private(set) var connectedDeviceName: String?
+    @Published private(set) var batteryLevel: UInt8?
 
     /// UUID of the currently connected peripheral (for UI).
     var connectedPeripheralID: UUID? { connectedPeripheral?.identifier }
@@ -240,6 +246,7 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
         pendingPeripheral = nil
         rxCharacteristic = nil
         connectedDeviceName = nil
+        batteryLevel = nil
         isConnected = false
         if keepDevicesOnCleanup {
             keepDevicesOnCleanup = false
@@ -290,7 +297,7 @@ extension BLETransport: CBCentralManagerDelegate {
         connectedPeripheral = peripheral
         connectedDeviceName = peripheral.name ?? "PixelAgents"
         peripheral.delegate = self
-        peripheral.discoverServices([Self.nusServiceUUID])
+        peripheral.discoverServices([Self.nusServiceUUID, Self.basServiceUUID])
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
@@ -331,8 +338,12 @@ extension BLETransport: CBPeripheralDelegate {
             onDisconnect?()
             return
         }
-        for service in services where service.uuid == Self.nusServiceUUID {
-            peripheral.discoverCharacteristics([Self.nusRxUUID, Self.nusTxUUID], for: service)
+        for service in services {
+            if service.uuid == Self.nusServiceUUID {
+                peripheral.discoverCharacteristics([Self.nusRxUUID, Self.nusTxUUID], for: service)
+            } else if service.uuid == Self.basServiceUUID {
+                peripheral.discoverCharacteristics([Self.basLevelUUID], for: service)
+            }
         }
     }
 
@@ -350,6 +361,11 @@ extension BLETransport: CBPeripheralDelegate {
             } else if char.uuid == Self.nusTxUUID {
                 // Subscribe to notifications (future use)
                 peripheral.setNotifyValue(true, for: char)
+            } else if char.uuid == Self.basLevelUUID {
+                // Read initial value and subscribe to battery level notifications
+                peripheral.readValue(for: char)
+                peripheral.setNotifyValue(true, for: char)
+                NSLog("[BLE] Battery service discovered")
             }
         }
 
@@ -357,6 +373,20 @@ extension BLETransport: CBPeripheralDelegate {
         if rxCharacteristic != nil {
             NSLog("[BLE] NUS ready — transport connected")
             isConnected = true
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        guard error == nil, let data = characteristic.value, !data.isEmpty else { return }
+
+        if characteristic.uuid == Self.basLevelUUID {
+            let level = data[0]
+            if level <= 100 {
+                DispatchQueue.main.async {
+                    self.batteryLevel = level
+                }
+                NSLog("[BLE] Battery level: %d%%", level)
+            }
         }
     }
 }
