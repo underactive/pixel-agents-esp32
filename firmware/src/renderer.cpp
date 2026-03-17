@@ -766,9 +766,11 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
 
     gfxSetTextSize(1);
 
+    int textPad = (MENU_ITEM_H - 10) / 2;  // vertically center 10px font in row
+
     // Row 0: Title
     gfxSetTextColor(COLOR_TEXT);
-    gfxDrawString("Settings", menuX + 4, menuY + 5);
+    gfxDrawString("Settings", menuX + 6, menuY + textPad);
 
     // Separator line
     gfxFillRect(menuX + 2, menuY + MENU_ITEM_H - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
@@ -776,9 +778,9 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     // Row 1: Dog toggle
     int row1Y = menuY + MENU_ITEM_H;
     gfxSetTextColor(COLOR_TEXT);
-    gfxDrawString("Dog:", menuX + 4, row1Y + 5);
+    gfxDrawString("Dog:", menuX + 6, row1Y + textPad);
     gfxSetTextColor(ds.enabled ? COLOR_ACTIVE : COLOR_DISCONNECTED);
-    gfxDrawString(ds.enabled ? "ON" : "OFF", menuX + 34, row1Y + 5);
+    gfxDrawString(ds.enabled ? "ON" : "OFF", menuX + 36, row1Y + textPad);
 
     // Separator
     gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 2 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
@@ -786,7 +788,7 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     // Row 2: Color swatches
     int row2Y = menuY + MENU_ITEM_H * 2;
     gfxSetTextColor(COLOR_TEXT);
-    gfxDrawString("Color:", menuX + 4, row2Y + 5);
+    gfxDrawString("Color:", menuX + 6, row2Y + textPad);
 
     // Representative colors for each dog variant (RGB565)
     static const uint16_t SWATCH_COLORS[DOG_COLOR_COUNT] = {
@@ -797,8 +799,8 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     };
 
     int swatchX = menuX + SWATCH_AREA_X;
-    int swatchY = row2Y + 2;
-    int swatchH = 14;
+    int swatchY = row2Y + 3;
+    int swatchH = MENU_ITEM_H - 6;
 
     for (int i = 0; i < DOG_COLOR_COUNT; i++) {
         int sx = swatchX + i * (SWATCH_W + SWATCH_GAP);
@@ -825,9 +827,9 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     bool flipped = office.isScreenFlipped();
     int row3Y = menuY + MENU_ITEM_H * 3;
     gfxSetTextColor(COLOR_TEXT);
-    gfxDrawString("Flip:", menuX + 4, row3Y + 5);
+    gfxDrawString("Flip:", menuX + 6, row3Y + textPad);
     gfxSetTextColor(flipped ? COLOR_ACTIVE : COLOR_DISCONNECTED);
-    gfxDrawString(flipped ? "ON" : "OFF", menuX + 38, row3Y + 5);
+    gfxDrawString(flipped ? "ON" : "OFF", menuX + 40, row3Y + textPad);
 
 #if defined(HAS_SOUND)
     // Separator
@@ -837,9 +839,25 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     bool soundOn = office.isSoundEnabled();
     int row4Y = menuY + MENU_ITEM_H * 4;
     gfxSetTextColor(COLOR_TEXT);
-    gfxDrawString("Sound:", menuX + 4, row4Y + 5);
+    gfxDrawString("Sound:", menuX + 6, row4Y + textPad);
     gfxSetTextColor(soundOn ? COLOR_ACTIVE : COLOR_DISCONNECTED);
-    gfxDrawString(soundOn ? "ON" : "OFF", menuX + 46, row4Y + 5);
+    gfxDrawString(soundOn ? "ON" : "OFF", menuX + 48, row4Y + textPad);
+
+    // Separator
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 5 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 5: Sleep
+    int sleepRowY = menuY + MENU_ITEM_H * 5;
+    gfxSetTextColor(COLOR_INACTIVE);
+    gfxDrawString("Sleep...", menuX + 6, sleepRowY + textPad);
+#else
+    // Separator (no sound row, sleep is row 4)
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 4 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 4: Sleep
+    int sleepRowY = menuY + MENU_ITEM_H * 4;
+    gfxSetTextColor(COLOR_INACTIVE);
+    gfxDrawString("Sleep...", menuX + 6, sleepRowY + textPad);
 #endif
 
 }

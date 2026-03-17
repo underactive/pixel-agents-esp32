@@ -15,6 +15,7 @@
 #endif
 #if defined(HAS_BLE)
 #include "ble_service.h"
+#include <NimBLEDevice.h>
 #endif
 #if defined(HAS_WAKEWORD)
 #include "wakeword.h"
@@ -90,6 +91,53 @@ void onUsageStats(const UsageStatsMsg& us) {
 void onScreenshotReq() {
     renderer.requestScreenshot();
 }
+
+// ── Display sleep ───────────────────────────────────────
+// Turns off backlight and LED but keeps the main loop running so
+// I2C touch polling still works for wake detection. Uses ~20-30mA
+// vs ~100mA active — battery lasts days in this mode.
+
+#if defined(HAS_TOUCH)
+static bool displayOff = false;
+
+void enterDisplaySleep() {
+    Serial.println("[sleep] Display off");
+
+    // Wait for finger to lift before sleeping
+    while (touchInput.isTouched()) {
+        delay(50);
+    }
+    delay(200);
+
+    // Turn off backlight + display
+#if defined(TFT_BL)
+    digitalWrite(TFT_BL, LOW);
+#endif
+    tft.writecommand(0x10); // SLPIN
+
+#if defined(HAS_LED)
+#if defined(LED_TYPE_NEOPIXEL)
+    rgbLedWrite(LED_NEOPIXEL_PIN, 0, 0, 0);
+#elif defined(LED_TYPE_PWM)
+    ledcWrite(LED_PIN_R, 255);
+    ledcWrite(LED_PIN_G, 255);
+    ledcWrite(LED_PIN_B, 255);
+#endif
+#endif
+
+    displayOff = true;
+}
+
+void wakeDisplay() {
+    Serial.println("[sleep] Display on");
+    tft.writecommand(0x11); // SLPOUT
+    delay(120);  // display needs 120ms after SLPOUT per datasheet
+#if defined(TFT_BL)
+    digitalWrite(TFT_BL, HIGH);
+#endif
+    displayOff = false;
+}
+#endif
 
 // ── Setup ───────────────────────────────────────────────
 
@@ -247,6 +295,11 @@ void loop() {
     if (dt > 0.1f) dt = 0.1f; // cap delta time
     lastFrameMs = now;
 
+#if defined(HAS_TOUCH)
+    // Skip all simulation + rendering while display is off
+    if (!displayOff) {
+#endif
+
     // Update office state
     office.update(dt);
 
@@ -275,12 +328,26 @@ void loop() {
 #endif
 
 #if defined(HAS_TOUCH)
+    } // end if (!displayOff)
+#endif
+
+#if defined(HAS_TOUCH)
     // Poll touch input
     TouchEvent te = touchInput.poll();
+
+    // Display-off mode: any tap or long press wakes the display
+    if (displayOff) {
+        if (te.tapped || te.longPress) {
+            wakeDisplay();
+        }
+        delay(50);  // throttle polling while display is off
+        return;
+    }
+
     if (te.tapped) {
         if (office.isMenuOpen()) {
             // hitTestMenuItem returns: 0=dog toggle, 1-4=color, 5=flip screen,
-            // 6=sound toggle, -1=outside menu (close), -2=inside menu no-op (keep open)
+            // 6=sound toggle, 7=sleep, -1=outside menu (close), -2=inside menu no-op
             int item = office.hitTestMenuItem(te.x, te.y);
             if (item == 0) {
                 // Toggle dog on/off
@@ -302,6 +369,11 @@ void loop() {
                 touchInput.setDisplayRotation(rot);
                 // Close menu: rotation change invalidates menu position
                 office.closeMenu();
+            } else if (item == 7) {
+                // Sleep
+                office.closeMenu();
+                enterDisplaySleep();
+                return;
             } else if (item == -1) {
                 // Tap outside menu -> close menu
                 office.closeMenu();
@@ -317,6 +389,12 @@ void loop() {
                 office.showInfoBubble(hit);
             }
         }
+    }
+
+    // Long press anywhere → sleep
+    if (te.longPress) {
+        enterDisplaySleep();
+        return;
     }
 #endif
 

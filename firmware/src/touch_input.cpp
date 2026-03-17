@@ -61,7 +61,7 @@ bool TouchInput::readTouch(int16_t& x, int16_t& y) {
 }
 
 TouchEvent TouchInput::poll() {
-    TouchEvent ev = {false, 0, 0};
+    TouchEvent ev = {false, false, 0, 0};
 
     int16_t tx, ty;
     bool touched = readTouch(tx, ty);
@@ -70,10 +70,21 @@ TouchEvent TouchInput::poll() {
     if (touched) {
         _lastTouchX = tx;
         _lastTouchY = ty;
+        if (!_wasTouched) {
+            // Touch just started
+            _pressStartMs = now;
+            _longPressFired = false;
+        } else if (!_longPressFired && now - _pressStartMs >= LONG_PRESS_MS) {
+            // Long press detected (fires once while held)
+            ev.longPress = true;
+            ev.x = _lastTouchX;
+            ev.y = _lastTouchY;
+            _longPressFired = true;
+        }
     }
 
-    // Detect tap on release with debounce
-    if (_wasTouched && !touched) {
+    // Detect tap on release with debounce (only if long press didn't fire)
+    if (_wasTouched && !touched && !_longPressFired) {
         if (now - _lastTapMs >= TOUCH_DEBOUNCE_MS) {
             ev.tapped = true;
             ev.x = _lastTouchX;
@@ -84,6 +95,11 @@ TouchEvent TouchInput::poll() {
 
     _wasTouched = touched;
     return ev;
+}
+
+bool TouchInput::isTouched() {
+    int16_t x, y;
+    return readTouch(x, y);
 }
 
 void TouchInput::setDisplayRotation(int rotation) {
@@ -100,7 +116,7 @@ void TouchInput::begin() {
 }
 
 TouchEvent TouchInput::poll() {
-    TouchEvent ev = {false, 0, 0};
+    TouchEvent ev = {false, false, 0, 0};
 
     bool touched = _ts.touched();
     uint32_t now = millis();
@@ -116,10 +132,20 @@ TouchEvent TouchInput::poll() {
         if (_lastTouchX >= SCREEN_W) _lastTouchX = SCREEN_W - 1;
         if (_lastTouchY < 0) _lastTouchY = 0;
         if (_lastTouchY >= SCREEN_H) _lastTouchY = SCREEN_H - 1;
+
+        if (!_wasTouched) {
+            _pressStartMs = now;
+            _longPressFired = false;
+        } else if (!_longPressFired && now - _pressStartMs >= LONG_PRESS_MS) {
+            ev.longPress = true;
+            ev.x = _lastTouchX;
+            ev.y = _lastTouchY;
+            _longPressFired = true;
+        }
     }
 
-    // Detect tap on release with debounce
-    if (_wasTouched && !touched) {
+    // Detect tap on release with debounce (only if long press didn't fire)
+    if (_wasTouched && !touched && !_longPressFired) {
         if (now - _lastTapMs >= TOUCH_DEBOUNCE_MS) {
             ev.tapped = true;
             ev.x = _lastTouchX;
@@ -130,6 +156,10 @@ TouchEvent TouchInput::poll() {
 
     _wasTouched = touched;
     return ev;
+}
+
+bool TouchInput::isTouched() {
+    return _ts.touched();
 }
 
 void TouchInput::setDisplayRotation(int rotation) {

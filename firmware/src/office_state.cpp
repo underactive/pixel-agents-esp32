@@ -1491,6 +1491,12 @@ int OfficeState::hitTestMenuItem(int screenX, int screenY) const {
 #if defined(HAS_SOUND)
     // Row 4: sound toggle
     if (relY < MENU_ITEM_H * 5) return 6;
+
+    // Row 5: sleep
+    if (relY < MENU_ITEM_H * 6) return 7;
+#else
+    // Row 4: sleep (when no sound row)
+    if (relY < MENU_ITEM_H * 5) return 7;
 #endif
 
     // Bottom padding area — inside menu, no action

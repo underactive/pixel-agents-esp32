@@ -429,18 +429,19 @@ static constexpr float INFO_BUBBLE_DURATION_SEC = 3.0f;
 static constexpr int HAMBURGER_W = 7;
 static constexpr int HAMBURGER_H = 5;  // 3 bars of 1px + 2 gaps of 1px
 static constexpr int HAMBURGER_MARGIN = 4;
-static constexpr int MENU_W = 130;
+static constexpr int MENU_W = 160;
 #if defined(HAS_SOUND)
-static constexpr int MENU_H = 110; // 5 rows * MENU_ITEM_H + 10px padding
+static constexpr int MENU_H = 168; // 6 rows * MENU_ITEM_H + 12px padding
 #else
-static constexpr int MENU_H = 90;  // 4 rows * MENU_ITEM_H + 10px padding
+static constexpr int MENU_H = 142; // 5 rows * MENU_ITEM_H + 12px padding
 #endif
-static constexpr int MENU_ITEM_H = 20;
+static constexpr int MENU_ITEM_H = 26;
 static constexpr uint16_t COLOR_MENU_BG     = 0x2104;
 static constexpr uint16_t COLOR_MENU_BORDER = 0x7BEF;
-static constexpr int SWATCH_AREA_X = 42;   // left offset for swatches (past "Color:" label)
-static constexpr int SWATCH_W      = 16;   // each swatch width
+static constexpr int SWATCH_AREA_X = 48;   // left offset for swatches (past "Color:" label)
+static constexpr int SWATCH_W      = 20;   // each swatch width
 static constexpr int SWATCH_GAP    = 6;    // gap between swatches
+static constexpr uint32_t LONG_PRESS_MS = 2000;  // 2s hold → deep sleep
 
 // CYD XPT2046 touch SPI pins (separate from display SPI)
 #if !defined(CAP_TOUCH)
