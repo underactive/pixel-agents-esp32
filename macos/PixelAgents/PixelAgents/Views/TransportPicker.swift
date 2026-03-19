@@ -36,13 +36,33 @@ struct TransportPicker: View {
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
         } else {
-            Picker("Port", selection: $bridge.selectedPort) {
-                Text("Auto").tag(nil as String?)
-                ForEach(bridge.serialPortDetector.availablePorts) { port in
-                    Text(port.name).tag(port.path as String?)
+            HStack {
+                Picker("Port", selection: $bridge.selectedPort) {
+                    Text("Auto").tag(nil as String?)
+                    ForEach(bridge.serialPortDetector.availablePorts) { port in
+                        Text(port.name).tag(port.path as String?)
+                    }
+                }
+                .font(.system(size: 11))
+
+                if bridge.serialTransportConnected {
+                    Button("Disconnect") {
+                        bridge.disconnect()
+                    }
+                    .font(.system(size: 11))
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .controlSize(.small)
+                } else if case .disconnected = bridge.connectionState {
+                    Button("Connect") {
+                        bridge.connect()
+                    }
+                    .font(.system(size: 11))
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                    .controlSize(.small)
                 }
             }
-            .font(.system(size: 11))
         }
     }
 

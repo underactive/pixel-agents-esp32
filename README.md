@@ -141,8 +141,9 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Speech bubbles** show permission and waiting indicators; tool names appear in the status bar
 - **Sound effects** (CYD and CYD-S3) play on key events: startup chime, keyboard typing on first tool call, notification click when waiting for input, pop when waiting for tool permission, dog bark on new follow target. Toggleable via hamburger menu (CYD defaults to off, CYD-S3 defaults to on)
 - **Wake word detection** (CYD-S3 only) listens for "Computer" via ESP-SR WakeNet9 and triggers a dog bark sound — runs on a dedicated core so the display stays smooth
-- **Status bar** at bottom cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
+- **Status bar** at bottom shows transport icons (USB/BT) with live connection state, battery percentage (CYD-S3/LILYGO), and cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
 - **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
+- **Display sleep** — screen turns off after 5 minutes of inactivity; touch to wake (CYD and CYD-S3)
 - **Multiple agents** each get their own desk
 
 ## macOS Companion App
@@ -161,6 +162,7 @@ The native macOS menu bar app is the recommended way to connect the ESP32 on mac
 - **Usage stats** — reads your Claude Code OAuth token from macOS Keychain to fetch usage stats directly from the Anthropic API
 - **Live agent list** — shows active agents with their current state (typing, reading, idle) in the popover
 - **Screenshot capture** — grab a screenshot from the ESP32 display over serial (saved to `~/Pictures/PixelAgents/`)
+- **Serial connect/disconnect** — explicit connect and disconnect buttons in the transport picker for manual serial control
 - **Auto-reconnect** — reconnects automatically after USB unplug/replug or BLE disconnect
 - **Sleep/wake aware** — pauses timers on sleep, reconnects on wake
 - **Launch at login** — optional toggle via the popover menu

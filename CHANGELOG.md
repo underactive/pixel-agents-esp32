@@ -2,6 +2,17 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.4] - 2026-03-19
+
+- Add display sleep mode: screen turns off after 5 minutes of inactivity, touch to wake (CYD and CYD-S3)
+- Add battery voltage monitoring via ADC for CYD-S3 and LILYGO with color-coded percentage in status bar and charging indicator
+- Add transport connection icons (USB/BT) in status bar showing live serial and BLE connection state
+- Add BLE Battery Service (BAS) so macOS shows battery level natively in System Settings → Bluetooth
+- Enlarge hamburger menu for easier touch targets
+- Cache OAuth token in memory in macOS companion to avoid repeated Keychain authorization prompts
+- Add serial connect/disconnect buttons to macOS companion transport picker
+- Fix build warnings
+
 ## [0.9.3] - 2026-03-12
 
 - Add "Remaining" usage display mode in macOS companion: tap the "Usage" header to toggle between used percentage and remaining percentage (gas gauge style)
