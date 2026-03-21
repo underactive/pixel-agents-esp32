@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Displays Claude Code usage statistics with progress bars.
+/// Displays Claude Code and Codex usage statistics with progress bars.
 /// Supports "used" (default) and "remaining" display modes, toggled via the header.
 struct UsageStatsView: View {
     let stats: UsageStatsData?
+    let codexStats: UsageStatsData?
     @Binding var showRemaining: Bool
 
     var body: some View {
@@ -21,6 +22,16 @@ struct UsageStatsView: View {
             .buttonStyle(.plain)
 
             if let stats = stats {
+                // Claude section
+                HStack(spacing: 4) {
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                    Text("Claude")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
                 let currentUsed = Int(stats.currentPct)
                 let weeklyUsed = Int(stats.weeklyPct)
                 UsageBar(
@@ -35,7 +46,36 @@ struct UsageStatsView: View {
                     usedPct: weeklyUsed,
                     resetMin: stats.weeklyResetMin
                 )
-            } else {
+            }
+
+            if let codexStats = codexStats {
+                // Codex section
+                HStack(spacing: 4) {
+                    Image(systemName: "apple.terminal")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                    Text("Codex")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                let primaryUsed = Int(codexStats.currentPct)
+                let secondaryUsed = Int(codexStats.weeklyPct)
+                UsageBar(
+                    label: "Primary",
+                    displayPct: showRemaining ? 100 - primaryUsed : primaryUsed,
+                    usedPct: primaryUsed,
+                    resetMin: codexStats.currentResetMin
+                )
+                UsageBar(
+                    label: "Secondary",
+                    displayPct: showRemaining ? 100 - secondaryUsed : secondaryUsed,
+                    usedPct: secondaryUsed,
+                    resetMin: codexStats.weeklyResetMin
+                )
+            }
+
+            if stats == nil && codexStats == nil {
                 Text("No usage data")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)

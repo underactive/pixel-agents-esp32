@@ -2,6 +2,20 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.0] - 2026-03-21
+
+- Add Software Display mode to macOS companion: animated pixel-art office scene rendered locally at 320x224, matching the ESP32 CYD hardware display without needing physical hardware
+- Add Picture-in-Picture floating window: resizable NSPanel with nearest-neighbor pixel art scaling, aspect-ratio lock, hover-to-show traffic light buttons, position persistence, and movable across desktops
+- Add Display Mode picker (ESP32 Device / Software) in menu bar popover, hidden when connected to hardware
+- Add office background renderer tool (`tools/render_office_bg.py`) that generates 320x224 background PNG from firmware tile data
+- Port full office simulation to Swift: BFS pathfinding, 6-character FSM (idle/walk/type/read/activity), dog pet AI (wander/follow/nap), idle activities (reading, coffee, water, socializing)
+- Refactor rendering pipeline: shared CGImage frame produced by OfficeRenderer at 15 FPS, consumed by both menu bar and PIP views
+- Rename transport labels: Serial → USB, BLE → Bluetooth
+- Rename usage header: Usage → Claude Usage
+- Fix dark mode agent source icons (hardcoded black → adaptive primary color)
+- Add `make sign-install` target for signed builds with automatic install
+- Bump macOS deployment target to 14.0
+
 ## [0.9.6] - 2026-03-20
 
 - Fix macOS companion high CPU usage (~78% → <1% idle): replace 4Hz blind polling with FSEvents-driven transcript processing, guard SwiftUI displayAgents updates with equality check to prevent unnecessary redraws, switch to directory-level coalesced FSEvents

@@ -1,4 +1,4 @@
-.PHONY: build sign install test clean open
+.PHONY: build sign install sign-install test clean open
 
 build:
 	xcodegen generate
@@ -13,6 +13,9 @@ sign:
 		"DEVELOPMENT_TEAM=$(TEAM_ID)"
 
 install: build
+	cp -R .build/Build/Products/Release/PixelAgents.app /Applications/
+
+sign-install: sign
 	cp -R .build/Build/Products/Release/PixelAgents.app /Applications/
 
 test:

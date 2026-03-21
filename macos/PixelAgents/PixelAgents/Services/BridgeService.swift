@@ -8,10 +8,18 @@ enum ConnectionState: Equatable {
     case connected(String) // transport info string
 }
 
-/// Transport mode selection.
+/// Display mode: hardware (physical device) or software (local rendering).
+enum DisplayMode: String, CaseIterable, Identifiable {
+    case hardware = "ESP32 Device"
+    case software = "Software"
+
+    var id: String { rawValue }
+}
+
+/// Transport mode selection (hardware transports only).
 enum TransportMode: String, CaseIterable, Identifiable {
-    case serial = "Serial"
-    case ble = "BLE"
+    case serial = "USB"
+    case ble = "Bluetooth"
 
     var id: String { rawValue }
 }
@@ -29,7 +37,19 @@ final class BridgeService: ObservableObject {
     @Published var connectionState: ConnectionState = .disconnected
     @Published var displayAgents: [Agent] = (0..<maxDisplaySlots).map { Agent(id: UInt8($0), state: .offline) }
     @Published var usageStats: UsageStatsData?
+    @Published var codexUsageStats: UsageStatsData?
+    @Published var displayMode: DisplayMode = .hardware
     @Published var transportMode: TransportMode = .serial
+
+    // MARK: - Office scene (software display + PIP)
+
+    let officeScene = OfficeScene()
+    let officeRenderer = OfficeRenderer()
+    @Published var officeFrame: CGImage?
+    @Published var isPIPShown = false
+    lazy var pipController = PIPWindowController(bridge: self)
+    private var sceneTimer: Timer?
+    private var lastSceneDate: Date?
 
     // MARK: - Sub-components
 
@@ -42,6 +62,7 @@ final class BridgeService: ObservableObject {
     private let watcher = TranscriptWatcher()
     private var serialTransport = SerialTransport()
     private let usageFetcher = UsageStatsFetcher()
+    private let codexUsageFetcher = CodexUsageFetcher()
 
     private var activeTransport: TransportProtocol? {
         switch transportMode {
@@ -91,17 +112,37 @@ final class BridgeService: ObservableObject {
 
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
+        codexUsageFetcher.fetchAndCache()
 
         startTimers()
+        updateSceneTimerState()
         attemptConnect()
     }
 
     func stop() {
         stopTimers()
+        stopSceneTimer()
+        pipController.close()
         activeTransport?.disconnect()
         serialPortDetector.stopMonitoring()
         watcher.stopMonitoring()
         connectionState = .disconnected
+    }
+
+    func setDisplayMode(_ mode: DisplayMode) {
+        guard mode != displayMode else { return }
+        displayMode = mode
+        if mode == .software {
+            // Disconnect hardware, enter software display
+            activeTransport?.disconnect()
+            connectionState = .connected("Software Display")
+            resetSessionState()
+        } else {
+            // Switch back to hardware — reconnect
+            connectionState = .disconnected
+            attemptConnect()
+        }
+        updateSceneTimerState()
     }
 
     func setTransport(_ mode: TransportMode) {
@@ -148,6 +189,10 @@ final class BridgeService: ObservableObject {
     }
 
     private func attemptConnect() {
+        if displayMode == .software {
+            connectionState = .connected("Software Display")
+            return
+        }
         guard !(activeTransport?.isConnected ?? false) else { return }
         guard !manualDisconnect else { return }
 
@@ -185,6 +230,7 @@ final class BridgeService: ObservableObject {
                 // Just scanning — show disconnected so user can pick a device
                 connectionState = .disconnected
             }
+
         }
     }
 
@@ -204,6 +250,7 @@ final class BridgeService: ObservableObject {
         lastStates.removeAll()
         lastUsageData = nil
         lastCount = -1
+        officeScene.resetAppliedStates()
     }
 
     // MARK: - Timers
@@ -224,11 +271,13 @@ final class BridgeService: ObservableObject {
 
         usageFetchTimer = Timer.scheduledTimer(withTimeInterval: usageFetchInterval, repeats: true) { [weak self] _ in
             self?.usageFetcher.fetchAndCache()
+            self?.codexUsageFetcher.fetchAndCache()
         }
 
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
+                if self.displayMode == .software { return }
                 if !(self.activeTransport?.isConnected ?? false) {
                     self.attemptConnect()
                 } else if case .connecting = self.connectionState {
@@ -257,6 +306,7 @@ final class BridgeService: ObservableObject {
     // MARK: - Core logic
 
     private func sendHeartbeat() {
+        if displayMode == .software { return }
         guard let transport = activeTransport, transport.isConnected else { return }
         let msg = ProtocolBuilder.heartbeat()
         if !transport.send(msg) {
@@ -265,27 +315,45 @@ final class BridgeService: ObservableObject {
     }
 
     private func checkUsageStats() {
-        guard let transport = activeTransport, transport.isConnected else { return }
+        let isSoftware = displayMode == .software
+
+        // Update Codex usage stats for UI (always, not sent to hardware)
+        let codexData = codexUsageFetcher.currentStats()
+        if codexData != codexUsageStats {
+            codexUsageStats = codexData
+        }
+
+        // Claude usage: requires transport connection in hardware mode
+        if !isSoftware {
+            guard let transport = activeTransport, transport.isConnected else { return }
+            _ = transport
+        }
 
         guard let data = usageFetcher.currentStats() else { return }
 
-        // Only send if changed
+        // Only update if changed
         if data != lastUsageData {
-            let msg = ProtocolBuilder.usageStats(
-                currentPct: data.currentPct,
-                weeklyPct: data.weeklyPct,
-                currentResetMin: data.currentResetMin,
-                weeklyResetMin: data.weeklyResetMin
-            )
-            if transport.send(msg) {
-                lastUsageData = data
-                usageStats = data
+            lastUsageData = data
+            usageStats = data
+            // Send to hardware (skip in software mode)
+            if !isSoftware, let transport = activeTransport {
+                let msg = ProtocolBuilder.usageStats(
+                    currentPct: data.currentPct,
+                    weeklyPct: data.weeklyPct,
+                    currentResetMin: data.currentResetMin,
+                    weeklyResetMin: data.weeklyResetMin
+                )
+                _ = transport.send(msg)
             }
         }
     }
 
     private func processTranscripts() {
-        guard let transport = activeTransport, transport.isConnected else { return }
+        let isSoftware = displayMode == .software
+        if !isSoftware {
+            guard let transport = activeTransport, transport.isConnected else { return }
+            _ = transport  // suppress unused warning; used below
+        }
 
         let transcripts = watcher.findActiveTranscripts()
 
@@ -320,9 +388,11 @@ final class BridgeService: ObservableObject {
                     }
 
                     if lastStates[key]?.0 != state || lastStates[key]?.1 != tool {
-                        let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: state, tool: tool)
-                        if transport.send(msg) {
-                            lastStates[key] = (state, tool)
+                        lastStates[key] = (state, tool)
+                        // Send protocol message to hardware (skip in software mode)
+                        if !isSoftware, let transport = activeTransport {
+                            let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: state, tool: tool)
+                            _ = transport.send(msg)
                         }
                     }
                 } else {
@@ -341,12 +411,17 @@ final class BridgeService: ObservableObject {
     /// Prune stale agents, send count updates, and refresh the published display array.
     /// Called from both FSEvents-driven processTranscripts() and the periodic heartbeat timer.
     private func pruneAndUpdateDisplay() {
-        if let transport = activeTransport, transport.isConnected {
+        let isSoftware = displayMode == .software
+        let transportConnected = activeTransport?.isConnected ?? false
+
+        if isSoftware || transportConnected {
             // Prune stale agents
             let pruned = tracker.pruneStale(timeout: staleTimeout)
             for agent in pruned {
-                let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
-                _ = transport.send(msg)
+                if !isSoftware, let transport = activeTransport {
+                    let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
+                    _ = transport.send(msg)
+                }
             }
             // Clean up lastStates for pruned keys
             let activeKeys = Set(tracker.agents.keys)
@@ -355,9 +430,10 @@ final class BridgeService: ObservableObject {
             // Send agent count if changed
             let count = tracker.count
             if count != lastCount {
-                let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
-                if transport.send(msg) {
-                    lastCount = count
+                lastCount = count
+                if !isSoftware, let transport = activeTransport {
+                    let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
+                    _ = transport.send(msg)
                 }
             }
         }
@@ -376,14 +452,75 @@ final class BridgeService: ObservableObject {
         }
     }
 
+    // MARK: - PIP
+
+    func togglePIP() {
+        isPIPShown.toggle()
+        if isPIPShown {
+            pipController.show()
+        } else {
+            pipController.close()
+        }
+        updateSceneTimerState()
+    }
+
+    // MARK: - Scene Timer
+
+    /// Called by PIPWindowController when the window closes via the OS close button.
+    func sceneTimerNeedsUpdate() {
+        updateSceneTimerState()
+    }
+
+    /// Starts/stops the 15 FPS scene timer based on whether the office scene is needed.
+    private func updateSceneTimerState() {
+        let needsScene = displayMode == .software || isPIPShown
+        if needsScene && sceneTimer == nil {
+            startSceneTimer()
+        } else if !needsScene && sceneTimer != nil {
+            stopSceneTimer()
+        }
+    }
+
+    private func startSceneTimer() {
+        lastSceneDate = Date()
+        sceneTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.tickScene()
+            }
+        }
+    }
+
+    private func stopSceneTimer() {
+        sceneTimer?.invalidate()
+        sceneTimer = nil
+        lastSceneDate = nil
+    }
+
+    private func tickScene() {
+        let now = Date()
+        let dt: Float
+        if let last = lastSceneDate {
+            dt = min(Float(now.timeIntervalSince(last)), 0.2)
+        } else {
+            dt = 1.0 / 15.0
+        }
+        lastSceneDate = now
+
+        officeScene.applyAgentStates(displayAgents)
+        officeScene.update(dt: dt)
+        officeFrame = officeRenderer.render(scene: officeScene)
+    }
+
     // MARK: - Sleep/Wake
 
     func handleSleep() {
         stopTimers()
+        stopSceneTimer()
     }
 
     func handleWake() {
         startTimers()
+        updateSceneTimerState()
         if !(activeTransport?.isConnected ?? false) {
             attemptConnect()
         }
