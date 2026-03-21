@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.6] - 2026-03-20
+
+- Fix macOS companion high CPU usage (~78% → <1% idle): replace 4Hz blind polling with FSEvents-driven transcript processing, guard SwiftUI displayAgents updates with equality check to prevent unnecessary redraws, switch to directory-level coalesced FSEvents
+
 ## [0.9.5] - 2026-03-20
 
 - Add macOS companion app code signing, notarization, and DMG packaging to GitHub Actions release workflow
