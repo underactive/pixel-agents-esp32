@@ -1,4 +1,4 @@
-name: Build & Release Firmware
+name: Build & Release
 
 on:
   push:
@@ -7,33 +7,37 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  validate-version:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Extract and validate version
-        if: startsWith(github.ref, 'refs/tags/v')
         id: version
         run: |
-          # Version from git tag
-          TAG_VER="${GITHUB_REF_NAME#v}"
-          echo "version=$TAG_VER" >> "$GITHUB_OUTPUT"
-
-          # Version from SPLASH_VERSION_STR in config.h
-          CODE_VER=$(grep -E '#define SPLASH_VERSION_STR' firmware/src/config.h | sed 's/.*"v\([0-9][0-9.]*\).*/\1/')
-
-          echo "Tag version:  $TAG_VER"
-          echo "Code version: $CODE_VER"
-
-          if [[ "$TAG_VER" != "$CODE_VER" ]]; then
-            echo "ERROR: Tag version ($TAG_VER) does not match config.h ($CODE_VER)"
-            exit 1
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_VER="${GITHUB_REF_NAME#v}"
+            CODE_VER=$(grep -E '#define SPLASH_VERSION_STR' firmware/src/config.h | sed 's/.*"v\([0-9][0-9.]*\).*/\1/')
+            echo "Tag version:  $TAG_VER"
+            echo "Code version: $CODE_VER"
+            if [[ "$TAG_VER" != "$CODE_VER" ]]; then
+              echo "ERROR: Tag version ($TAG_VER) does not match config.h ($CODE_VER)"
+              exit 1
+            fi
+            echo "version=$TAG_VER" >> "$GITHUB_OUTPUT"
+          else
+            echo "No tag — skipping version validation"
           fi
+
+  build-firmware:
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -55,52 +59,155 @@ jobs:
         run: pio run -e freenove-s3-28c
         working-directory: firmware
 
-      - name: Prepare release artifacts
+      - name: Package firmware artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ needs.validate-version.outputs.version }}"
           mkdir -p releases
 
-          # CYD package
-          CYD_DIR="releases/pixel-agents-cyd-v${VERSION}"
-          mkdir -p "$CYD_DIR"
-          cp firmware/.pio/build/cyd-2432s028r/firmware.bin "$CYD_DIR/"
-          cp firmware/.pio/build/cyd-2432s028r/bootloader.bin "$CYD_DIR/"
-          cp firmware/.pio/build/cyd-2432s028r/partitions.bin "$CYD_DIR/"
-          # boot_app0.bin is provided by the Arduino framework
-          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$CYD_DIR/"
-          (cd releases && zip -r "pixel-agents-cyd-v${VERSION}.zip" "pixel-agents-cyd-v${VERSION}/")
+          for board_env in cyd-2432s028r lilygo-t-display-s3 freenove-s3-28c; do
+            case $board_env in
+              cyd-2432s028r)        NAME="cyd" ;;
+              lilygo-t-display-s3)  NAME="lilygo" ;;
+              freenove-s3-28c)      NAME="freenove-s3" ;;
+            esac
 
-          # LILYGO package
-          LILYGO_DIR="releases/pixel-agents-lilygo-v${VERSION}"
-          mkdir -p "$LILYGO_DIR"
-          cp firmware/.pio/build/lilygo-t-display-s3/firmware.bin "$LILYGO_DIR/"
-          cp firmware/.pio/build/lilygo-t-display-s3/bootloader.bin "$LILYGO_DIR/"
-          cp firmware/.pio/build/lilygo-t-display-s3/partitions.bin "$LILYGO_DIR/"
-          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$LILYGO_DIR/"
-          (cd releases && zip -r "pixel-agents-lilygo-v${VERSION}.zip" "pixel-agents-lilygo-v${VERSION}/")
+            DIR="releases/pixel-agents-${NAME}-v${VERSION}"
+            mkdir -p "$DIR"
+            cp firmware/.pio/build/${board_env}/firmware.bin "$DIR/"
+            cp firmware/.pio/build/${board_env}/bootloader.bin "$DIR/"
+            cp firmware/.pio/build/${board_env}/partitions.bin "$DIR/"
+            find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$DIR/"
+            (cd releases && zip -r "pixel-agents-${NAME}-v${VERSION}.zip" "pixel-agents-${NAME}-v${VERSION}/")
+          done
 
-          # Freenove S3 package
-          FREENOVE_DIR="releases/pixel-agents-freenove-s3-v${VERSION}"
-          mkdir -p "$FREENOVE_DIR"
-          cp firmware/.pio/build/freenove-s3-28c/firmware.bin "$FREENOVE_DIR/"
-          cp firmware/.pio/build/freenove-s3-28c/bootloader.bin "$FREENOVE_DIR/"
-          cp firmware/.pio/build/freenove-s3-28c/partitions.bin "$FREENOVE_DIR/"
-          find ~/.platformio -name boot_app0.bin -path "*/espressif32/*" | head -1 | xargs -I{} cp {} "$FREENOVE_DIR/"
-          (cd releases && zip -r "pixel-agents-freenove-s3-v${VERSION}.zip" "pixel-agents-freenove-s3-v${VERSION}/")
+      - name: Upload firmware artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-releases
+          path: releases/*.zip
+
+  build-macos:
+    needs: validate-version
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+      - name: Generate Xcode project
+        working-directory: macos/PixelAgents
+        run: xcodegen generate
+
+      - name: Build and sign
+        working-directory: macos/PixelAgents
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ needs.validate-version.outputs.version || '0.0.0' }}
+        run: |
+          xcodebuild -project PixelAgents.xcodeproj \
+            -scheme PixelAgents \
+            -configuration Release \
+            -derivedDataPath .build \
+            CODE_SIGN_STYLE=Manual \
+            "CODE_SIGN_IDENTITY=Developer ID Application" \
+            "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
+            "MARKETING_VERSION=$VERSION"
+
+      - name: Create DMG
+        working-directory: macos/PixelAgents
+        env:
+          VERSION: ${{ needs.validate-version.outputs.version || '0.0.0' }}
+        run: |
+          mkdir -p dmg_staging
+          cp -R .build/Build/Products/Release/PixelAgents.app dmg_staging/
+          ln -s /Applications dmg_staging/Applications
+          hdiutil create \
+            -volname "Pixel Agents" \
+            -srcfolder dmg_staging \
+            -ov -format UDZO \
+            "PixelAgents-v${VERSION}.dmg"
+
+      - name: Notarize DMG
+        working-directory: macos/PixelAgents
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ needs.validate-version.outputs.version || '0.0.0' }}
+        run: |
+          xcrun notarytool submit "PixelAgents-v${VERSION}.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "PixelAgents-v${VERSION}.dmg"
+
+      - name: Upload macOS artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: macos/PixelAgents/PixelAgents-v*.dmg
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+
+  release:
+    needs: [validate-version, build-firmware, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-releases
+          path: releases/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-release
+          path: releases/
 
       - name: Extract changelog entry
-        if: startsWith(github.ref, 'refs/tags/v')
         id: changelog
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          # Extract everything between ## [VERSION] and the next ## [ heading
+          VERSION="${{ needs.validate-version.outputs.version }}"
           BODY=$(sed -n "/^## \[${VERSION}\]/,/^## \[/{/^## \[${VERSION}\]/d;/^## \[/d;p;}" CHANGELOG.md)
           echo "$BODY" > /tmp/release_body.md
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: releases/*.zip
+          files: releases/*
           body_path: /tmp/release_body.md
