@@ -135,6 +135,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=Developer ID Application" \
             "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
+            "OTHER_CODE_SIGN_FLAGS=--timestamp" \
             "MARKETING_VERSION=$VERSION"
 
       - name: Create DMG
@@ -159,11 +160,25 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           VERSION: ${{ needs.validate-version.outputs.version || '0.0.0' }}
         run: |
-          xcrun notarytool submit "PixelAgents-v${VERSION}.dmg" \
+          # Submit and wait, capturing output for the submission ID
+          SUBMIT_OUT=$(xcrun notarytool submit "PixelAgents-v${VERSION}.dmg" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1) || true
+          echo "$SUBMIT_OUT"
+
+          # Extract submission ID and fetch detailed log on failure
+          SUBMISSION_ID=$(echo "$SUBMIT_OUT" | grep -m1 "id:" | awk '{print $2}')
+          if ! echo "$SUBMIT_OUT" | grep -q "status: Accepted"; then
+            echo "--- Notarization Log ---"
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" 2>&1 || true
+            exit 1
+          fi
+
           xcrun stapler staple "PixelAgents-v${VERSION}.dmg"
 
       - name: Upload macOS artifact
