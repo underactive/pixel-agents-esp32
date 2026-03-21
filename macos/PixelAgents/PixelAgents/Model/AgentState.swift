@@ -24,13 +24,13 @@ enum CharState: UInt8, CaseIterable {
 }
 
 /// Identifies the source of a transcript file.
-enum TranscriptSource {
+enum TranscriptSource: Equatable {
     case claude
     case codex
 }
 
 /// Tracks a single Claude Code agent session
-struct Agent: Identifiable {
+struct Agent: Identifiable, Equatable {
     let id: UInt8
     var state: CharState = .idle
     var toolName: String = ""
@@ -38,4 +38,9 @@ struct Agent: Identifiable {
     var lastSeen: Date = Date()
     var activeTools: Set<String> = []
     var hadToolInTurn: Bool = false
+
+    /// Compare only display-relevant fields; internal tracking state (lastSeen, activeTools, hadToolInTurn) is excluded.
+    static func == (lhs: Agent, rhs: Agent) -> Bool {
+        lhs.id == rhs.id && lhs.state == rhs.state && lhs.toolName == rhs.toolName && lhs.source == rhs.source
+    }
 }

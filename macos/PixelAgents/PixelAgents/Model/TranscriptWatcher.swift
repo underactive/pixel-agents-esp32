@@ -42,9 +42,7 @@ final class TranscriptWatcher {
 
         let pathsToWatch = paths as CFArray
         let flags: FSEventStreamCreateFlags =
-            UInt32(kFSEventStreamCreateFlagUseCFTypes) |
-            UInt32(kFSEventStreamCreateFlagFileEvents) |
-            UInt32(kFSEventStreamCreateFlagNoDefer)
+            UInt32(kFSEventStreamCreateFlagUseCFTypes)
 
         guard let stream = FSEventStreamCreate(
             nil,
@@ -56,7 +54,7 @@ final class TranscriptWatcher {
             &context,
             pathsToWatch,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-            0.25, // latency: match 4Hz cadence
+            1.0, // coalesce events over 1s — directory-level notifications
             flags
         ) else { return }
 

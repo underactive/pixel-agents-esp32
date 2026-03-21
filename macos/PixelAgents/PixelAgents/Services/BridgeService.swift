@@ -50,7 +50,6 @@ final class BridgeService: ObservableObject {
         }
     }
 
-    private var pollTimer: Timer?
     private var heartbeatTimer: Timer?
     private var usageTimer: Timer?
     private var usageFetchTimer: Timer?
@@ -68,7 +67,6 @@ final class BridgeService: ObservableObject {
 
     // MARK: - Timing constants (matching Python bridge)
 
-    private let pollInterval: TimeInterval = 0.25       // 4 Hz
     private let heartbeatInterval: TimeInterval = 2.0
     private let usageInterval: TimeInterval = 10.0
     private let usageFetchInterval: TimeInterval = 900  // 15 min API poll
@@ -80,8 +78,9 @@ final class BridgeService: ObservableObject {
     func start() {
         serialPortDetector.startMonitoring()
         watcher.startMonitoring { [weak self] in
-            // FSEvents fired — next poll cycle will pick up changes
-            _ = self
+            Task { @MainActor in
+                self?.processTranscripts()
+            }
         }
 
         bleTransport.onDisconnect = { [weak self] in
@@ -210,15 +209,10 @@ final class BridgeService: ObservableObject {
     // MARK: - Timers
 
     private func startTimers() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.processTranscripts()
-            }
-        }
-
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.sendHeartbeat()
+                self?.pruneAndUpdateDisplay()
             }
         }
 
@@ -250,12 +244,10 @@ final class BridgeService: ObservableObject {
     }
 
     private func stopTimers() {
-        pollTimer?.invalidate()
         heartbeatTimer?.invalidate()
         usageTimer?.invalidate()
         usageFetchTimer?.invalidate()
         reconnectTimer?.invalidate()
-        pollTimer = nil
         heartbeatTimer = nil
         usageTimer = nil
         usageFetchTimer = nil
@@ -343,34 +335,44 @@ final class BridgeService: ObservableObject {
             }
         }
 
-        // Prune stale agents
-        let pruned = tracker.pruneStale(timeout: staleTimeout)
-        for agent in pruned {
-            let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
-            _ = transport.send(msg)
-        }
-        // Clean up lastStates for pruned keys
-        let activeKeys = Set(tracker.agents.keys)
-        lastStates = lastStates.filter { activeKeys.contains($0.key) }
+        pruneAndUpdateDisplay()
+    }
 
-        // Send agent count if changed
-        let count = tracker.count
-        if count != lastCount {
-            let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
-            if transport.send(msg) {
-                lastCount = count
+    /// Prune stale agents, send count updates, and refresh the published display array.
+    /// Called from both FSEvents-driven processTranscripts() and the periodic heartbeat timer.
+    private func pruneAndUpdateDisplay() {
+        if let transport = activeTransport, transport.isConnected {
+            // Prune stale agents
+            let pruned = tracker.pruneStale(timeout: staleTimeout)
+            for agent in pruned {
+                let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
+                _ = transport.send(msg)
+            }
+            // Clean up lastStates for pruned keys
+            let activeKeys = Set(tracker.agents.keys)
+            lastStates = lastStates.filter { activeKeys.contains($0.key) }
+
+            // Send agent count if changed
+            let count = tracker.count
+            if count != lastCount {
+                let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
+                if transport.send(msg) {
+                    lastCount = count
+                }
             }
         }
 
-        // Update published agents for UI — always show maxDisplaySlots slots.
-        // Use slot index as the Identifiable id to avoid duplicates in ForEach.
+        // Update published agents for UI — only if changed to prevent unnecessary SwiftUI redraws.
         let active = tracker.sortedAgents
-        displayAgents = (0..<Self.maxDisplaySlots).map { i in
+        let newAgents = (0..<Self.maxDisplaySlots).map { i in
             if i < active.count {
                 return Agent(id: UInt8(i), state: active[i].state, toolName: active[i].toolName, source: active[i].source)
             } else {
                 return Agent(id: UInt8(i), state: .offline)
             }
+        }
+        if newAgents != displayAgents {
+            displayAgents = newAgents
         }
     }
 
