@@ -2,6 +2,12 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.9.5] - 2026-03-20
+
+- Add macOS companion app code signing, notarization, and DMG packaging to GitHub Actions release workflow
+- Release workflow now builds firmware and macOS app in parallel, producing a signed+notarized DMG alongside firmware ZIPs
+- Add `make sign TEAM_ID=X` target for local Developer ID signed builds
+
 ## [0.9.4] - 2026-03-19
 
 - Add display sleep mode: screen turns off after 5 minutes of inactivity, touch to wake (CYD and CYD-S3)
