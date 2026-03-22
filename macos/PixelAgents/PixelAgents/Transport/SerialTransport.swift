@@ -57,7 +57,9 @@ final class SerialTransport: TransportProtocol {
         let currentFlags = fcntl(fileDescriptor, F_GETFL)
         _ = fcntl(fileDescriptor, F_SETFL, currentFlags & ~O_NONBLOCK)
 
+        fdLock.lock()
         self.fd = fileDescriptor
+        fdLock.unlock()
 
         // Set up async read source for incoming data
         setupReadSource()

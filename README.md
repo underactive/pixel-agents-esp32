@@ -165,7 +165,9 @@ The native macOS menu bar app is the recommended way to connect the ESP32 on mac
 - **Serial connect/disconnect** — explicit connect and disconnect buttons in the transport picker for manual serial control
 - **Auto-reconnect** — reconnects automatically after USB unplug/replug or BLE disconnect
 - **Sleep/wake aware** — pauses timers on sleep, reconnects on wake
-- **Launch at login** — optional toggle via the popover menu
+- **Settings window** — gear button opens a standalone settings window with Launch at Login, Claude usage stats, and Codex usage stats toggles
+- **Right-click menu** — right-click the menu bar icon for About and Quit
+- **Launch at login** — optional toggle in the Settings window
 
 ### Requirements
 
@@ -196,7 +198,7 @@ PixelAgents.app (SwiftUI MenuBarExtra)
 ├── Model        — AgentTracker, StateDeriver, ProtocolBuilder, TranscriptWatcher, UsageStats
 ├── Transport    — SerialTransport (IOKit/POSIX), BLETransport (CoreBluetooth NUS)
 ├── Services     — BridgeService (orchestrator), ScreenshotService, UsageStatsFetcher
-└── Views        — MenuBarView, ConnectionStatusView, AgentListView, UsageStatsView, TransportPicker
+└── Views        — MenuBarView, ConnectionStatusView, AgentListView, UsageStatsView, TransportPicker, SettingsView, AboutView
 ```
 
 The app polls JSONL transcripts at 4 Hz (matching the Python bridge), sends heartbeats every 2s, and checks usage stats every 10s. All business logic is a direct port of the Python companion.

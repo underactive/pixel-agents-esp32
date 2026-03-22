@@ -4,6 +4,9 @@ All notable changes to Pixel Agents are documented here.
 
 ## [0.10.0] - 2026-03-21
 
+- Add Settings window to macOS companion: gear button in popover opens standalone settings with Launch at Login, Claude usage stats toggle, and Codex usage stats toggle
+- Add right-click context menu on menu bar icon: About window (app icon, version, GitHub link) and Quit
+- Move Launch at Login from inline popover toggle to Settings window
 - Add Software Display mode to macOS companion: animated pixel-art office scene rendered locally at 320x224, matching the ESP32 CYD hardware display without needing physical hardware
 - Add Picture-in-Picture floating window: resizable NSPanel with nearest-neighbor pixel art scaling, aspect-ratio lock, hover-to-show traffic light buttons, position persistence, and movable across desktops
 - Add Display Mode picker (ESP32 Device / Software) in menu bar popover, hidden when connected to hardware

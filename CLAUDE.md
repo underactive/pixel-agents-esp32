@@ -327,8 +327,12 @@ Connection state tracked per-transport: `isSerialConnected()`, `isBleConnected()
 - Writes `~/.claude/rate-limits-cache.json` (same format as Python bridge reads)
 - Screenshot capture: decodes RLE response, saves PNG to `~/Pictures/PixelAgents/`
 - IOKit-based serial port auto-detection with USB device notifications
-- Launch at login via `SMAppService`
-- UI: connection status dot, transport picker (serial/BLE), agent list with state indicators, usage bars with reset timers
+- Launch at login via `SMAppService` (in Settings window)
+- Settings window: Launch at Login toggle, Claude/Codex usage stats visibility toggles (`@AppStorage` in `UserDefaults`)
+- About window: app icon, version (`CFBundleShortVersionString`), GitHub link
+- Right-click context menu on menu bar icon via `NSEvent.addLocalMonitorForEvents` (About, Quit)
+- `AppDelegate` (`@NSApplicationDelegateAdaptor`): manages right-click menu, Settings/About windows, lifecycle observers
+- UI: connection status dot, transport picker (serial/BLE), agent list with state indicators, usage bars with reset timers, gear button for settings
 - Codex CLI support: `CodexStateDeriver` parses rollout JSONL alongside Claude's `StateDeriver` (supports current snake_case, codex exec --json, and legacy PascalCase formats)
 - Unit tests: StateDeriverTests, CodexStateDeriverTests, ProtocolBuilderTests, AgentTrackerTests
 
@@ -691,6 +695,9 @@ Version string appears in 4 files:
 | `companion/ble_transport.py` | BLE client transport using bleak |
 | `companion/requirements.txt` | Python dependencies (`pyserial>=3.5`, `bleak>=0.21.0`) |
 | `macos/PixelAgents/` | Native macOS menu bar companion app (Xcode project) |
+| `macos/PixelAgents/PixelAgents/AppDelegate.swift` | Menu bar right-click menu, Settings/About windows, lifecycle |
+| `macos/PixelAgents/PixelAgents/Views/SettingsView.swift` | Settings window: Launch at Login, usage stats toggles |
+| `macos/PixelAgents/PixelAgents/Views/AboutView.swift` | About window: app icon, version, GitHub link |
 | `tools/sprite_converter.py` | Furniture/bubbles/tiles --> C header generator |
 | `tools/convert_characters.py` | Character PNG sprite sheets --> C header generator |
 | `tools/convert_dog.py` | Dog pet PNG sprite sheet --> C header generator |

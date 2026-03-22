@@ -3,6 +3,7 @@ import os
 
 /// Fetches usage stats from the OpenAI Codex API via the ChatGPT backend.
 /// Reads the OAuth token from ~/.codex/auth.json (written by `codex` CLI on login).
+@MainActor
 final class CodexUsageFetcher {
 
     private static let log = Logger(subsystem: "com.pixelagents", category: "CodexUsage")
@@ -39,9 +40,7 @@ final class CodexUsageFetcher {
 
             Self.log.info("Codex usage: primary=\(data.currentPct)% secondary=\(data.weeklyPct)%")
 
-            await MainActor.run {
-                self.latestData = data
-            }
+            self.latestData = data
         }
     }
 

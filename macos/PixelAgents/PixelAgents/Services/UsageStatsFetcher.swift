@@ -8,6 +8,7 @@ import Security
 /// ~/.claude/rate-limits-cache.json so both the macOS app and Python bridge can consume them.
 ///
 /// Owned by BridgeService which drives the fetch timer alongside its other timers.
+@MainActor
 final class UsageStatsFetcher {
 
     // MARK: - Constants
@@ -46,9 +47,7 @@ final class UsageStatsFetcher {
 
             Self.log.info("Fetched: current=\(data.currentPct)% weekly=\(data.weeklyPct)%")
 
-            await MainActor.run {
-                self.latestData = data
-            }
+            self.latestData = data
 
             writeCacheFile(data)
         }

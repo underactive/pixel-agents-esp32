@@ -349,6 +349,27 @@
 - [ ] Hamburger menu no longer shows "Mic Test" row (removed feature)
 
 ### macOS Companion App
+
+#### Settings Window
+- [ ] Gear button appears in bottom-left of popover, "Quit" button in bottom-right
+- [ ] Clicking gear button opens standalone Settings window and popover remains usable
+- [ ] Settings window shows "Launch at Login", "Show Claude usage", and "Show Codex usage" toggles
+- [ ] Launch at Login toggle state matches actual system state (SMAppService)
+- [ ] Toggling "Show Claude usage" off hides Claude usage section in popover immediately
+- [ ] Toggling "Show Codex usage" off hides Codex usage section in popover immediately
+- [ ] Toggling both off hides the entire usage section (no "No usage data" message)
+- [ ] Toggle states persist across app quit and relaunch
+- [ ] Closing and reopening Settings reuses the same window (not recreated)
+
+#### Right-Click Context Menu
+- [ ] Right-clicking menu bar icon shows context menu with "About Pixel Agents" and "Quit"
+- [ ] Left-clicking menu bar icon still opens the popover normally
+- [ ] "About Pixel Agents" opens About window with app icon, "Pixel Agents" title, version, and GitHub link
+- [ ] About window version matches MARKETING_VERSION from project.yml
+- [ ] "Quit" in context menu terminates the app cleanly
+- [ ] About window reuses same window on re-open (not recreated)
+
+#### Usage Stats
 - [ ] Usage stats display as "Usage" header with used percentages by default
 - [ ] Tapping the "Usage" header toggles to "Remaining" mode — header changes to "Remaining", percentages show 100 minus used value
 - [ ] Bar width matches the displayed percentage in both modes

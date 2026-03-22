@@ -8,5 +8,9 @@
 	<string>Pixel Agents needs Bluetooth to communicate with your ESP32 display wirelessly.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Pixel Agents</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 </dict>
 </plist>

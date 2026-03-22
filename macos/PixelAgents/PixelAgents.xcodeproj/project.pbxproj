@@ -9,7 +9,9 @@
 /* Begin PBXBuildFile section */
 		042BD30E60B4CA6F32D59E6B /* BLETransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12E3D281E8ACAB797B0B4C1E /* BLETransport.swift */; };
 		097F9E4A6DC5FC0CDB3050F2 /* char_5.png in Resources */ = {isa = PBXBuildFile; fileRef = 6BA3DE909CA09A73D0B93C6B /* char_5.png */; };
+		1B37021281D5EF6656F3C9F7 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E674E8E220FA2E8907732BB4 /* SettingsView.swift */; };
 		2599D48A123D3BA4379EF977 /* AgentTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD99CE0598B3589EE999422 /* AgentTrackerTests.swift */; };
+		26EB48A633B3FCF6B900C9E1 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FF8381F35D1DEBDD256CD7 /* AboutView.swift */; };
 		2791232513C9941D2C2F0186 /* char_2.png in Resources */ = {isa = PBXBuildFile; fileRef = B1056864A5A427A3D5E294F4 /* char_2.png */; };
 		2C5BB4C83A76E7E759105445 /* TransportPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F3F1C9182116F886FB8B120 /* TransportPicker.swift */; };
 		31CFBE71B151BD9E5270E5F4 /* char_0.png in Resources */ = {isa = PBXBuildFile; fileRef = AE20608139472D84E8507ECD /* char_0.png */; };
@@ -30,6 +32,7 @@
 		88C2A2DD7F4079054CA9B95E /* StateDeriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876E9601100F723B47900912 /* StateDeriver.swift */; };
 		88E0614BDAAF587C8E496643 /* OfficeRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C1F95ABD7BB0BB4CC234CEF /* OfficeRenderer.swift */; };
 		94706665CA705BCF492115A3 /* doggy-brown.png in Resources */ = {isa = PBXBuildFile; fileRef = 9DCF41B35641BC9D1DED9185 /* doggy-brown.png */; };
+		9AD45C6848663ABBC3E12BC3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E76C906BD1E68D43AC32234 /* AppDelegate.swift */; };
 		9B15ECFDF39C6688DD607275 /* UsageStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6406D0B470CA1C89C4E654 /* UsageStats.swift */; };
 		A3F384CFD310446731DDC1FC /* ProtocolBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438D16E699ADC10874038173 /* ProtocolBuilderTests.swift */; };
 		AC7A9F39998F241586745104 /* TransportProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F950F5B380DEA1B15DAEBAC2 /* TransportProtocol.swift */; };
@@ -63,6 +66,7 @@
 /* Begin PBXFileReference section */
 		0261890A2004A6CC8147EDEA /* CodexStateDeriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexStateDeriverTests.swift; sourceTree = "<group>"; };
 		0B0D27F0463B4A1F10B2D5C1 /* AgentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentState.swift; sourceTree = "<group>"; };
+		0E76C906BD1E68D43AC32234 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		12E3D281E8ACAB797B0B4C1E /* BLETransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLETransport.swift; sourceTree = "<group>"; };
 		184F0540C2A2CE7BA4CF3497 /* doggy-tan.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "doggy-tan.png"; sourceTree = "<group>"; };
 		1E67660D7C8E50D450BB47FD /* char_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = char_1.png; sourceTree = "<group>"; };
@@ -76,6 +80,7 @@
 		4C1F95ABD7BB0BB4CC234CEF /* OfficeRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficeRenderer.swift; sourceTree = "<group>"; };
 		51C69EBBAB869A5C7B4CBCCB /* PixelAgentsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelAgentsApp.swift; sourceTree = "<group>"; };
 		54D3132F577D4AE6340A24E1 /* doggy-gray.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "doggy-gray.png"; sourceTree = "<group>"; };
+		63FF8381F35D1DEBDD256CD7 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		68B10ACE3A166BA994784A90 /* AgentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentListView.swift; sourceTree = "<group>"; };
 		6B85FDDFE0320235F5D486A2 /* ScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotService.swift; sourceTree = "<group>"; };
 		6BA3DE909CA09A73D0B93C6B /* char_5.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = char_5.png; sourceTree = "<group>"; };
@@ -101,6 +106,7 @@
 		D4728555EDBC5FBC8CC2BB61 /* ConnectionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatusView.swift; sourceTree = "<group>"; };
 		DCD7F6E2230B60E2B83CB8FF /* BridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeService.swift; sourceTree = "<group>"; };
 		E60584C10C330F6F460F9924 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E674E8E220FA2E8907732BB4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EBCA3A5BA1B7EF117E5B7A06 /* PixelAgentsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PixelAgentsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC218E39B51EFD9E6F557B50 /* SerialPortDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialPortDetector.swift; sourceTree = "<group>"; };
 		F950F5B380DEA1B15DAEBAC2 /* TransportProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportProtocol.swift; sourceTree = "<group>"; };
@@ -111,6 +117,7 @@
 		27FED626B224AC9146E8B0A0 /* PixelAgents */ = {
 			isa = PBXGroup;
 			children = (
+				0E76C906BD1E68D43AC32234 /* AppDelegate.swift */,
 				E60584C10C330F6F460F9924 /* Assets.xcassets */,
 				903BCE8ECE358D3C3B0E3B81 /* Info.plist */,
 				51C69EBBAB869A5C7B4CBCCB /* PixelAgentsApp.swift */,
@@ -179,12 +186,14 @@
 		88FD01E81DA521FA95D8A1F0 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				63FF8381F35D1DEBDD256CD7 /* AboutView.swift */,
 				68B10ACE3A166BA994784A90 /* AgentListView.swift */,
 				D4728555EDBC5FBC8CC2BB61 /* ConnectionStatusView.swift */,
 				447A0997ABF99A7C359177B4 /* MenuBarView.swift */,
 				840F673BBA7B7885B26885F4 /* OfficeCanvasView.swift */,
 				4C1F95ABD7BB0BB4CC234CEF /* OfficeRenderer.swift */,
 				72596DBB3EBBBE9A88F31200 /* PIPWindowController.swift */,
+				E674E8E220FA2E8907732BB4 /* SettingsView.swift */,
 				6F3F1C9182116F886FB8B120 /* TransportPicker.swift */,
 				AAFF576CC3F1196D5B117C77 /* UsageStatsView.swift */,
 			);
@@ -319,9 +328,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				26EB48A633B3FCF6B900C9E1 /* AboutView.swift in Sources */,
 				7472034F6C6FA4B83B2DBD60 /* AgentListView.swift in Sources */,
 				5175A1A03056D0A505426A65 /* AgentState.swift in Sources */,
 				C607D5C8D59A4FBF1F3CB246 /* AgentTracker.swift in Sources */,
+				9AD45C6848663ABBC3E12BC3 /* AppDelegate.swift in Sources */,
 				042BD30E60B4CA6F32D59E6B /* BLETransport.swift in Sources */,
 				E52835AE6B92902CC8990D45 /* BridgeService.swift in Sources */,
 				7091BEBF6AE5D91EF57DD67A /* CodexStateDeriver.swift in Sources */,
@@ -337,6 +348,7 @@
 				D42C285FD96B02A791B9510E /* ScreenshotService.swift in Sources */,
 				C519DBAC3964322414664A20 /* SerialPortDetector.swift in Sources */,
 				DC9926EF3720E5BC675F15B8 /* SerialTransport.swift in Sources */,
+				1B37021281D5EF6656F3C9F7 /* SettingsView.swift in Sources */,
 				88C2A2DD7F4079054CA9B95E /* StateDeriver.swift in Sources */,
 				4BD758ADB04DA4D68EC9DD40 /* TranscriptWatcher.swift in Sources */,
 				2C5BB4C83A76E7E759105445 /* TransportPicker.swift in Sources */,
@@ -502,7 +514,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pixelagents.companion;
 				PRODUCT_NAME = PixelAgents;
 				SDKROOT = macosx;
@@ -557,7 +569,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pixelagents.companion;
 				PRODUCT_NAME = PixelAgents;
 				SDKROOT = macosx;

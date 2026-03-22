@@ -1,11 +1,11 @@
 import SwiftUI
-import ServiceManagement
 
 /// Main popover content displayed when clicking the menu bar icon.
 struct MenuBarView: View {
     @EnvironmentObject var bridge: BridgeService
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @AppStorage("showRemaining") private var showRemaining = false
+    @AppStorage(SettingsKeys.showRemaining) private var showRemaining = false
+    @AppStorage(SettingsKeys.showClaudeUsage) private var showClaudeUsage = true
+    @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -84,10 +84,8 @@ struct MenuBarView: View {
                     .padding(.vertical, 4)
 
                 // Usage stats
-                UsageStatsView(stats: bridge.usageStats, codexStats: bridge.codexUsageStats, showRemaining: $showRemaining)
+                usageStatsSection
 
-                Divider()
-                    .padding(.vertical, 4)
             } else {
                 // Hardware mode: transport picker
                 TransportPicker()
@@ -101,15 +99,25 @@ struct MenuBarView: View {
                     Divider()
                         .padding(.vertical, 4)
 
-                    UsageStatsView(stats: bridge.usageStats, codexStats: bridge.codexUsageStats, showRemaining: $showRemaining)
-
-                    Divider()
-                        .padding(.vertical, 4)
+                    usageStatsSection
                 }
             }
 
             // Bottom actions
             HStack {
+                Button {
+                    bridge.onOpenSettings?()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 11))
+                        Text("Settings")
+                            .font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+
                 if !bridge.isSoftwareMode && bridge.transportMode == .serial {
                     Button("Screenshot") {
                         bridge.requestScreenshot()
@@ -119,13 +127,6 @@ struct MenuBarView: View {
                 }
 
                 Spacer()
-
-                Toggle("Launch at Login", isOn: $launchAtLogin)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 11))
-                    .onChange(of: launchAtLogin) { _, newValue in
-                        setLaunchAtLogin(newValue)
-                    }
 
                 Button("Quit") {
                     bridge.stop()
@@ -140,15 +141,19 @@ struct MenuBarView: View {
         .padding(.vertical, 4)
     }
 
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
+    /// Usage stats section, conditionally shown based on settings toggles.
+    @ViewBuilder
+    private var usageStatsSection: some View {
+        let effectiveClaudeStats = showClaudeUsage ? bridge.usageStats : nil
+        let effectiveCodexStats = showCodexUsage ? bridge.codexUsageStats : nil
+
+        if showClaudeUsage || showCodexUsage {
+            UsageStatsView(stats: effectiveClaudeStats,
+                           codexStats: effectiveCodexStats,
+                           showRemaining: $showRemaining)
+
+            Divider()
+                .padding(.vertical, 4)
         }
     }
 }

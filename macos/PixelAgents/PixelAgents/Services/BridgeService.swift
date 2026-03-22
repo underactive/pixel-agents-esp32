@@ -1,6 +1,14 @@
 import Foundation
 import AppKit
 
+/// UserDefaults keys for @AppStorage settings, shared across views and AppDelegate.
+enum SettingsKeys {
+    static let showClaudeUsage = "showClaudeUsage"
+    static let showCodexUsage = "showCodexUsage"
+    static let showAgentCount = "showAgentCount"
+    static let showRemaining = "showRemaining"
+}
+
 /// Connection state for display.
 enum ConnectionState: Equatable {
     case disconnected
@@ -31,6 +39,10 @@ final class BridgeService: ObservableObject {
 
     /// Number of character slots shown in the UI (matches firmware workstation count).
     static let maxDisplaySlots = 6
+
+    // MARK: - Actions (set by AppDelegate)
+
+    var onOpenSettings: (() -> Void)?
 
     // MARK: - Published state for SwiftUI
 
@@ -159,8 +171,11 @@ final class BridgeService: ObservableObject {
     func requestScreenshot() {
         guard transportMode == .serial, serialTransport.isConnected else { return }
 
+        // Capture local reference before dispatching to background thread
+        // to avoid accessing @MainActor-isolated property off the main actor.
+        let transport = serialTransport
         DispatchQueue.global(qos: .userInitiated).async {
-            if let url = ScreenshotService.capture(via: self.serialTransport) {
+            if let url = ScreenshotService.capture(via: transport) {
                 DispatchQueue.main.async {
                     NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
                 }
