@@ -139,7 +139,8 @@ jobs:
             "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
             "OTHER_CODE_SIGN_FLAGS=--timestamp" \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-            "MARKETING_VERSION=$VERSION"
+            "MARKETING_VERSION=$VERSION" \
+            "CURRENT_PROJECT_VERSION=$VERSION"
 
       - name: Sign embedded Sparkle framework
         working-directory: macos/PixelAgents

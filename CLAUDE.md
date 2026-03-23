@@ -607,11 +607,12 @@ After audit findings have been addressed, update the `implementation.md` file in
 ## Common Modifications
 
 ### Version bumps
-Version string appears in 4 files:
+Version string appears in 5 files:
 1. `CLAUDE.md` -- "Current Version" in Project Overview section
 2. `CHANGELOG.md` -- add a new `## [x.y.z]` section at top with bullet points
 3. `docs/CLAUDE.md/version-history.md` -- append a new row to the table
 4. `firmware/src/config.h` -- `SPLASH_VERSION_STR` (boot splash footer text)
+5. `macos/PixelAgents/project.yml` -- `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (Sparkle update comparison)
 
 **Keep all version references in sync.** Always bump all files together during any version bump.
 
