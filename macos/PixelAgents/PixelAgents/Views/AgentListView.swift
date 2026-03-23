@@ -28,9 +28,7 @@ struct AgentRow: View {
                 .frame(width: 6, height: 6)
 
             if agent.state != .offline {
-                Image(systemName: agent.source == .claude ? "sparkle" : "apple.terminal")
-                    .font(.system(size: 10))
-                    .foregroundColor(.primary)
+                BrandIconView(icon: agent.brandIcon, size: 10, color: .primary)
             }
 
             Text(agent.state.label)

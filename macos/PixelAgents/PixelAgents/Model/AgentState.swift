@@ -40,6 +40,15 @@ struct Agent: Identifiable, Equatable {
     var activeTools: Set<String> = []
     var hadToolInTurn: Bool = false
 
+    /// SVG path data for the agent's source brand icon.
+    var brandIcon: String {
+        switch source {
+        case .claude: return BrandIcon.claude
+        case .codex:  return BrandIcon.codex
+        case .cursor: return BrandIcon.cursor
+        }
+    }
+
     /// Compare only display-relevant fields; internal tracking state (lastSeen, activeTools, hadToolInTurn) is excluded.
     static func == (lhs: Agent, rhs: Agent) -> Bool {
         lhs.id == rhs.id && lhs.state == rhs.state && lhs.toolName == rhs.toolName && lhs.source == rhs.source
