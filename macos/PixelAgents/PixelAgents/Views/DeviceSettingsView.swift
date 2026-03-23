@@ -6,17 +6,22 @@ struct DeviceSettingsView: View {
 
     private static let dogColorNames = ["Black", "Brown", "Gray", "Tan"]
 
-    private var isAvailable: Bool {
+    private var isConnected: Bool {
         if case .connected = bridge.connectionState, bridge.displayMode == .hardware {
-            return bridge.deviceSettingsReceived
+            return true
         }
         return false
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !isAvailable {
+            if !isConnected {
                 Text("Connect to a device to configure settings.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+            } else if !bridge.deviceSettingsReceived {
+                Text("Waiting for device settings...")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
