@@ -124,12 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         aboutItem.target = self
         rightClickMenu.addItem(aboutItem)
 
-        let checkUpdatesItem = NSMenuItem(title: "Check for Updates...",
-                                          action: #selector(checkForUpdates),
-                                          keyEquivalent: "")
-        checkUpdatesItem.target = self
-        rightClickMenu.addItem(checkUpdatesItem)
-
         rightClickMenu.addItem(.separator())
 
         let quitItem = NSMenuItem(title: "Quit",
@@ -174,14 +168,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             return
         }
 
-        let view = AboutView()
+        let view = AboutView(updater: updaterController.updater)
         let hostingController = NSHostingController(rootView: view)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "About Pixel Agents"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.setContentSize(NSSize(width: 300, height: 200))
+        window.setContentSize(NSSize(width: 300, height: 260))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -190,10 +184,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     // MARK: - Actions
-
-    @objc private func checkForUpdates() {
-        updaterController.checkForUpdates(nil)
-    }
 
     @objc private func quitApp() {
         bridge.stop()

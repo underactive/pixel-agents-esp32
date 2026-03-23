@@ -1,9 +1,15 @@
 import SwiftUI
+import Sparkle
 
-/// About window content: centered app icon, name, version, and GitHub link.
+/// About window content: centered app icon, name, version, GitHub link,
+/// check-for-updates button with last-checked timestamp, and Ko-fi link.
 struct AboutView: View {
+    let updater: SPUUpdater
+
     private static let githubURL = URL(string: "https://github.com/underactive/pixel-agents-esp32")
     private static let kofiURL = URL(string: "https://ko-fi.com/Q5Q06RX1Z")
+
+    @State private var lastCheckDate: Date?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -25,23 +31,34 @@ struct AboutView: View {
                     .font(.subheadline)
             }
 
-            if let url = Self.kofiURL {
-                Link(destination: url) {
-                    HStack(spacing: 6) {
-                        Text("☕")
-                        Text("Support me on Ko-fi")
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color(nsColor: NSColor(red: 0x72/255, green: 0xa4/255, blue: 0xf2/255, alpha: 1)))
-                    .foregroundColor(.white)
-                    .cornerRadius(6)
+            VStack(spacing: 4) {
+                Button("Check for Updates...") {
+                    updater.checkForUpdates()
+                    lastCheckDate = updater.lastUpdateCheckDate
                 }
-                .buttonStyle(.plain)
+                .font(.subheadline)
+
+                Text(lastCheckDateText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .onAppear { lastCheckDate = updater.lastUpdateCheckDate }
+
+            if let url = Self.kofiURL {
+                Button {
+                    NSWorkspace.shared.open(url)
+                } label: {
+                    Text("☕ Support me on Ko-fi")
+                }
+                .font(.subheadline)
             }
         }
         .padding(24)
         .frame(maxWidth: .infinity)
+    }
+
+    private var lastCheckDateText: String {
+        guard let date = lastCheckDate else { return "Last checked on: Never" }
+        return "Last checked on: \(date.formatted(date: .abbreviated, time: .shortened))"
     }
 }
