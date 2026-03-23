@@ -145,7 +145,7 @@ jobs:
       - name: Sign embedded Sparkle framework
         working-directory: macos/PixelAgents
         run: |
-          FWPATH=".build/Build/Products/Release/PixelAgents.app/Contents/Frameworks/Sparkle.framework"
+          FWPATH=".build/Build/Products/Release/Pixel Agents.app/Contents/Frameworks/Sparkle.framework"
           IDENTITY="Developer ID Application"
           codesign --force --options runtime --preserve-metadata=entitlements \
             --sign "$IDENTITY" --timestamp \
@@ -169,8 +169,8 @@ jobs:
           codesign --force --options runtime --timestamp \
             --sign "Developer ID Application" \
             --entitlements PixelAgents/PixelAgents.entitlements \
-            ".build/Build/Products/Release/PixelAgents.app"
-          codesign --verify --deep --strict ".build/Build/Products/Release/PixelAgents.app"
+            ".build/Build/Products/Release/Pixel Agents.app"
+          codesign --verify --deep --strict ".build/Build/Products/Release/Pixel Agents.app"
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -185,13 +185,13 @@ jobs:
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "PixelAgents.app" 150 185 \
+            --icon "Pixel Agents.app" 150 185 \
             --app-drop-link 450 185 \
             --background "dmg-background.png" \
-            --hide-extension "PixelAgents.app" \
+            --hide-extension "Pixel Agents.app" \
             --no-internet-enable \
             "PixelAgents-v${VERSION}.dmg" \
-            ".build/Build/Products/Release/PixelAgents.app"
+            ".build/Build/Products/Release/Pixel Agents.app"
 
       - name: Notarize DMG
         working-directory: macos/PixelAgents
