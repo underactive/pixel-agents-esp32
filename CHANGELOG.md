@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.3] - 2026-03-22
+
+- Fix Sparkle auto-update not offering downloads by passing CURRENT_PROJECT_VERSION in CI build
+- Add Ko-fi donation link to About window
+
 ## [0.10.2] - 2026-03-22
 
 - Add Ko-fi donation link to About window
