@@ -1,6 +1,6 @@
 # Pixel Agents ESP32
 
-A standalone hardware display that renders Claude Code and Codex agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
+A standalone hardware display that renders Claude Code, Codex, and Cursor agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
 <p>
   <img src="assets/screenshots/splash_screen.png" alt="Boot splash screen" height="320">
@@ -30,10 +30,11 @@ Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Cod
 ```
 Claude Code CLI  -->  JSONL transcripts  -->  macOS app / Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
 Codex CLI        -->  JSONL rollouts  --|
+Cursor IDE       -->  agent transcripts --|
 ```
 
-1. **Claude Code** and/or **OpenAI Codex CLI** write JSONL files as you work
-2. **Companion app** (native macOS menu bar app or cross-platform Python bridge) watches those files, detects agent state changes, and fetches usage stats from the Anthropic API
+1. **Claude Code**, **OpenAI Codex CLI**, and/or **Cursor IDE** write JSONL files as you work
+2. **Companion app** (native macOS menu bar app or cross-platform Python bridge) watches those files, detects agent state changes, and fetches usage stats from provider APIs
 3. **ESP32 firmware** receives state updates over USB serial or BLE and animates the office scene
 
 Characters walk to their desks when active, sit and type/read while tools run, wander around the office when idle, and spawn/despawn with a matrix effect.
@@ -142,7 +143,7 @@ Start using Claude Code as normal. The display will show your agents in the offi
 - **Sound effects** (CYD and CYD-S3) play on key events: startup chime, keyboard typing on first tool call, notification click when waiting for input, pop when waiting for tool permission, dog bark on new follow target. Toggleable via hamburger menu (CYD defaults to off, CYD-S3 defaults to on)
 - **Wake word detection** (CYD-S3 only) listens for "Computer" via ESP-SR WakeNet9 and triggers a dog bark sound — runs on a dedicated core so the display stays smooth
 - **Status bar** at bottom shows transport icons (USB/BT) with live connection state, battery percentage (CYD-S3/LILYGO), and cycles through 5 modes: connection overview, usage stats, agent list, FPS, and uptime
-- **Usage stats** show current and weekly Claude Code rate-limit usage as percentage bars
+- **Usage stats** show Claude Code, Codex, and Cursor usage as percentage bars with brand-colored icons
 - **Display sleep** — screen turns off after 5 minutes of inactivity; touch to wake (CYD and CYD-S3)
 - **Multiple agents** each get their own desk
 
@@ -159,13 +160,13 @@ The native macOS menu bar app is the recommended way to connect the ESP32 on mac
 - **Menu bar presence** — runs as a menu bar icon with a popover UI, no Dock icon
 - **Serial and BLE transports** — switch between USB serial and Bluetooth Low Energy from the popover
 - **Auto-detection** — serial ports detected automatically via IOKit; BLE devices discovered via CoreBluetooth scan with PIN display
-- **Usage stats** — reads your Claude Code OAuth token from macOS Keychain to fetch usage stats directly from the Anthropic API
+- **Usage stats** — fetches usage stats from Claude (Anthropic API via Keychain OAuth), Codex (ChatGPT backend), and Cursor (api2.cursor.sh via vscdb token)
 - **Live agent list** — shows active agents with their current state (typing, reading, idle) in the popover
 - **Screenshot capture** — grab a screenshot from the ESP32 display over serial (saved to `~/Pictures/PixelAgents/`)
 - **Serial connect/disconnect** — explicit connect and disconnect buttons in the transport picker for manual serial control
 - **Auto-reconnect** — reconnects automatically after USB unplug/replug or BLE disconnect
 - **Sleep/wake aware** — pauses timers on sleep, reconnects on wake
-- **Settings window** — gear button opens a standalone settings window with Launch at Login, Claude usage stats, Codex usage stats, and auto-update toggles
+- **Settings window** — gear button opens a standalone settings window with Launch at Login, Claude/Codex/Cursor usage stats toggles, and auto-update toggle
 - **Right-click menu** — right-click the menu bar icon for About, Check for Updates, and Quit
 - **Launch at login** — optional toggle in the Settings window
 - **Auto-updates** — checks for updates via Sparkle framework with EdDSA-signed appcast

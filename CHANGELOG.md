@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.6] - 2026-03-23
+
+- Add Cursor IDE support to macOS companion: usage stats (plan percentage + billing cycle reset), agent detection from `~/.cursor/projects/` JSONL transcripts, and settings toggle
+- Cursor usage fetcher reads access token from Cursor's internal vscdb storage and calls `api2.cursor.sh/auth/usage-summary` with Bearer auth
+- Cursor agent detection uses heuristic state derivation (assistant message = typing, user message = idle) due to Cursor's chat-only transcript format
+- Replace SF Symbol icons with brand SVG logos (Claude sparkle, OpenAI knot, Cursor geometric) via reusable SVG path renderer
+- Include Gemini icon for future provider support
+- Dark grey progress bar color for Cursor usage section
+
 ## [0.10.5] - 2026-03-23
 
 - Add remote device settings: macOS companion can read and change dog on/off, dog color, screen flip, sound toggle, and dog bark toggle over serial/BLE
