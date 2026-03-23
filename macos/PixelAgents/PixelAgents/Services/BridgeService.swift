@@ -7,6 +7,7 @@ enum SettingsKeys {
     static let showCodexUsage = "showCodexUsage"
     static let showAgentCount = "showAgentCount"
     static let showRemaining = "showRemaining"
+    static let showCursorUsage = "showCursorUsage"
 }
 
 /// Connection state for display.
@@ -50,6 +51,7 @@ final class BridgeService: ObservableObject {
     @Published var displayAgents: [Agent] = (0..<maxDisplaySlots).map { Agent(id: UInt8($0), state: .offline) }
     @Published var usageStats: UsageStatsData?
     @Published var codexUsageStats: UsageStatsData?
+    @Published var cursorUsageStats: UsageStatsData?
     @Published var displayMode: DisplayMode = .hardware
     @Published var transportMode: TransportMode = .serial
 
@@ -84,6 +86,7 @@ final class BridgeService: ObservableObject {
     private var serialTransport = SerialTransport()
     private let usageFetcher = UsageStatsFetcher()
     private let codexUsageFetcher = CodexUsageFetcher()
+    private let cursorUsageFetcher = CursorUsageFetcher()
 
     private var activeTransport: TransportProtocol? {
         switch transportMode {
@@ -142,6 +145,7 @@ final class BridgeService: ObservableObject {
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
         codexUsageFetcher.fetchAndCache()
+        cursorUsageFetcher.fetchAndCache()
 
         startTimers()
         updateSceneTimerState()
@@ -305,6 +309,7 @@ final class BridgeService: ObservableObject {
         usageFetchTimer = Timer.scheduledTimer(withTimeInterval: usageFetchInterval, repeats: true) { [weak self] _ in
             self?.usageFetcher.fetchAndCache()
             self?.codexUsageFetcher.fetchAndCache()
+            self?.cursorUsageFetcher.fetchAndCache()
         }
 
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
@@ -354,6 +359,12 @@ final class BridgeService: ObservableObject {
         let codexData = codexUsageFetcher.currentStats()
         if codexData != codexUsageStats {
             codexUsageStats = codexData
+        }
+
+        // Update Cursor usage stats for UI (always, not sent to hardware)
+        let cursorData = cursorUsageFetcher.currentStats()
+        if cursorData != cursorUsageStats {
+            cursorUsageStats = cursorData
         }
 
         // Claude usage: requires transport connection in hardware mode
@@ -409,6 +420,8 @@ final class BridgeService: ObservableObject {
                     result = CodexStateDeriver.derive(from: record, agent: &agent)
                 case .claude:
                     result = StateDeriver.derive(from: record, agent: &agent)
+                case .cursor:
+                    result = CursorStateDeriver.derive(from: record, agent: &agent)
                 }
 
                 if let (state, tool) = result {

@@ -1,10 +1,11 @@
 import Foundation
 
-/// Watches Claude Code and Codex CLI directories for active JSONL transcript files
+/// Watches Claude Code, Codex CLI, and Cursor directories for active JSONL transcript files
 /// and reads new lines incrementally.
 final class TranscriptWatcher {
     private let claudeProjectsDir: URL
     private let codexSessionsDir: URL
+    private let cursorProjectsDir: URL
     private var fileOffsets: [String: UInt64] = [:]
     private var fsEventStream: FSEventStreamRef?
     private var onFilesChanged: (() -> Void)?
@@ -16,6 +17,7 @@ final class TranscriptWatcher {
         let home = FileManager.default.homeDirectoryForCurrentUser
         self.claudeProjectsDir = home.appendingPathComponent(".claude/projects")
         self.codexSessionsDir = home.appendingPathComponent(".codex/sessions")
+        self.cursorProjectsDir = home.appendingPathComponent(".cursor/projects")
     }
 
     deinit {
@@ -34,6 +36,9 @@ final class TranscriptWatcher {
         }
         if FileManager.default.fileExists(atPath: codexSessionsDir.path) {
             paths.append(codexSessionsDir.path)
+        }
+        if FileManager.default.fileExists(atPath: cursorProjectsDir.path) {
+            paths.append(cursorProjectsDir.path)
         }
         guard !paths.isEmpty else { return }
 
@@ -80,6 +85,7 @@ final class TranscriptWatcher {
         var results: [(URL, TranscriptSource)] = []
         results.append(contentsOf: findClaudeTranscripts())
         results.append(contentsOf: findCodexTranscripts())
+        results.append(contentsOf: findCursorTranscripts())
 
         // Prune fileOffsets for files no longer active
         let activePaths = Set(results.map { $0.0.path })
@@ -175,6 +181,57 @@ final class TranscriptWatcher {
                               modDate > cutoff else { continue }
                         results.append((file, .codex))
                     }
+                }
+            }
+        }
+
+        return results
+    }
+
+    /// Find active Cursor agent transcripts in ~/.cursor/projects/*/agent-transcripts/*/
+    private func findCursorTranscripts() -> [(URL, TranscriptSource)] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: cursorProjectsDir.path) else { return [] }
+
+        var results: [(URL, TranscriptSource)] = []
+        let cutoff = Date().addingTimeInterval(-recencyWindow)
+
+        // Walk project dirs
+        guard let projectDirs = try? fm.contentsOfDirectory(
+            at: cursorProjectsDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        for projectDir in projectDirs {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: projectDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            let transcriptsDir = projectDir.appendingPathComponent("agent-transcripts")
+            guard fm.fileExists(atPath: transcriptsDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            // Each session is a UUID-named directory containing a .jsonl file
+            guard let sessionDirs = try? fm.contentsOfDirectory(
+                at: transcriptsDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+
+            for sessionDir in sessionDirs {
+                guard fm.fileExists(atPath: sessionDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+                guard let files = try? fm.contentsOfDirectory(
+                    at: sessionDir,
+                    includingPropertiesForKeys: [.contentModificationDateKey],
+                    options: [.skipsHiddenFiles]
+                ) else { continue }
+
+                for file in files {
+                    guard file.pathExtension == "jsonl" else { continue }
+                    guard let attrs = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
+                          let modDate = attrs.contentModificationDate,
+                          modDate > cutoff else { continue }
+                    results.append((file, .cursor))
                 }
             }
         }

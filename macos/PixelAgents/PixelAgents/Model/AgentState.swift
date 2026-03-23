@@ -27,6 +27,7 @@ enum CharState: UInt8, CaseIterable {
 enum TranscriptSource: Equatable {
     case claude
     case codex
+    case cursor
 }
 
 /// Tracks a single Claude Code agent session

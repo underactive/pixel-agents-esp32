@@ -6,6 +6,7 @@ struct MenuBarView: View {
     @AppStorage(SettingsKeys.showRemaining) private var showRemaining = false
     @AppStorage(SettingsKeys.showClaudeUsage) private var showClaudeUsage = true
     @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
+    @AppStorage(SettingsKeys.showCursorUsage) private var showCursorUsage = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -146,10 +147,12 @@ struct MenuBarView: View {
     private var usageStatsSection: some View {
         let effectiveClaudeStats = showClaudeUsage ? bridge.usageStats : nil
         let effectiveCodexStats = showCodexUsage ? bridge.codexUsageStats : nil
+        let effectiveCursorStats = showCursorUsage ? bridge.cursorUsageStats : nil
 
-        if showClaudeUsage || showCodexUsage {
+        if showClaudeUsage || showCodexUsage || showCursorUsage {
             UsageStatsView(stats: effectiveClaudeStats,
                            codexStats: effectiveCodexStats,
+                           cursorStats: effectiveCursorStats,
                            showRemaining: $showRemaining)
 
             Divider()

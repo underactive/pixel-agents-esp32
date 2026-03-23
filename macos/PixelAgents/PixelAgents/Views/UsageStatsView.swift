@@ -3,12 +3,14 @@ import SwiftUI
 // Brand colors for usage bars
 private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
 private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
+private let cursorDark = Color(red: 0.15, green: 0.15, blue: 0.15)    // Near-black
 
-/// Displays Claude Code and Codex usage statistics with progress bars.
+/// Displays Claude Code, Codex, and Cursor usage statistics with progress bars.
 /// Supports "used" (default) and "remaining" display modes, toggled via the header.
 struct UsageStatsView: View {
     let stats: UsageStatsData?
     let codexStats: UsageStatsData?
+    let cursorStats: UsageStatsData?
     @Binding var showRemaining: Bool
 
     var body: some View {
@@ -28,9 +30,7 @@ struct UsageStatsView: View {
             if let stats = stats {
                 // Claude section
                 HStack(spacing: 4) {
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                    BrandIconView(icon: BrandIcon.claude, size: 12, color: .secondary)
                     Text("Claude")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
@@ -57,9 +57,7 @@ struct UsageStatsView: View {
             if let codexStats = codexStats {
                 // Codex section
                 HStack(spacing: 4) {
-                    Image(systemName: "apple.terminal")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                    BrandIconView(icon: BrandIcon.codex, size: 12, color: .secondary)
                     Text("Codex")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
@@ -83,7 +81,36 @@ struct UsageStatsView: View {
                 )
             }
 
-            if stats == nil && codexStats == nil {
+            if let cursorStats = cursorStats {
+                // Cursor section
+                HStack(spacing: 4) {
+                    BrandIconView(icon: BrandIcon.cursor, size: 12, color: .secondary)
+                    Text("Cursor")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                let cursorPrimaryUsed = Int(cursorStats.currentPct)
+                let cursorSecondaryUsed = Int(cursorStats.weeklyPct)
+                UsageBar(
+                    label: "Primary",
+                    displayPct: showRemaining ? 100 - cursorPrimaryUsed : cursorPrimaryUsed,
+                    usedPct: cursorPrimaryUsed,
+                    resetMin: cursorStats.currentResetMin,
+                    tintColor: cursorDark
+                )
+                if cursorSecondaryUsed > 0 || cursorStats.weeklyResetMin > 0 {
+                    UsageBar(
+                        label: "Secondary",
+                        displayPct: showRemaining ? 100 - cursorSecondaryUsed : cursorSecondaryUsed,
+                        usedPct: cursorSecondaryUsed,
+                        resetMin: cursorStats.weeklyResetMin,
+                        tintColor: cursorDark
+                    )
+                }
+            }
+
+            if stats == nil && codexStats == nil && cursorStats == nil {
                 Text("No usage data")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
