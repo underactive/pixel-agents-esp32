@@ -1,5 +1,9 @@
 import SwiftUI
 
+// Brand colors for usage bars
+private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
+private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
+
 /// Displays Claude Code and Codex usage statistics with progress bars.
 /// Supports "used" (default) and "remaining" display modes, toggled via the header.
 struct UsageStatsView: View {
@@ -38,13 +42,15 @@ struct UsageStatsView: View {
                     label: "Current",
                     displayPct: showRemaining ? 100 - currentUsed : currentUsed,
                     usedPct: currentUsed,
-                    resetMin: stats.currentResetMin
+                    resetMin: stats.currentResetMin,
+                    tintColor: claudeOrange
                 )
                 UsageBar(
                     label: "Weekly",
                     displayPct: showRemaining ? 100 - weeklyUsed : weeklyUsed,
                     usedPct: weeklyUsed,
-                    resetMin: stats.weeklyResetMin
+                    resetMin: stats.weeklyResetMin,
+                    tintColor: claudeOrange
                 )
             }
 
@@ -65,13 +71,15 @@ struct UsageStatsView: View {
                     label: "Primary",
                     displayPct: showRemaining ? 100 - primaryUsed : primaryUsed,
                     usedPct: primaryUsed,
-                    resetMin: codexStats.currentResetMin
+                    resetMin: codexStats.currentResetMin,
+                    tintColor: codexBlue
                 )
                 UsageBar(
                     label: "Secondary",
                     displayPct: showRemaining ? 100 - secondaryUsed : secondaryUsed,
                     usedPct: secondaryUsed,
-                    resetMin: codexStats.weeklyResetMin
+                    resetMin: codexStats.weeklyResetMin,
+                    tintColor: codexBlue
                 )
             }
 
@@ -90,6 +98,7 @@ struct UsageBar: View {
     let displayPct: Int
     let usedPct: Int
     let resetMin: UInt16
+    var tintColor: Color = .green
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -122,12 +131,11 @@ struct UsageBar: View {
         }
     }
 
-    /// Color is always based on usedPct so warning semantics stay correct:
-    /// red = almost out of quota, regardless of display mode.
+    /// Color is based on usedPct with brand tint as the default fill.
+    /// Red override at ≥90% preserves warning semantics regardless of display mode.
     private var barColor: Color {
         if usedPct >= 90 { return .red }
-        if usedPct >= 70 { return .orange }
-        return .green
+        return tintColor
     }
 
     private func formatMinutes(_ minutes: UInt16) -> String {
