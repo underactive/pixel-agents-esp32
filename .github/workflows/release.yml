@@ -91,6 +91,8 @@ jobs:
   build-macos:
     needs: validate-version
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
