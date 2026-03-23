@@ -29,6 +29,7 @@ private struct CompanionSettingsTab: View {
     @State private var autoCheckForUpdates: Bool = true
     @AppStorage(SettingsKeys.showClaudeUsage) private var showClaudeUsage = true
     @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
+    @AppStorage(SettingsKeys.showGeminiUsage) private var showGeminiUsage = true
     @AppStorage(SettingsKeys.showCursorUsage) private var showCursorUsage = true
     @AppStorage(SettingsKeys.showAgentCount) private var showAgentCount = true
 
@@ -41,6 +42,9 @@ private struct CompanionSettingsTab: View {
                 .font(.subheadline)
 
             Toggle("Show Codex usage", isOn: $showCodexUsage)
+                .font(.subheadline)
+
+            Toggle("Show Gemini usage", isOn: $showGeminiUsage)
                 .font(.subheadline)
 
             Toggle("Show Cursor usage", isOn: $showCursorUsage)

@@ -1,6 +1,6 @@
 # Pixel Agents ESP32
 
-A standalone hardware display that renders Claude Code, Codex, and Cursor agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
+A standalone hardware display that renders Claude Code, Codex, Gemini, and Cursor agents as animated pixel art characters in a virtual office scene. Runs on an ESP32 with a small color TFT display.
 
 <p>
   <img src="assets/screenshots/splash_screen.png" alt="Boot splash screen" height="320">
@@ -30,10 +30,11 @@ Based on the [pixel-agents](https://github.com/pablodelucca/pixel-agents) VS Cod
 ```
 Claude Code CLI  -->  JSONL transcripts  -->  macOS app / Python bridge  -->  USB Serial / BLE  -->  ESP32 + TFT
 Codex CLI        -->  JSONL rollouts  --|
+Gemini CLI       -->  JSON sessions   --|
 Cursor IDE       -->  agent transcripts --|
 ```
 
-1. **Claude Code**, **OpenAI Codex CLI**, and/or **Cursor IDE** write JSONL files as you work
+1. **Claude Code**, **OpenAI Codex CLI**, **Google Gemini CLI**, and/or **Cursor IDE** write transcript files as you work
 2. **Companion app** (native macOS menu bar app or cross-platform Python bridge) watches those files, detects agent state changes, and fetches usage stats from provider APIs
 3. **ESP32 firmware** receives state updates over USB serial or BLE and animates the office scene
 

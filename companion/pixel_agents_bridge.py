@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Pixel Agents Bridge — JSONL transcript watcher + ESP32 serial sender.
+Pixel Agents Bridge — transcript watcher + ESP32 serial sender.
 
-Watches Claude Code and OpenAI Codex CLI transcript files and sends
-binary protocol messages to the ESP32 display over USB serial or BLE.
+Watches Claude Code, OpenAI Codex CLI, and Google Gemini CLI transcript files
+and sends binary protocol messages to the ESP32 display over USB serial or BLE.
 
 Usage:
     python3 pixel_agents_bridge.py [--port /dev/cu.usbmodemXXXX]
@@ -77,15 +77,20 @@ READING_TOOLS = {"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 # Transcript directories
 CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
 CODEX_SESSIONS_DIR = Path.home() / ".codex" / "sessions"
+GEMINI_TMP_DIR = Path.home() / ".gemini" / "tmp"
 RATE_LIMITS_CACHE = Path.home() / ".claude" / "rate-limits-cache.json"
 
 # Transcript sources
 SOURCE_CLAUDE = "claude"
 SOURCE_CODEX = "codex"
+SOURCE_GEMINI = "gemini"
 
 # Codex commands that indicate reading behavior
 CODEX_READING_COMMANDS = {"cat", "head", "tail", "less", "more", "grep", "rg",
                           "find", "ls", "tree", "wc", "file", "stat", "diff"}
+
+# Gemini CLI tools that indicate reading behavior
+GEMINI_READING_TOOLS = {"web_fetch", "google_web_search", "read_file", "list_directory"}
 
 
 def find_esp32_port() -> Optional[str]:
@@ -287,19 +292,22 @@ class AgentTracker:
 
 
 class TranscriptWatcher:
-    """Watches JSONL transcript files for state changes."""
+    """Watches transcript files for state changes."""
 
     def __init__(self):
-        self.file_offsets: Dict[str, int] = {}  # filepath -> byte offset
+        self.file_offsets: Dict[str, int] = {}  # filepath -> byte offset (JSONL)
+        self.gemini_msg_counts: Dict[str, int] = {}  # filepath -> last-seen message count
+        self.gemini_file_sizes: Dict[str, int] = {}  # filepath -> last-known file size
 
     def find_active_transcripts(self) -> List[tuple]:
-        """Find active JSONL files from all supported sources.
+        """Find active transcript files from all supported sources.
 
-        Returns list of (path, source) tuples where source is SOURCE_CLAUDE or SOURCE_CODEX.
+        Returns list of (path, source) tuples.
         """
         transcripts = []
         transcripts.extend(self._find_claude_transcripts())
         transcripts.extend(self._find_codex_transcripts())
+        transcripts.extend(self._find_gemini_transcripts())
         return transcripts
 
     def _find_claude_transcripts(self) -> List[tuple]:
@@ -357,6 +365,64 @@ class TranscriptWatcher:
                         except OSError:
                             continue
         return results
+
+    def _find_gemini_transcripts(self) -> List[tuple]:
+        """Find session JSON files in Gemini CLI tmp directory.
+
+        Gemini stores sessions at ~/.gemini/tmp/{project-slug}/chats/session-*.json
+        """
+        if not GEMINI_TMP_DIR.exists():
+            return []
+        results = []
+        try:
+            project_dirs = list(GEMINI_TMP_DIR.iterdir())
+        except OSError:
+            return []
+        for project_dir in project_dirs:
+            if not project_dir.is_dir():
+                continue
+            chats_dir = project_dir / "chats"
+            if not chats_dir.is_dir():
+                continue
+            for session_file in chats_dir.glob("session-*.json"):
+                try:
+                    mtime = session_file.stat().st_mtime
+                    if time.time() - mtime < 300:
+                        results.append((session_file, SOURCE_GEMINI))
+                except OSError:
+                    continue
+        return results
+
+    def read_new_gemini_messages(self, filepath: Path) -> List[dict]:
+        """Read new messages from a Gemini CLI session JSON file.
+
+        Gemini sessions are monolithic JSON (not JSONL) with a messages array.
+        We track the last-seen message count and only return new messages.
+        """
+        str_path = str(filepath)
+        try:
+            file_size = filepath.stat().st_size
+        except OSError:
+            return []
+
+        # Skip re-parsing if file hasn't changed
+        if file_size == self.gemini_file_sizes.get(str_path, -1):
+            return []
+        self.gemini_file_sizes[str_path] = file_size
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return []
+
+        messages = data.get("messages", [])
+        last_count = self.gemini_msg_counts.get(str_path, 0)
+        if len(messages) <= last_count:
+            return []
+
+        self.gemini_msg_counts[str_path] = len(messages)
+        return messages[last_count:]
 
     def read_new_lines(self, filepath: Path) -> List[dict]:
         """Read new JSONL lines from a file since last read."""
@@ -619,6 +685,46 @@ def _is_codex_read_command(command: str) -> bool:
     first_word = cmd.strip().split()[0] if cmd.strip() else ""
     first_word = first_word.rsplit("/", 1)[-1]  # remove path
     return first_word in CODEX_READING_COMMANDS
+
+
+def derive_gemini_state(record: dict, agent: dict) -> Optional[tuple]:
+    """
+    Derive agent state from a Gemini CLI session message record.
+    Returns (state, tool_name) or None if no change.
+
+    Gemini messages have type "user" or "gemini". Tool calls appear in the
+    toolCalls array within gemini-type messages.
+    """
+    msg_type = record.get("type", "")
+
+    if msg_type == "gemini":
+        tool_calls = record.get("toolCalls", [])
+        if tool_calls and isinstance(tool_calls, list):
+            # Use the last tool call for display
+            last_tool = tool_calls[-1]
+            tool_name = (last_tool.get("displayName") or
+                         last_tool.get("name") or "Tool")
+            tool_name = tool_name[:MAX_TOOL_NAME_LEN]
+
+            raw_name = last_tool.get("name", "")
+            agent["had_tool_in_turn"] = True
+            agent["active_tools"].add(raw_name)
+
+            if raw_name in GEMINI_READING_TOOLS:
+                return (STATE_READ, tool_name)
+            return (STATE_TYPE, tool_name)
+
+        # Gemini message without tool calls — agent is generating text
+        agent["had_tool_in_turn"] = True
+        return (STATE_TYPE, "Gemini")
+
+    if msg_type == "user":
+        agent["had_tool_in_turn"] = False
+        agent["active_tools"].clear()
+        agent["tool_use_ts"] = 0
+        return (STATE_IDLE, "")
+
+    return None
 
 
 class PixelAgentsBridge:
@@ -901,12 +1007,17 @@ class PixelAgentsBridge:
             agent = self.tracker.get_or_create(project_key)
             agent["last_seen"] = time.time()
 
-            records = self.watcher.read_new_lines(filepath)
+            if source == SOURCE_GEMINI:
+                records = self.watcher.read_new_gemini_messages(filepath)
+            else:
+                records = self.watcher.read_new_lines(filepath)
 
             if records:
                 for record in records:
                     if source == SOURCE_CODEX:
                         result = derive_codex_state(record, agent)
+                    elif source == SOURCE_GEMINI:
+                        result = derive_gemini_state(record, agent)
                     else:
                         result = derive_state(record, agent)
                     if result is None:
@@ -953,6 +1064,7 @@ class PixelAgentsBridge:
         print(f"Transport: {self.transport_mode}")
         print(f"Watching: {CLAUDE_PROJECTS_DIR}")
         print(f"Watching: {CODEX_SESSIONS_DIR}")
+        print(f"Watching: {GEMINI_TMP_DIR}")
 
         use_keyboard = sys.stdin.isatty()
         old_settings = None
@@ -1000,7 +1112,7 @@ class PixelAgentsBridge:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Pixel Agents Bridge - Claude Code & Codex CLI to ESP32")
+    parser = argparse.ArgumentParser(description="Pixel Agents Bridge - Claude Code, Codex CLI & Gemini CLI to ESP32")
     parser.add_argument("--port", type=str, default=None,
                         help="Serial port (auto-detected if not specified)")
     parser.add_argument("--transport", type=str, default="serial",

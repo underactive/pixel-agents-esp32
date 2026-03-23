@@ -27,6 +27,7 @@ enum CharState: UInt8, CaseIterable {
 enum TranscriptSource: Equatable {
     case claude
     case codex
+    case gemini
     case cursor
 }
 
@@ -45,6 +46,7 @@ struct Agent: Identifiable, Equatable {
         switch source {
         case .claude: return BrandIcon.claude
         case .codex:  return BrandIcon.codex
+        case .gemini: return BrandIcon.gemini
         case .cursor: return BrandIcon.cursor
         }
     }

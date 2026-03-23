@@ -1,12 +1,17 @@
 import Foundation
 
-/// Watches Claude Code, Codex CLI, and Cursor directories for active JSONL transcript files
-/// and reads new lines incrementally.
+/// Watches Claude Code, Codex CLI, Gemini CLI, and Cursor directories for active transcript files
+/// and reads new lines/messages incrementally.
 final class TranscriptWatcher {
     private let claudeProjectsDir: URL
     private let codexSessionsDir: URL
+    private let geminiTmpDir: URL
     private let cursorProjectsDir: URL
     private var fileOffsets: [String: UInt64] = [:]
+    /// Tracks last-seen message count per Gemini JSON session file (monolithic JSON, not JSONL).
+    private var geminiMessageCounts: [String: Int] = [:]
+    /// Tracks last-known file size per Gemini session to skip re-parsing unchanged files.
+    private var geminiFileSizes: [String: UInt64] = [:]
     private var fsEventStream: FSEventStreamRef?
     private var onFilesChanged: (() -> Void)?
 
@@ -17,6 +22,7 @@ final class TranscriptWatcher {
         let home = FileManager.default.homeDirectoryForCurrentUser
         self.claudeProjectsDir = home.appendingPathComponent(".claude/projects")
         self.codexSessionsDir = home.appendingPathComponent(".codex/sessions")
+        self.geminiTmpDir = home.appendingPathComponent(".gemini/tmp")
         self.cursorProjectsDir = home.appendingPathComponent(".cursor/projects")
     }
 
@@ -36,6 +42,9 @@ final class TranscriptWatcher {
         }
         if FileManager.default.fileExists(atPath: codexSessionsDir.path) {
             paths.append(codexSessionsDir.path)
+        }
+        if FileManager.default.fileExists(atPath: geminiTmpDir.path) {
+            paths.append(geminiTmpDir.path)
         }
         if FileManager.default.fileExists(atPath: cursorProjectsDir.path) {
             paths.append(cursorProjectsDir.path)
@@ -80,16 +89,19 @@ final class TranscriptWatcher {
 
     // MARK: - Transcript discovery
 
-    /// Find active JSONL transcript files from all sources (modified within the last 5 minutes).
+    /// Find active transcript files from all sources (modified within the last 5 minutes).
     func findActiveTranscripts() -> [(URL, TranscriptSource)] {
         var results: [(URL, TranscriptSource)] = []
         results.append(contentsOf: findClaudeTranscripts())
         results.append(contentsOf: findCodexTranscripts())
+        results.append(contentsOf: findGeminiTranscripts())
         results.append(contentsOf: findCursorTranscripts())
 
-        // Prune fileOffsets for files no longer active
+        // Prune fileOffsets and gemini tracking for files no longer active
         let activePaths = Set(results.map { $0.0.path })
         fileOffsets = fileOffsets.filter { activePaths.contains($0.key) }
+        geminiMessageCounts = geminiMessageCounts.filter { activePaths.contains($0.key) }
+        geminiFileSizes = geminiFileSizes.filter { activePaths.contains($0.key) }
 
         return results
     }
@@ -188,6 +200,47 @@ final class TranscriptWatcher {
         return results
     }
 
+    /// Find active Gemini CLI session files in ~/.gemini/tmp/*/chats/session-*.json
+    private func findGeminiTranscripts() -> [(URL, TranscriptSource)] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: geminiTmpDir.path) else { return [] }
+
+        var results: [(URL, TranscriptSource)] = []
+        let cutoff = Date().addingTimeInterval(-recencyWindow)
+
+        // Walk project slug dirs
+        guard let projectDirs = try? fm.contentsOfDirectory(
+            at: geminiTmpDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+
+        for projectDir in projectDirs {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: projectDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            let chatsDir = projectDir.appendingPathComponent("chats")
+            guard fm.fileExists(atPath: chatsDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+
+            guard let files = try? fm.contentsOfDirectory(
+                at: chatsDir,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+
+            for file in files {
+                guard file.pathExtension == "json",
+                      file.lastPathComponent.hasPrefix("session-") else { continue }
+                guard let attrs = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
+                      let modDate = attrs.contentModificationDate,
+                      modDate > cutoff else { continue }
+                results.append((file, .gemini))
+            }
+        }
+
+        return results
+    }
+
     /// Find active Cursor agent transcripts in ~/.cursor/projects/*/agent-transcripts/*/
     private func findCursorTranscripts() -> [(URL, TranscriptSource)] {
         let fm = FileManager.default
@@ -274,8 +327,37 @@ final class TranscriptWatcher {
         return records
     }
 
-    /// Reset all file offsets (on reconnect or transport change).
+    /// Read new messages from a Gemini CLI session JSON file.
+    ///
+    /// Gemini sessions are monolithic JSON files (not JSONL) containing a `messages` array.
+    /// We track the last-seen message count per file and only return messages past that index.
+    /// File size is checked first to skip re-parsing unchanged files.
+    func readNewGeminiMessages(from path: URL) -> [[String: Any]] {
+        let key = path.path
+        let fm = FileManager.default
+
+        guard let attrs = try? fm.attributesOfItem(atPath: key),
+              let fileSize = attrs[.size] as? UInt64 else { return [] }
+
+        // Skip re-parsing if file hasn't changed
+        if fileSize == geminiFileSizes[key] { return [] }
+        geminiFileSizes[key] = fileSize
+
+        guard let data = fm.contents(atPath: key),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let messages = json["messages"] as? [[String: Any]] else { return [] }
+
+        let lastCount = geminiMessageCounts[key] ?? 0
+        guard messages.count > lastCount else { return [] }
+
+        geminiMessageCounts[key] = messages.count
+        return Array(messages[lastCount...])
+    }
+
+    /// Reset all file offsets and Gemini tracking state (on reconnect or transport change).
     func resetOffsets() {
         fileOffsets.removeAll()
+        geminiMessageCounts.removeAll()
+        geminiFileSizes.removeAll()
     }
 }

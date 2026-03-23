@@ -2,6 +2,17 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.7] - 2026-03-23
+
+- Add Google Gemini CLI support: agent activity detection from `~/.gemini/tmp/` session JSON files, usage stats via Google Cloud quota API with OAuth token refresh
+- Gemini state deriver handles monolithic JSON sessions (not JSONL): gemini messages with toolCalls map to TYPE/READ, user messages map to IDLE
+- Gemini usage fetcher reads `~/.gemini/oauth_creds.json`, discovers project via `loadCodeAssist`, fetches quota buckets from `retrieveUserQuota`
+- Pink `#C48BB0` brand color for Gemini usage bar, positioned between Codex and Cursor in macOS companion
+- "Show Gemini usage" toggle in Settings
+- Python companion bridge also watches `~/.gemini/tmp/` for Gemini sessions
+- Fix Xcode test host resolution: add `PRODUCT_MODULE_NAME` and explicit `TEST_HOST` to project.yml for correct app bundle name with spaces
+- Add `macos/PixelAgents/build/` to .gitignore (Xcode build output)
+
 ## [0.10.6] - 2026-03-23
 
 - Add Cursor IDE support to macOS companion: usage stats (plan percentage + billing cycle reset), agent detection from `~/.cursor/projects/` JSONL transcripts, and settings toggle

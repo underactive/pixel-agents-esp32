@@ -3,13 +3,15 @@ import SwiftUI
 // Brand colors for usage bars
 private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
 private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
+private let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
 private let cursorDark = Color(red: 0.15, green: 0.15, blue: 0.15)    // Near-black
 
-/// Displays Claude Code, Codex, and Cursor usage statistics with progress bars.
+/// Displays Claude Code, Codex, Gemini, and Cursor usage statistics with progress bars.
 /// Supports "used" (default) and "remaining" display modes, toggled via the header.
 struct UsageStatsView: View {
     let stats: UsageStatsData?
     let codexStats: UsageStatsData?
+    let geminiStats: UsageStatsData?
     let cursorStats: UsageStatsData?
     @Binding var showRemaining: Bool
 
@@ -81,6 +83,25 @@ struct UsageStatsView: View {
                 )
             }
 
+            if let geminiStats = geminiStats {
+                // Gemini section
+                HStack(spacing: 4) {
+                    BrandIconView(icon: BrandIcon.gemini, size: 12, color: .secondary)
+                    Text("Gemini")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                let geminiUsed = Int(geminiStats.currentPct)
+                UsageBar(
+                    label: "Primary",
+                    displayPct: showRemaining ? 100 - geminiUsed : geminiUsed,
+                    usedPct: geminiUsed,
+                    resetMin: geminiStats.currentResetMin,
+                    tintColor: geminiPink
+                )
+            }
+
             if let cursorStats = cursorStats {
                 // Cursor section
                 HStack(spacing: 4) {
@@ -110,7 +131,7 @@ struct UsageStatsView: View {
                 }
             }
 
-            if stats == nil && codexStats == nil && cursorStats == nil {
+            if stats == nil && codexStats == nil && geminiStats == nil && cursorStats == nil {
                 Text("No usage data")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)

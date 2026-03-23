@@ -28,14 +28,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelagents.companion
         PRODUCT_NAME: "Pixel Agents"
+        PRODUCT_MODULE_NAME: PixelAgents
         INFOPLIST_FILE: PixelAgents/Info.plist
         CODE_SIGN_ENTITLEMENTS: PixelAgents/PixelAgents.entitlements
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "0.10.6"
-        CURRENT_PROJECT_VERSION: "0.10.6"
+        MARKETING_VERSION: "0.10.7"
+        CURRENT_PROJECT_VERSION: "0.10.7"
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
           - "@executable_path/../Frameworks"
@@ -57,3 +58,5 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelagents.companion.tests
         GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Pixel Agents.app/Contents/MacOS/Pixel Agents"
+        BUNDLE_LOADER: "$(TEST_HOST)"
