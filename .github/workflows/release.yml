@@ -239,9 +239,13 @@ jobs:
 
           # Sign DMG with EdDSA
           DMG_PATH="PixelAgents-v${VERSION}.dmg"
-          DMG_SIZE=$(stat -f%z "$DMG_PATH")
           DMG_URL="https://github.com/underactive/pixel-agents-esp32/releases/download/v${VERSION}/PixelAgents-v${VERSION}.dmg"
-          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle-tools/bin/sign_update --ed-key-file - "$DMG_PATH")
+
+          # sign_update outputs: sparkle:edSignature="..." length="..."
+          # Extract just the signature value and use stat for the file size
+          SIGN_OUTPUT=$(echo "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle-tools/bin/sign_update --ed-key-file - "$DMG_PATH")
+          ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          DMG_SIZE=$(stat -f%z "$DMG_PATH")
 
           # Build appcast item XML
           ITEM=$(cat <<XMLEOF
@@ -251,7 +255,7 @@ jobs:
                 <sparkle:version>${VERSION}</sparkle:version>
                 <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
                 <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" sparkle:edSignature="${SIGNATURE}" />
+                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" sparkle:edSignature="${ED_SIGNATURE}" />
             </item>
           XMLEOF
           )
@@ -267,27 +271,28 @@ jobs:
             cd "$GITHUB_WORKSPACE"
           fi
 
-          # Create or update appcast.xml
-          if [ ! -f /tmp/gh-pages/appcast.xml ]; then
-            cat > /tmp/gh-pages/appcast.xml <<APPEOF
-          <?xml version="1.0" encoding="utf-8"?>
+          # Create or update appcast.xml (replaces existing entry for same version)
+          python3 - "$ITEM" "$VERSION" /tmp/gh-pages/appcast.xml <<'PYEOF'
+          import sys, os, re
+          item, version, path = sys.argv[1], sys.argv[2], sys.argv[3]
+          if os.path.exists(path):
+              appcast = open(path).read()
+              # Remove any existing items for this version
+              appcast = re.sub(
+                  r'\s*<item>.*?<sparkle:version>' + re.escape(version) + r'</sparkle:version>.*?</item>',
+                  '', appcast, flags=re.DOTALL)
+              # Insert new item before </channel>
+              appcast = appcast.replace('</channel>', item + '\n        </channel>')
+          else:
+              appcast = f'''<?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
               <channel>
                   <title>Pixel Agents</title>
-          ${ITEM}
+          {item}
               </channel>
-          </rss>
-          APPEOF
-          else
-            # Insert new item before </channel>
-            python3 -c "
-          import sys
-          appcast = open('/tmp/gh-pages/appcast.xml').read()
-          item = sys.argv[1]
-          appcast = appcast.replace('</channel>', item + '\n        </channel>')
-          open('/tmp/gh-pages/appcast.xml', 'w').write(appcast)
-          " "$ITEM"
-          fi
+          </rss>'''
+          open(path, 'w').write(appcast)
+          PYEOF
 
           # Commit and push
           cd /tmp/gh-pages
