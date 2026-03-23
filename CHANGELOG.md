@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.2] - 2026-03-22
+
+- Add Ko-fi donation link to About window
+
 ## [0.10.1] - 2026-03-22
 
 - Add custom DMG background with styled icon layout using create-dmg
