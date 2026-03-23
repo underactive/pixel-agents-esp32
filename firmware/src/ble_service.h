@@ -12,6 +12,7 @@ public:
     bool begin(BleTransport& transport);
     bool isConnected() const { return _connected.load(std::memory_order_acquire); }
     uint16_t getPin() const { return _pin; }
+    void sendResponse(const uint8_t* data, size_t len);
 
 #if defined(HAS_BATTERY)
     void updateBatteryLevel(uint8_t percent);
@@ -19,6 +20,7 @@ public:
 
 private:
     BleTransport* _transport = nullptr;
+    NimBLECharacteristic* _txChar = nullptr;
     std::atomic<bool> _connected{false};
     uint16_t _pin = 0;  // Set once in begin(), read-only after init
 

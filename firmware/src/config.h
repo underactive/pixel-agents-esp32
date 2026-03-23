@@ -78,7 +78,9 @@ static constexpr uint8_t MSG_AGENT_COUNT  = 0x02;
 static constexpr uint8_t MSG_HEARTBEAT    = 0x03;
 static constexpr uint8_t MSG_STATUS_TEXT  = 0x04;
 static constexpr uint8_t MSG_USAGE_STATS  = 0x05;
-static constexpr uint8_t MSG_SCREENSHOT_REQ = 0x06;
+static constexpr uint8_t MSG_SCREENSHOT_REQ   = 0x06;
+static constexpr uint8_t MSG_DEVICE_SETTINGS   = 0x07;
+static constexpr uint8_t MSG_SETTINGS_STATE    = 0x08;
 
 // Screenshot response (ESP32 → companion) uses distinct sync bytes
 static constexpr uint8_t SCREENSHOT_SYNC1 = 0xBB;
@@ -394,7 +396,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.10.4 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.10.5 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SPLASH_TITLE_Y = 15;
@@ -431,7 +433,7 @@ static constexpr int HAMBURGER_H = 5;  // 3 bars of 1px + 2 gaps of 1px
 static constexpr int HAMBURGER_MARGIN = 4;
 static constexpr int MENU_W = 160;
 #if defined(HAS_SOUND)
-static constexpr int MENU_H = 168; // 6 rows * MENU_ITEM_H + 12px padding
+static constexpr int MENU_H = 194; // 7 rows * MENU_ITEM_H + 12px padding
 #else
 static constexpr int MENU_H = 142; // 5 rows * MENU_ITEM_H + 12px padding
 #endif

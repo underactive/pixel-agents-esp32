@@ -1376,6 +1376,7 @@ void OfficeState::loadSettings() {
 #else
     _soundEnabled = prefs.getBool("soundOn", true);
 #endif
+    _dogBarkEnabled = prefs.getBool("barkOn", true);
 #endif
     prefs.end();
 }
@@ -1388,13 +1389,28 @@ void OfficeState::saveSettings() {
     prefs.putBool("flipScr", _screenFlipped);
 #if defined(HAS_SOUND)
     prefs.putBool("soundOn", _soundEnabled);
+    prefs.putBool("barkOn", _dogBarkEnabled);
 #endif
     prefs.end();
+}
+
+void OfficeState::getSettingsState(uint8_t& dogEnabled, uint8_t& dogColor, uint8_t& screenFlip, uint8_t& soundEnabled, uint8_t& dogBarkEnabled) const {
+    dogEnabled = _dogSettings.enabled ? 1 : 0;
+    dogColor = static_cast<uint8_t>(_dogSettings.color);
+    screenFlip = _screenFlipped ? 1 : 0;
+#if defined(HAS_SOUND)
+    soundEnabled = _soundEnabled ? 1 : 0;
+    dogBarkEnabled = _dogBarkEnabled ? 1 : 0;
+#else
+    soundEnabled = 0;
+    dogBarkEnabled = 0;
+#endif
 }
 
 void OfficeState::setDogEnabled(bool enabled) {
     if (_dogSettings.enabled == enabled) return;
     _dogSettings.enabled = enabled;
+    _settingsDirty = true;
     saveSettings();
     if (enabled) {
         initPet();
@@ -1406,6 +1422,7 @@ void OfficeState::setDogEnabled(bool enabled) {
 void OfficeState::setScreenFlipped(bool flipped) {
     if (_screenFlipped == flipped) return;
     _screenFlipped = flipped;
+    _settingsDirty = true;
     saveSettings();
 }
 
@@ -1413,6 +1430,7 @@ void OfficeState::setDogColor(DogColor color) {
     if (static_cast<uint8_t>(color) >= DOG_COLOR_COUNT) return;
     if (_dogSettings.color == color) return;
     _dogSettings.color = color;
+    _settingsDirty = true;
     saveSettings();
 }
 
@@ -1425,6 +1443,7 @@ SoundId OfficeState::consumePendingSound() {
 void OfficeState::queueSound(SoundId id) {
 #if defined(HAS_SOUND)
     if (!_soundEnabled) return;
+    if (id == SoundId::DOG_BARK && !_dogBarkEnabled) return;
 #endif
     _pet.pendingSound = id;
 }
@@ -1433,6 +1452,14 @@ void OfficeState::queueSound(SoundId id) {
 void OfficeState::setSoundEnabled(bool enabled) {
     if (_soundEnabled == enabled) return;
     _soundEnabled = enabled;
+    _settingsDirty = true;
+    saveSettings();
+}
+
+void OfficeState::setDogBarkEnabled(bool enabled) {
+    if (_dogBarkEnabled == enabled) return;
+    _dogBarkEnabled = enabled;
+    _settingsDirty = true;
     saveSettings();
 }
 #endif
@@ -1492,8 +1519,11 @@ int OfficeState::hitTestMenuItem(int screenX, int screenY) const {
     // Row 4: sound toggle
     if (relY < MENU_ITEM_H * 5) return 6;
 
-    // Row 5: sleep
-    if (relY < MENU_ITEM_H * 6) return 7;
+    // Row 5: dog bark toggle
+    if (relY < MENU_ITEM_H * 6) return 8;
+
+    // Row 6: sleep
+    if (relY < MENU_ITEM_H * 7) return 7;
 #else
     // Row 4: sleep (when no sound row)
     if (relY < MENU_ITEM_H * 5) return 7;

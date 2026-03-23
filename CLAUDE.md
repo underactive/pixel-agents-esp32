@@ -4,7 +4,7 @@
 
 **Pixel Agents ESP32** is a standalone hardware display that renders Claude Code agents as animated 16x24 pixel art characters in a virtual office scene on an ESP32-S3 with a small color TFT, driven by JSONL transcripts from Claude Code CLI via a Python companion bridge.
 
-**Current Version:** 0.10.4
+**Current Version:** 0.10.5
 **Status:** In development
 
 ---
@@ -195,6 +195,10 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 | STATUS_TEXT | 0x04 | agent_id(1) + text_len(1) + text(0-32) |
 | USAGE_STATS | 0x05 | current_pct(1) + weekly_pct(1) + current_reset_min(2, big-endian) + weekly_reset_min(2, big-endian) |
 | SCREENSHOT_REQ | 0x06 | (none) |
+| DEVICE_SETTINGS | 0x07 | dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1) + dog_bark_enabled(1) |
+| SETTINGS_STATE | 0x08 | dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1) + dog_bark_enabled(1) |
+
+`DEVICE_SETTINGS` (0x07) is companion → device. `SETTINGS_STATE` (0x08) is device → companion, sent on first heartbeat after connect, after applying received settings, and after on-device touch menu changes.
 
 Screenshot response (ESP32 → companion) uses distinct sync bytes `[0xBB][0x66]` followed by a 10-byte header and RLE pixel data. Not part of the standard framing protocol.
 

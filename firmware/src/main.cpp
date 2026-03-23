@@ -53,6 +53,51 @@ uint32_t lastWakeMs = 0;
 uint32_t lastFrameMs = 0;
 bool splashActive = true;
 
+// ── Settings sync ──────────────────────────────────────
+
+void sendSettingsState() {
+    uint8_t dogEnabled, dogColor, screenFlip, soundEnabled, dogBarkEnabled;
+    office.getSettingsState(dogEnabled, dogColor, screenFlip, soundEnabled, dogBarkEnabled);
+    uint8_t msg[9];
+    msg[0] = SYNC_BYTE_1;
+    msg[1] = SYNC_BYTE_2;
+    msg[2] = MSG_SETTINGS_STATE;
+    msg[3] = dogEnabled;
+    msg[4] = dogColor;
+    msg[5] = screenFlip;
+    msg[6] = soundEnabled;
+    msg[7] = dogBarkEnabled;
+    msg[8] = msg[2] ^ msg[3] ^ msg[4] ^ msg[5] ^ msg[6] ^ msg[7];
+    Serial.write(msg, 9);
+#if defined(HAS_BLE)
+    if (bleService.isConnected()) {
+        bleService.sendResponse(msg, 9);
+    }
+#endif
+}
+
+void onDeviceSettings(const DeviceSettingsMsg& ds) {
+    office.setDogEnabled(ds.dogEnabled != 0);
+    office.setDogColor(static_cast<DogColor>(ds.dogColor));
+#if defined(HAS_SOUND)
+    office.setSoundEnabled(ds.soundEnabled != 0);
+    office.setDogBarkEnabled(ds.dogBarkEnabled != 0);
+#endif
+    bool newFlip = (ds.screenFlip != 0);
+    if (newFlip != office.isScreenFlipped()) {
+        office.setScreenFlipped(newFlip);
+        int rot = newFlip ? 3 : 1;
+        tft.setRotation(rot);
+#if defined(HAS_TOUCH)
+        touchInput.setDisplayRotation(rot);
+#endif
+        office.closeMenu();
+    }
+    // Clear dirty flag since we're about to send state ourselves
+    office.clearSettingsDirty();
+    sendSettingsState();
+}
+
 // ── Protocol callbacks ──────────────────────────────────
 
 void onAgentUpdate(const AgentUpdate& upd) {
@@ -66,7 +111,9 @@ void onAgentCount(uint8_t count) {
 
 void onSerialHeartbeat(uint32_t timestamp) {
     (void)timestamp;
+    bool wasConnected = office.isSerialConnected();
     office.onSerialHeartbeat();
+    if (!wasConnected) sendSettingsState();
     if (splashActive) {
         splash.onHeartbeat();
     }
@@ -74,7 +121,9 @@ void onSerialHeartbeat(uint32_t timestamp) {
 
 void onBleHeartbeat(uint32_t timestamp) {
     (void)timestamp;
+    bool wasConnected = office.isBleConnected();
     office.onBleHeartbeat();
+    if (!wasConnected) sendSettingsState();
     if (splashActive) {
         splash.onHeartbeat();
     }
@@ -167,13 +216,13 @@ void setup() {
     renderer.begin(tft);
     splash.addLog("Render buffer allocated");
 
-    serialProtocol.begin(onAgentUpdate, onAgentCount, onSerialHeartbeat, onStatusText, onUsageStats, onScreenshotReq);
+    serialProtocol.begin(onAgentUpdate, onAgentCount, onSerialHeartbeat, onStatusText, onUsageStats, onScreenshotReq, onDeviceSettings);
     splash.addLog("Protocol ready");
 
 #if defined(HAS_BLE)
     // Separate protocol instance for BLE to avoid state corruption
     // when partial messages arrive on both transports simultaneously
-    bleProtocol.begin(onAgentUpdate, onAgentCount, onBleHeartbeat, onStatusText, onUsageStats, nullptr);
+    bleProtocol.begin(onAgentUpdate, onAgentCount, onBleHeartbeat, onStatusText, onUsageStats, nullptr, onDeviceSettings);
     if (bleService.begin(bleTransport)) {
         splash.setPinCode(bleService.getPin());
         office.setBlePin(bleService.getPin());
@@ -347,7 +396,7 @@ void loop() {
     if (te.tapped) {
         if (office.isMenuOpen()) {
             // hitTestMenuItem returns: 0=dog toggle, 1-4=color, 5=flip screen,
-            // 6=sound toggle, 7=sleep, -1=outside menu (close), -2=inside menu no-op
+            // 6=sound toggle, 7=sleep, 8=bark toggle, -1=outside menu (close), -2=inside menu no-op
             int item = office.hitTestMenuItem(te.x, te.y);
             if (item == 0) {
                 // Toggle dog on/off
@@ -359,6 +408,9 @@ void loop() {
             } else if (item == 6) {
                 // Toggle sound on/off
                 office.setSoundEnabled(!office.isSoundEnabled());
+            } else if (item == 8) {
+                // Toggle dog bark on/off
+                office.setDogBarkEnabled(!office.isDogBarkEnabled());
 #endif
             } else if (item == 5) {
                 // Toggle screen flip
@@ -397,6 +449,12 @@ void loop() {
         return;
     }
 #endif
+
+    // Broadcast settings state if changed via touch menu
+    if (office.isSettingsDirty()) {
+        sendSettingsState();
+        office.clearSettingsDirty();
+    }
 
     // Render
 #if defined(HAS_SOUND)

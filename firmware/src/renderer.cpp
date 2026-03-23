@@ -846,8 +846,19 @@ void Renderer::drawMenuOverlay(OfficeState& office) {
     // Separator
     gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 5 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
 
-    // Row 5: Sleep
-    int sleepRowY = menuY + MENU_ITEM_H * 5;
+    // Row 5: Dog bark toggle
+    bool barkOn = office.isDogBarkEnabled();
+    int row5Y = menuY + MENU_ITEM_H * 5;
+    gfxSetTextColor(COLOR_TEXT);
+    gfxDrawString("Bark:", menuX + 6, row5Y + textPad);
+    gfxSetTextColor(barkOn ? COLOR_ACTIVE : COLOR_DISCONNECTED);
+    gfxDrawString(barkOn ? "ON" : "OFF", menuX + 42, row5Y + textPad);
+
+    // Separator
+    gfxFillRect(menuX + 2, menuY + MENU_ITEM_H * 6 - 2, MENU_W - 4, 1, COLOR_MENU_BORDER);
+
+    // Row 6: Sleep
+    int sleepRowY = menuY + MENU_ITEM_H * 6;
     gfxSetTextColor(COLOR_INACTIVE);
     gfxDrawString("Sleep...", menuX + 6, sleepRowY + textPad);
 #else

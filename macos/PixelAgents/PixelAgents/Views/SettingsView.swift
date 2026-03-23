@@ -2,8 +2,28 @@ import SwiftUI
 import ServiceManagement
 import Sparkle
 
-/// Settings window content with usage stats toggles, menu bar options, Launch at Login, and auto-updates.
+/// Settings window with Companion and Device tabs.
 struct SettingsView: View {
+    let updater: SPUUpdater
+    @ObservedObject var bridge: BridgeService
+
+    var body: some View {
+        TabView {
+            CompanionSettingsTab(updater: updater)
+                .tabItem { Label("Companion", systemImage: "laptopcomputer") }
+
+            DeviceSettingsView(bridge: bridge)
+                .tabItem { Label("Device", systemImage: "cpu") }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Companion settings tab: usage stats, menu bar, launch at login, auto-updates.
+private struct CompanionSettingsTab: View {
     let updater: SPUUpdater
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var autoCheckForUpdates: Bool = true

@@ -45,6 +45,8 @@ MSG_HEARTBEAT = 0x03
 MSG_STATUS_TEXT = 0x04
 MSG_USAGE_STATS = 0x05
 MSG_SCREENSHOT_REQ = 0x06
+MSG_DEVICE_SETTINGS = 0x07
+MSG_SETTINGS_STATE = 0x08
 
 # Screenshot response sync bytes (ESP32 → companion)
 SCREENSHOT_SYNC1 = 0xBB
@@ -137,6 +139,20 @@ def build_heartbeat() -> bytes:
 def build_screenshot_req() -> bytes:
     """Build SCREENSHOT_REQ message (no payload)."""
     return build_message(MSG_SCREENSHOT_REQ, b"")
+
+
+def build_device_settings(dog_enabled: bool, dog_color: int,
+                          screen_flip: bool, sound_enabled: bool,
+                          dog_bark_enabled: bool = True) -> bytes:
+    """Build DEVICE_SETTINGS message: dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1) + dog_bark_enabled(1)."""
+    payload = bytes([
+        1 if dog_enabled else 0,
+        max(0, min(3, dog_color)),
+        1 if screen_flip else 0,
+        1 if sound_enabled else 0,
+        1 if dog_bark_enabled else 0,
+    ])
+    return build_message(MSG_DEVICE_SETTINGS, payload)
 
 
 def rgb565_to_rgb888(pixel: int) -> tuple:

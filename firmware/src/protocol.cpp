@@ -3,13 +3,15 @@
 
 void Protocol::begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
                      HeartbeatCb onHeartbeat, StatusTextCb onStatus,
-                     UsageStatsCb onUsage, ScreenshotReqCb onScreenshotReq) {
+                     UsageStatsCb onUsage, ScreenshotReqCb onScreenshotReq,
+                     DeviceSettingsCb onDeviceSettings) {
     _onUpdate = onUpdate;
     _onCount = onCount;
     _onHeartbeat = onHeartbeat;
     _onStatus = onStatus;
     _onUsage = onUsage;
     _onScreenshotReq = onScreenshotReq;
+    _onDeviceSettings = onDeviceSettings;
     _state = State::WAIT_SYNC1;
 }
 
@@ -20,6 +22,7 @@ int Protocol::payloadLength(uint8_t msgType) const {
         case MSG_HEARTBEAT:    return 4;
         case MSG_USAGE_STATS: return 6;
         case MSG_SCREENSHOT_REQ: return 0;
+        case MSG_DEVICE_SETTINGS: return 5;
         case MSG_STATUS_TEXT:  return -1;  // variable: 2 + text
         default: return -2;  // unknown
     }
@@ -165,5 +168,16 @@ void Protocol::dispatch() {
         case MSG_SCREENSHOT_REQ:
             if (_onScreenshotReq) _onScreenshotReq();
             break;
+        case MSG_DEVICE_SETTINGS: {
+            if (_bufIdx < 5) break;
+            DeviceSettingsMsg ds;
+            ds.dogEnabled = _buf[0] ? 1 : 0;
+            ds.dogColor = (_buf[1] < DOG_COLOR_COUNT) ? _buf[1] : 0;
+            ds.screenFlip = _buf[2] ? 1 : 0;
+            ds.soundEnabled = _buf[3] ? 1 : 0;
+            ds.dogBarkEnabled = _buf[4] ? 1 : 0;
+            if (_onDeviceSettings) _onDeviceSettings(ds);
+            break;
+        }
     }
 }

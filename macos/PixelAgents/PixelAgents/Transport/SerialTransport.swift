@@ -12,6 +12,12 @@ final class SerialTransport: TransportProtocol {
     private var readBuffer = Data()
     private let readBufferLock = NSLock()
 
+    /// Callback for device-to-companion protocol messages (settings state).
+    var onSettingsState: ((_ payload: Data) -> Void)?
+
+    /// Small buffer for detecting protocol frames in the incoming stream.
+    private var protocolScanBuf = Data()
+
     var isConnected: Bool {
         fdLock.lock()
         let connected = fd >= 0
@@ -169,9 +175,47 @@ final class SerialTransport: TransportProtocol {
 
         if bytesRead > 0 {
             let data = Data(buf[0..<bytesRead])
+
+            // Scan for protocol frames (MSG_SETTINGS_STATE) before buffering
+            // Frame format: [0xAA][0x55][0x08][4 payload bytes][checksum] = 8 bytes
+            protocolScanBuf.append(data)
+            extractProtocolFrames()
+
             readBufferLock.lock()
-            readBuffer.append(data)
+            readBuffer.append(protocolScanBuf)
+            protocolScanBuf.removeAll()
             readBufferLock.unlock()
         }
+    }
+
+    /// Scan protocolScanBuf for complete MSG_SETTINGS_STATE frames, invoke callback,
+    /// and remove consumed bytes. Non-matching bytes remain for the screenshot read buffer.
+    private func extractProtocolFrames() {
+        var i = 0
+        var remaining = Data()
+
+        while i < protocolScanBuf.count {
+            // Need at least 9 bytes for a settings state frame
+            // [sync1][sync2][type][5 payload bytes][checksum]
+            if i + 8 < protocolScanBuf.count,
+               protocolScanBuf[i] == ProtocolBuilder.syncByte1,
+               protocolScanBuf[i + 1] == ProtocolBuilder.syncByte2,
+               protocolScanBuf[i + 2] == ProtocolBuilder.msgSettingsState {
+                // Verify checksum: XOR of type + 5 payload bytes
+                let check = protocolScanBuf[i + 2] ^ protocolScanBuf[i + 3] ^
+                            protocolScanBuf[i + 4] ^ protocolScanBuf[i + 5] ^
+                            protocolScanBuf[i + 6] ^ protocolScanBuf[i + 7]
+                if check == protocolScanBuf[i + 8] {
+                    let payload = protocolScanBuf.subdata(in: (i + 3)..<(i + 8))
+                    onSettingsState?(payload)
+                    i += 9
+                    continue
+                }
+            }
+            remaining.append(protocolScanBuf[i])
+            i += 1
+        }
+
+        protocolScanBuf = remaining
     }
 }

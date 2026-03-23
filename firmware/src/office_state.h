@@ -146,6 +146,8 @@ public:
 #if defined(HAS_SOUND)
     bool isSoundEnabled() const { return _soundEnabled; }
     void setSoundEnabled(bool enabled);
+    bool isDogBarkEnabled() const { return _dogBarkEnabled; }
+    void setDogBarkEnabled(bool enabled);
 #endif
     bool isMenuOpen() const { return _menuOpen; }
     void toggleMenu() { _menuOpen = !_menuOpen; }
@@ -154,6 +156,11 @@ public:
     int hitTestMenuItem(int screenX, int screenY) const;
     bool isScreenFlipped() const { return _screenFlipped; }
     void setScreenFlipped(bool flipped);  // Persists to NVS. Caller must also update TFT and touch rotation.
+
+    // Settings sync (for companion remote control)
+    void getSettingsState(uint8_t& dogEnabled, uint8_t& dogColor, uint8_t& screenFlip, uint8_t& soundEnabled, uint8_t& dogBarkEnabled) const;
+    bool isSettingsDirty() const { return _settingsDirty; }
+    void clearSettingsDirty() { _settingsDirty = false; }
     int getActiveAgentCount() const;   // count of characters at TYPE/READ
     int getCharacterCount() const;     // count of alive characters
     const TileType* getTileMap() const { return &_tiles[0][0]; }
@@ -183,8 +190,10 @@ private:
     DogSettings _dogSettings = { true, DOG_DEFAULT_COLOR };
     bool _menuOpen = false;
     bool _screenFlipped = false;
+    bool _settingsDirty = false;
 #if defined(HAS_SOUND)
     bool _soundEnabled = false;
+    bool _dogBarkEnabled = true;
 #endif
 
     void initTileMap();

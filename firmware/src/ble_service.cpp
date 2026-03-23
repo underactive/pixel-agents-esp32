@@ -92,8 +92,8 @@ bool BleService::begin(BleTransport& transport) {
         pRx->setCallbacks(&rxCallbacks);
     }
 
-    // TX characteristic — reserved for future bidirectional messages
-    pService->createCharacteristic(
+    // TX characteristic — used for device-to-companion messages (settings state)
+    _txChar = pService->createCharacteristic(
         NUS_TX_UUID,
         NIMBLE_PROPERTY::NOTIFY
     );
@@ -149,6 +149,13 @@ bool BleService::begin(BleTransport& transport) {
 
     Serial.println("[BLE] Advertising started OK");
     return true;
+}
+
+void BleService::sendResponse(const uint8_t* data, size_t len) {
+    if (!_txChar) return;
+    if (!_connected.load(std::memory_order_acquire)) return;
+    _txChar->setValue(data, len);
+    _txChar->notify();
 }
 
 #if defined(HAS_BATTERY)

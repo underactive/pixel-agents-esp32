@@ -144,14 +144,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             return
         }
 
-        let view = SettingsView(updater: updaterController.updater)
+        let view = SettingsView(updater: updaterController.updater, bridge: bridge)
         let hostingController = NSHostingController(rootView: view)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Pixel Agents Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.setContentSize(NSSize(width: 300, height: 260))
+        window.setContentSize(NSSize(width: 340, height: 400))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

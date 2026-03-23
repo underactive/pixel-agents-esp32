@@ -13,7 +13,9 @@ enum ProtocolBuilder {
     static let msgAgentCount: UInt8    = 0x02
     static let msgHeartbeat: UInt8     = 0x03
     static let msgUsageStats: UInt8    = 0x05
-    static let msgScreenshotReq: UInt8 = 0x06
+    static let msgScreenshotReq: UInt8    = 0x06
+    static let msgDeviceSettings: UInt8   = 0x07
+    static let msgSettingsState: UInt8    = 0x08
 
     static let maxToolNameLen = 24
 
@@ -79,5 +81,23 @@ enum ProtocolBuilder {
     /// SCREENSHOT_REQ: no payload
     static func screenshotRequest() -> Data {
         return buildMessage(type: msgScreenshotReq, payload: Data())
+    }
+
+    /// DEVICE_SETTINGS: dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1)
+    static func deviceSettings(
+        dogEnabled: Bool,
+        dogColor: UInt8,
+        screenFlip: Bool,
+        soundEnabled: Bool,
+        dogBarkEnabled: Bool
+    ) -> Data {
+        let payload = Data([
+            dogEnabled ? 1 : 0,
+            min(dogColor, 3),
+            screenFlip ? 1 : 0,
+            soundEnabled ? 1 : 0,
+            dogBarkEnabled ? 1 : 0
+        ])
+        return buildMessage(type: msgDeviceSettings, payload: payload)
     }
 }

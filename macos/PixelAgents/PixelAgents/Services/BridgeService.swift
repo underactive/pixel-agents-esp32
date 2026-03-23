@@ -53,6 +53,15 @@ final class BridgeService: ObservableObject {
     @Published var displayMode: DisplayMode = .hardware
     @Published var transportMode: TransportMode = .serial
 
+    // MARK: - Device settings (synced from ESP32)
+
+    @Published var deviceDogEnabled: Bool = true
+    @Published var deviceDogColor: UInt8 = 1  // BROWN
+    @Published var deviceScreenFlip: Bool = false
+    @Published var deviceSoundEnabled: Bool = false
+    @Published var deviceDogBarkEnabled: Bool = true
+    @Published var deviceSettingsReceived: Bool = false
+
     // MARK: - Office scene (software display + PIP)
 
     let officeScene = OfficeScene()
@@ -120,6 +129,14 @@ final class BridgeService: ObservableObject {
             Task { @MainActor in
                 self?.handleDisconnect()
             }
+        }
+
+        // Wire device-to-companion settings state callbacks
+        serialTransport.onSettingsState = { [weak self] payload in
+            self?.handleSettingsState(payload)
+        }
+        bleTransport.onSettingsState = { [weak self] payload in
+            self?.handleSettingsState(payload)
         }
 
         // Kick off initial API fetch for usage stats
@@ -266,6 +283,7 @@ final class BridgeService: ObservableObject {
         lastUsageData = nil
         lastCount = -1
         officeScene.resetAppliedStates()
+        deviceSettingsReceived = false
     }
 
     // MARK: - Timers
@@ -464,6 +482,58 @@ final class BridgeService: ObservableObject {
         }
         if newAgents != displayAgents {
             displayAgents = newAgents
+        }
+    }
+
+    // MARK: - Device Settings
+
+    func setDeviceDogEnabled(_ enabled: Bool) {
+        deviceDogEnabled = enabled
+        sendDeviceSettings()
+    }
+
+    func setDeviceDogColor(_ color: UInt8) {
+        deviceDogColor = min(color, 3)
+        sendDeviceSettings()
+    }
+
+    func setDeviceScreenFlip(_ flipped: Bool) {
+        deviceScreenFlip = flipped
+        sendDeviceSettings()
+    }
+
+    func setDeviceSoundEnabled(_ enabled: Bool) {
+        deviceSoundEnabled = enabled
+        sendDeviceSettings()
+    }
+
+    func setDeviceDogBarkEnabled(_ enabled: Bool) {
+        deviceDogBarkEnabled = enabled
+        sendDeviceSettings()
+    }
+
+    private func sendDeviceSettings() {
+        guard displayMode == .hardware,
+              let transport = activeTransport, transport.isConnected else { return }
+        let msg = ProtocolBuilder.deviceSettings(
+            dogEnabled: deviceDogEnabled,
+            dogColor: deviceDogColor,
+            screenFlip: deviceScreenFlip,
+            soundEnabled: deviceSoundEnabled,
+            dogBarkEnabled: deviceDogBarkEnabled
+        )
+        _ = transport.send(msg)
+    }
+
+    private func handleSettingsState(_ payload: Data) {
+        guard payload.count >= 5 else { return }
+        Task { @MainActor in
+            self.deviceDogEnabled = payload[0] != 0
+            self.deviceDogColor = min(payload[1], 3)
+            self.deviceScreenFlip = payload[2] != 0
+            self.deviceSoundEnabled = payload[3] != 0
+            self.deviceDogBarkEnabled = payload[4] != 0
+            self.deviceSettingsReceived = true
         }
     }
 

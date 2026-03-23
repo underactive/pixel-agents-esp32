@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.5] - 2026-03-23
+
+- Add remote device settings: macOS companion can read and change dog on/off, dog color, screen flip, sound toggle, and dog bark toggle over serial/BLE
+- New protocol messages: DEVICE_SETTINGS (0x07, companion→device) and SETTINGS_STATE (0x08, device→companion) for bidirectional settings sync
+- Add Device tab to Settings window with dog, display, and audio controls (disabled until device connects)
+- Add dog bark toggle to on-device hamburger menu and companion Device settings
+- Device sends current settings on connect; companion UI updates when settings change via on-device touch menu
+- Add BLE TX send capability for device-to-companion messages (NUS TX characteristic)
+
 ## [0.10.4] - 2026-03-22
 
 - Move "Check for Updates" from right-click menu to About window with last-checked timestamp

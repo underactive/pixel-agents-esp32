@@ -80,4 +80,39 @@ final class ProtocolBuilderTests: XCTestCase {
         XCTAssertEqual(msg.count, 4) // [sync1][sync2][type][checksum]
         XCTAssertEqual(msg[2], 0x06) // MSG_SCREENSHOT_REQ
     }
+
+    func testDeviceSettings() {
+        let msg = ProtocolBuilder.deviceSettings(
+            dogEnabled: true, dogColor: 2, screenFlip: false, soundEnabled: true, dogBarkEnabled: true
+        )
+        // [sync1][sync2][type][5 payload bytes][checksum] = 9 bytes
+        XCTAssertEqual(msg.count, 9)
+        XCTAssertEqual(msg[2], 0x07) // MSG_DEVICE_SETTINGS
+        XCTAssertEqual(msg[3], 1)    // dog_enabled
+        XCTAssertEqual(msg[4], 2)    // dog_color (GRAY)
+        XCTAssertEqual(msg[5], 0)    // screen_flip
+        XCTAssertEqual(msg[6], 1)    // sound_enabled
+        XCTAssertEqual(msg[7], 1)    // dog_bark_enabled
+        // Verify checksum
+        let check: UInt8 = msg[2] ^ msg[3] ^ msg[4] ^ msg[5] ^ msg[6] ^ msg[7]
+        XCTAssertEqual(msg[8], check)
+    }
+
+    func testDeviceSettingsBooleanEncoding() {
+        let msg = ProtocolBuilder.deviceSettings(
+            dogEnabled: false, dogColor: 0, screenFlip: true, soundEnabled: false, dogBarkEnabled: false
+        )
+        XCTAssertEqual(msg[3], 0) // dog_enabled = false
+        XCTAssertEqual(msg[4], 0) // dog_color = BLACK
+        XCTAssertEqual(msg[5], 1) // screen_flip = true
+        XCTAssertEqual(msg[6], 0) // sound_enabled = false
+        XCTAssertEqual(msg[7], 0) // dog_bark_enabled = false
+    }
+
+    func testDeviceSettingsColorClamping() {
+        let msg = ProtocolBuilder.deviceSettings(
+            dogEnabled: true, dogColor: 99, screenFlip: false, soundEnabled: false, dogBarkEnabled: true
+        )
+        XCTAssertEqual(msg[4], 3) // clamped to max (TAN)
+    }
 }

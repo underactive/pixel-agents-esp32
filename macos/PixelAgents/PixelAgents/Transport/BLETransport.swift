@@ -75,6 +75,7 @@ final class BLETransport: NSObject, TransportProtocol, ObservableObject {
 
     /// Callback when connection is lost (for auto-reconnect).
     var onDisconnect: (() -> Void)?
+    var onSettingsState: ((_ payload: Data) -> Void)?
 
     // MARK: - Init
 
@@ -387,6 +388,16 @@ extension BLETransport: CBPeripheralDelegate {
                 }
                 NSLog("[BLE] Battery level: %d%%", level)
             }
+        } else if characteristic.uuid == Self.nusTxUUID {
+            // Parse protocol frame: [0xAA][0x55][type][payload...][checksum]
+            guard data.count >= 9,
+                  data[0] == ProtocolBuilder.syncByte1,
+                  data[1] == ProtocolBuilder.syncByte2,
+                  data[2] == ProtocolBuilder.msgSettingsState else { return }
+            let check = data[2] ^ data[3] ^ data[4] ^ data[5] ^ data[6] ^ data[7]
+            guard check == data[8] else { return }
+            let payload = data.subdata(in: 3..<8)
+            onSettingsState?(payload)
         }
     }
 }
