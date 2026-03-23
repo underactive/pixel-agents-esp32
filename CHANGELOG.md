@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.10.1] - 2026-03-22
+
+- Add custom DMG background with styled icon layout using create-dmg
+- Fix appcast generation: extract EdDSA signature value and deduplicate versions
+
 ## [0.10.0] - 2026-03-21
 
 - Add Settings window to macOS companion: gear button in popover opens standalone settings with Launch at Login, Claude usage stats toggle, and Codex usage stats toggle
