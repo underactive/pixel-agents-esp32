@@ -171,19 +171,26 @@ jobs:
             ".build/Build/Products/Release/PixelAgents.app"
           codesign --verify --deep --strict ".build/Build/Products/Release/PixelAgents.app"
 
+      - name: Install create-dmg
+        run: brew install create-dmg
+
       - name: Create DMG
         working-directory: macos/PixelAgents
         env:
           VERSION: ${{ needs.validate-version.outputs.version || '0.0.0' }}
         run: |
-          mkdir -p dmg_staging
-          cp -R .build/Build/Products/Release/PixelAgents.app dmg_staging/
-          ln -s /Applications dmg_staging/Applications
-          hdiutil create \
-            -volname "Pixel Agents" \
-            -srcfolder dmg_staging \
-            -ov -format UDZO \
-            "PixelAgents-v${VERSION}.dmg"
+          create-dmg \
+            --volname "Pixel Agents" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "PixelAgents.app" 150 185 \
+            --app-drop-link 450 185 \
+            --background "dmg-background.png" \
+            --hide-extension "PixelAgents.app" \
+            --no-internet-enable \
+            "PixelAgents-v${VERSION}.dmg" \
+            ".build/Build/Products/Release/PixelAgents.app"
 
       - name: Notarize DMG
         working-directory: macos/PixelAgents
