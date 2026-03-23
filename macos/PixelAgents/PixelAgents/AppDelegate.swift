@@ -10,7 +10,7 @@ import Sparkle
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     let bridge = BridgeService()
-    let updaterController = SPUStandardUpdaterController(
+    lazy var updaterController = SPUStandardUpdaterController(
         startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
     )
 
@@ -41,11 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            // Load icon via SwiftUI ImageRenderer — NSImage(named:) can't find
-            // asset catalog images in this app configuration.
-            let renderer = ImageRenderer(content: Image("MenuBarIcon"))
-            renderer.scale = 2.0
-            if let nsImage = renderer.nsImage {
+            if let nsImage = NSImage(named: "MenuBarIcon") {
                 nsImage.size = NSSize(width: 18, height: 18)
                 nsImage.isTemplate = true
                 button.image = nsImage
