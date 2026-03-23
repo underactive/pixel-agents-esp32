@@ -4,6 +4,10 @@
 <dict>
 	<key>LSUIElement</key>
 	<true/>
+	<key>SUFeedURL</key>
+	<string>https://underactive.github.io/pixel-agents-esp32/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>fJsL/jl1/Es0JMHCCiGJMgBmuIUqqBaj/4fgwNiD7OE=</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Pixel Agents needs Bluetooth to communicate with your ESP32 display wirelessly.</string>
 	<key>CFBundleDisplayName</key>

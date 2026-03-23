@@ -6,6 +6,11 @@ options:
   xcodeVersion: "16.0"
   createIntermediateGroups: true
 
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
+
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -34,8 +39,12 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
           - "@executable_path/../Frameworks"
+    dependencies:
+      - package: Sparkle
     entitlements:
       path: PixelAgents/PixelAgents.entitlements
+      properties:
+        com.apple.security.network.client: true
 
   PixelAgentsTests:
     type: bundle.unit-test

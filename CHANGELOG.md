@@ -18,6 +18,8 @@ All notable changes to Pixel Agents are documented here.
 - Fix dark mode agent source icons (hardcoded black → adaptive primary color)
 - Add `make sign-install` target for signed builds with automatic install
 - Bump macOS deployment target to 14.0
+- Add Sparkle auto-update framework to macOS companion: "Check for updates automatically" toggle in Settings, "Check for Updates..." in right-click menu, EdDSA-signed appcast on GitHub Pages
+- Add Sparkle framework code signing and appcast generation to release workflow
 
 ## [0.9.6] - 2026-03-20
 

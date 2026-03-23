@@ -35,6 +35,7 @@
 		9AD45C6848663ABBC3E12BC3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E76C906BD1E68D43AC32234 /* AppDelegate.swift */; };
 		9B15ECFDF39C6688DD607275 /* UsageStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6406D0B470CA1C89C4E654 /* UsageStats.swift */; };
 		A3F384CFD310446731DDC1FC /* ProtocolBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 438D16E699ADC10874038173 /* ProtocolBuilderTests.swift */; };
+		A7073C1581D1D264DABA7F23 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 45988BF71AF07B6ED67F1E42 /* Sparkle */; };
 		AC7A9F39998F241586745104 /* TransportProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F950F5B380DEA1B15DAEBAC2 /* TransportProtocol.swift */; };
 		B15B90D0558D63094647B143 /* UsageStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFF576CC3F1196D5B117C77 /* UsageStatsView.swift */; };
 		B3394C29996D24D752C7BDCB /* ConnectionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4728555EDBC5FBC8CC2BB61 /* ConnectionStatusView.swift */; };
@@ -112,6 +113,17 @@
 		F950F5B380DEA1B15DAEBAC2 /* TransportProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportProtocol.swift; sourceTree = "<group>"; };
 		FE821364F6C73CB97AD003EF /* PixelAgents.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PixelAgents.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E406FA8E00ADA1A50F09BF7C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7073C1581D1D264DABA7F23 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		27FED626B224AC9146E8B0A0 /* PixelAgents */ = {
@@ -240,6 +252,7 @@
 			buildPhases = (
 				48F395825B098EE7DA2BEE19 /* Sources */,
 				AEC8837C97ABE29DB54EB3C4 /* Resources */,
+				E406FA8E00ADA1A50F09BF7C /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -247,6 +260,7 @@
 			);
 			name = PixelAgents;
 			packageProductDependencies = (
+				45988BF71AF07B6ED67F1E42 /* Sparkle */,
 			);
 			productName = PixelAgents;
 			productReference = FE821364F6C73CB97AD003EF /* PixelAgents.app */;
@@ -290,6 +304,9 @@
 			);
 			mainGroup = B13879E6511E61815370E790;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6CF9511C242CB5C2C431E4AB /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3CA976618DF7A1AD4C8279E2 /* Products */;
 			projectDirPath = "";
@@ -607,6 +624,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6CF9511C242CB5C2C431E4AB /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		45988BF71AF07B6ED67F1E42 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6CF9511C242CB5C2C431E4AB /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0B7114ECF86835F71E3A8C9A /* Project object */;
 }

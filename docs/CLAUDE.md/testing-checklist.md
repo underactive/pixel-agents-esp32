@@ -353,7 +353,7 @@
 #### Settings Window
 - [ ] Gear button appears in bottom-left of popover, "Quit" button in bottom-right
 - [ ] Clicking gear button opens standalone Settings window and popover remains usable
-- [ ] Settings window shows "Launch at Login", "Show Claude usage", and "Show Codex usage" toggles
+- [ ] Settings window shows "Launch at Login", "Show Claude usage", "Show Codex usage", and "Check for updates automatically" toggles
 - [ ] Launch at Login toggle state matches actual system state (SMAppService)
 - [ ] Toggling "Show Claude usage" off hides Claude usage section in popover immediately
 - [ ] Toggling "Show Codex usage" off hides Codex usage section in popover immediately
@@ -361,8 +361,13 @@
 - [ ] Toggle states persist across app quit and relaunch
 - [ ] Closing and reopening Settings reuses the same window (not recreated)
 
+#### Auto-Updates (Sparkle)
+- [ ] "Check for updates automatically" toggle in Settings reflects Sparkle's `automaticallyChecksForUpdates` state on appear
+- [ ] Toggling auto-update on/off persists across app relaunch (Sparkle stores in UserDefaults)
+- [ ] "Check for Updates..." in right-click menu opens Sparkle's standard update dialog
+
 #### Right-Click Context Menu
-- [ ] Right-clicking menu bar icon shows context menu with "About Pixel Agents" and "Quit"
+- [ ] Right-clicking menu bar icon shows context menu with "About Pixel Agents", "Check for Updates...", and "Quit"
 - [ ] Left-clicking menu bar icon still opens the popover normally
 - [ ] "About Pixel Agents" opens About window with app icon, "Pixel Agents" title, version, and GitHub link
 - [ ] About window version matches MARKETING_VERSION from project.yml

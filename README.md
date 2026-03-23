@@ -165,13 +165,14 @@ The native macOS menu bar app is the recommended way to connect the ESP32 on mac
 - **Serial connect/disconnect** — explicit connect and disconnect buttons in the transport picker for manual serial control
 - **Auto-reconnect** — reconnects automatically after USB unplug/replug or BLE disconnect
 - **Sleep/wake aware** — pauses timers on sleep, reconnects on wake
-- **Settings window** — gear button opens a standalone settings window with Launch at Login, Claude usage stats, and Codex usage stats toggles
-- **Right-click menu** — right-click the menu bar icon for About and Quit
+- **Settings window** — gear button opens a standalone settings window with Launch at Login, Claude usage stats, Codex usage stats, and auto-update toggles
+- **Right-click menu** — right-click the menu bar icon for About, Check for Updates, and Quit
 - **Launch at login** — optional toggle in the Settings window
+- **Auto-updates** — checks for updates via Sparkle framework with EdDSA-signed appcast
 
 ### Requirements
 
-- macOS 13 (Ventura) or later
+- macOS 14 (Sonoma) or later
 - Xcode Command Line Tools (for building)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
@@ -210,7 +211,7 @@ cd macos/PixelAgents
 make test
 ```
 
-47 unit tests covering ProtocolBuilder, StateDeriver, CodexStateDeriver, and AgentTracker.
+48 unit tests covering ProtocolBuilder, StateDeriver, CodexStateDeriver, and AgentTracker.
 
 ## Agent Characters
 
