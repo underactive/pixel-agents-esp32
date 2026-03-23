@@ -2,53 +2,13 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
         <title>Pixel Agents</title>
-        <item>
-            <title>Version 0.10.0</title>
-            <pubDate>Mon, 23 Mar 2026 03:13:37 +0000</pubDate>
-            <sparkle:version>0.10.0</sparkle:version>
-            <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.0/PixelAgents-v0.10.0.dmg" length="2685493" type="application/octet-stream" sparkle:edSignature="oQKsQPJ7qPiZ9EvvnahqJMKhz3wiEGPWaF+yhZXvd8lTX7KfvdudOa3Ht1kclWioyuraZGHN3pol34Ax0/4DAQ==" />
-        </item>
-      <item>
-      <title>Version 0.10.1</title>
-      <pubDate>Mon, 23 Mar 2026 03:32:20 +0000</pubDate>
-      <sparkle:version>0.10.1</sparkle:version>
-      <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.1/PixelAgents-v0.10.1.dmg" length="2347886" type="application/octet-stream" sparkle:edSignature="22rJJgqcuLsrr5TpL203jHFz/DWYd020vLtXAjCXiECeBzM6q4HsVV8lvU3BgIFFpPYCEPTDDI9XkzmEWmQfCA==" />
-  </item>
-          <item>
-      <title>Version 0.10.2</title>
-      <pubDate>Mon, 23 Mar 2026 04:03:25 +0000</pubDate>
-      <sparkle:version>0.10.2</sparkle:version>
-      <sparkle:shortVersionString>0.10.2</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.2/PixelAgents-v0.10.2.dmg" length="2351241" type="application/octet-stream" sparkle:edSignature="4JxF/9TubRRVxvVznCO5tjfY6aoSn9BHhI3nF8rfO+HalLYd+Q83RGDBeO5Tv0RpbE8Y+nCivHOeRMzrxI7xBg==" />
-  </item>
-          <item>
-      <title>Version 0.10.3</title>
-      <pubDate>Mon, 23 Mar 2026 04:18:18 +0000</pubDate>
-      <sparkle:version>0.10.3</sparkle:version>
-      <sparkle:shortVersionString>0.10.3</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.3/PixelAgents-v0.10.3.dmg" length="2351260" type="application/octet-stream" sparkle:edSignature="s9DTQwBFtSuDpz3cmnj3f5kzgqVvASz2vpbNzQPtPdlwXZFtFSKaT7nPDn4nYRL1rcl+u1M6wCw+SF0cBBsPBw==" />
-  </item>
-          <item>
-      <title>Version 0.10.4</title>
-      <pubDate>Mon, 23 Mar 2026 04:42:49 +0000</pubDate>
-      <sparkle:version>0.10.4</sparkle:version>
-      <sparkle:shortVersionString>0.10.4</sparkle:shortVersionString>
-      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.4/PixelAgents-v0.10.4.dmg" length="2352351" type="application/octet-stream" sparkle:edSignature="jKqg3gqJ9rS+qki5tDJFVgPlQK+gIhBHaOKvD/HYwlVPDfnXff5cxTm2LfK2OxM3jrDebCknqiSvpjOTfx1uDg==" />
-  </item>
           <item>
       <title>Version 0.10.5</title>
-      <pubDate>Mon, 23 Mar 2026 17:00:22 +0000</pubDate>
+      <pubDate>Mon, 23 Mar 2026 17:37:16 +0000</pubDate>
       <sparkle:version>0.10.5</sparkle:version>
       <sparkle:shortVersionString>0.10.5</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.5/PixelAgents-v0.10.5.dmg" length="2380695" type="application/octet-stream" sparkle:edSignature="2tKcPRuJgPdEokDvGcORYwKHVvNwIEuNw/lZ0JvScDTybblBIoRln7bBFGUiht1b/Al+1jZxypDYUHJk7KgpDA==" />
+      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.10.5/PixelAgents-v0.10.5.dmg" length="2379147" type="application/octet-stream" sparkle:edSignature="ANvPFsyn8/PPi52AG+5ub/bNWPUQsWySGjU1c3wFhUSrPmXnjVCQFdqQ7daxDft9TWTkoFdGs3IKSuO8gTsLAQ==" />
   </item>
         </channel>
 </rss>
