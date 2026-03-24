@@ -7,7 +7,7 @@ import Sparkle
 /// secondary windows. Uses NSStatusItem directly (not MenuBarExtra) for full
 /// control over the menu bar button's image and title.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, ObservableObject {
 
     let bridge = BridgeService()
     lazy var updaterController = SPUStandardUpdaterController(
@@ -99,9 +99,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         popover.contentSize = NSSize(width: 300, height: 500)
         popover.behavior = .transient
         popover.animates = true
+        popover.delegate = self
         popover.contentViewController = NSHostingController(
             rootView: MenuBarView().environmentObject(bridge)
         )
+    }
+
+    // MARK: - NSPopoverDelegate
+
+    nonisolated func popoverDidShow(_ notification: Notification) {
+        Task { @MainActor in
+            bridge.popoverDidOpen()
+        }
+    }
+
+    nonisolated func popoverDidClose(_ notification: Notification) {
+        Task { @MainActor in
+            bridge.popoverDidClose()
+        }
     }
 
     private func togglePopover(_ sender: NSStatusBarButton) {

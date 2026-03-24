@@ -3,43 +3,53 @@ import AppKit
 
 // MARK: - Sprite Cache
 
-/// Loads and caches all sprite sheet CGImages from the app bundle.
-/// Provides cropped sprite frames for characters and dogs.
+/// Loads sprite sheets at init and pre-crops all individual frames into
+/// lookup dictionaries. This avoids per-frame CGImage.cropping(to:) calls
+/// during the render loop (~105 allocations/sec eliminated).
 final class SpriteCache {
 
     static let shared = SpriteCache()
-
-    // Character sprite sheets (6 palettes, each 112x96: 7 cols x 3 rows of 16x32)
-    private var charSheets: [CGImage?] = []
-
-    // Dog sprite sheets keyed by color (each 125x95: 5x5 grid of 25x19)
-    private var dogSheets: [OfficeSim.DogColor: CGImage] = [:]
-
-    // Background image (320x224)
-    private var bgImage: CGImage?
 
     // Sprite dimensions
     static let charW = 16
     static let charH = 32
     static let charCols = 7
     static let charRows = 3
+    static let numPalettes = 6
 
     static let dogW = 25
     static let dogH = 19
     static let dogCols = 5
     static let dogRows = 5
+    static let dogFrameCount = dogCols * dogRows  // 25
+
+    // Pre-cropped frame caches
+    private var charFrames: [Int: CGImage] = [:]   // key: (palette * 3 + row) * 7 + col
+    private var dogFrames: [Int: CGImage] = [:]     // key: colorRaw * 25 + frameIdx
+    private var bgImage: CGImage?
 
     init() {
         loadAll()
     }
 
     private func loadAll() {
-        // Load character sheets: char_0 through char_5
-        for i in 0..<6 {
-            charSheets.append(loadImage(named: "char_\(i)"))
+        // Load + pre-crop character frames: 6 palettes x 3 rows x 7 cols = 126 frames
+        for palette in 0..<Self.numPalettes {
+            guard let sheet = loadImage(named: "char_\(palette)") else { continue }
+            for row in 0..<Self.charRows {
+                for col in 0..<Self.charCols {
+                    let cropRect = CGRect(
+                        x: col * Self.charW, y: row * Self.charH,
+                        width: Self.charW, height: Self.charH
+                    )
+                    if let frame = sheet.cropping(to: cropRect) {
+                        charFrames[(palette * Self.charRows + row) * Self.charCols + col] = frame
+                    }
+                }
+            }
         }
 
-        // Load dog sheets
+        // Load + pre-crop dog frames: 4 colors x 25 frames = 100 frames
         let dogColorMap: [(OfficeSim.DogColor, String)] = [
             (.black, "doggy-black"),
             (.brown, "doggy-brown"),
@@ -47,12 +57,21 @@ final class SpriteCache {
             (.tan,   "doggy-tan"),
         ]
         for (color, name) in dogColorMap {
-            if let img = loadImage(named: name) {
-                dogSheets[color] = img
+            guard let sheet = loadImage(named: name) else { continue }
+            let colorRaw = Int(color.rawValue)
+            for idx in 0..<Self.dogFrameCount {
+                let col = idx % Self.dogCols
+                let row = idx / Self.dogCols
+                let cropRect = CGRect(
+                    x: col * Self.dogW, y: row * Self.dogH,
+                    width: Self.dogW, height: Self.dogH
+                )
+                if let frame = sheet.cropping(to: cropRect) {
+                    dogFrames[colorRaw * Self.dogFrameCount + idx] = frame
+                }
             }
         }
 
-        // Load background
         bgImage = loadImage(named: "office_background")
     }
 
@@ -66,51 +85,30 @@ final class SpriteCache {
         return cgImage
     }
 
-    /// Returns a cropped character frame from the sprite sheet.
+    /// Returns a pre-cropped character frame.
     /// - Parameters:
     ///   - palette: Character variant index (0-5)
     ///   - dir: Direction (DOWN=row0, UP=row1, RIGHT=row2). LEFT handled by caller via flip.
     ///   - frameCol: Column index in the sprite sheet (0-6)
     func characterFrame(palette: Int, dir: OfficeSim.Dir, frameCol: Int) -> CGImage? {
-        guard !charSheets.isEmpty else { return nil }
-        let paletteIdx = palette % charSheets.count
-        guard let sheet = charSheets[paletteIdx] else { return nil }
-
         let row: Int
         switch dir {
         case .down:  row = 0
         case .up:    row = 1
-        case .right: row = 2
-        case .left:  row = 2  // caller flips horizontally
+        case .right, .left: row = 2
         }
-
         let col = max(0, min(frameCol, Self.charCols - 1))
-        let cropRect = CGRect(
-            x: col * Self.charW,
-            y: row * Self.charH,
-            width: Self.charW,
-            height: Self.charH
-        )
-        return sheet.cropping(to: cropRect)
+        let paletteIdx = palette % Self.numPalettes
+        return charFrames[(paletteIdx * Self.charRows + row) * Self.charCols + col]
     }
 
-    /// Returns a cropped dog frame from the sprite sheet.
+    /// Returns a pre-cropped dog frame.
     /// - Parameters:
     ///   - color: Dog color variant
-    ///   - index: Linear frame index (0-22)
+    ///   - index: Linear frame index (0-24)
     func dogFrame(color: OfficeSim.DogColor, index: Int) -> CGImage? {
-        guard let sheet = dogSheets[color] else { return nil }
-
-        let frameIdx = max(0, min(index, Self.dogCols * Self.dogRows - 1))
-        let col = frameIdx % Self.dogCols
-        let row = frameIdx / Self.dogCols
-        let cropRect = CGRect(
-            x: col * Self.dogW,
-            y: row * Self.dogH,
-            width: Self.dogW,
-            height: Self.dogH
-        )
-        return sheet.cropping(to: cropRect)
+        let frameIdx = max(0, min(index, Self.dogFrameCount - 1))
+        return dogFrames[Int(color.rawValue) * Self.dogFrameCount + frameIdx]
     }
 
     /// Returns the full office background image.
@@ -141,6 +139,12 @@ final class OfficeRenderer {
     private let sprites = SpriteCache.shared
     private var bitmapCtx: CGContext?
 
+    // Cached speech bubble attributed strings (only 2 variants, avoid per-frame allocation)
+    private let cachedBubbleExcl: NSAttributedString
+    private let cachedBubbleDots: NSAttributedString
+    private let cachedBubbleExclSize: NSSize
+    private let cachedBubbleDotsSize: NSSize
+
     // MARK: - Entity Depth Sorting
 
     private enum EntityKind {
@@ -165,6 +169,16 @@ final class OfficeRenderer {
         if ctx == nil {
             NSLog("[OfficeRenderer] Failed to allocate %dx%d CGBitmapContext", sceneW, sceneH)
         }
+
+        // Pre-build speech bubble text
+        let bubbleAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 7, weight: .bold),
+            .foregroundColor: NSColor.white,
+        ]
+        cachedBubbleExcl = NSAttributedString(string: "!", attributes: bubbleAttrs)
+        cachedBubbleDots = NSAttributedString(string: "...", attributes: bubbleAttrs)
+        cachedBubbleExclSize = cachedBubbleExcl.size()
+        cachedBubbleDotsSize = cachedBubbleDots.size()
     }
 
     // MARK: - Public Render
@@ -392,17 +406,20 @@ final class OfficeRenderer {
         let bubbleH: CGFloat = 10
 
         let bgCGColor: CGColor
-        let text: String
+        let attrStr: NSAttributedString
+        let textSize: NSSize
 
         switch ch.bubbleType {
         case 1:
             // Permission bubble: orange with "!"
             bgCGColor = CGColor(red: 1.0, green: 0.65, blue: 0.0, alpha: 1.0)
-            text = "!"
+            attrStr = cachedBubbleExcl
+            textSize = cachedBubbleExclSize
         case 2:
             // Waiting bubble: blue with "..."
             bgCGColor = CGColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 1.0)
-            text = "..."
+            attrStr = cachedBubbleDots
+            textSize = cachedBubbleDotsSize
         default:
             return
         }
@@ -424,15 +441,10 @@ final class OfficeRenderer {
         ctx.fillPath()
         ctx.restoreGState()
 
-        // Draw text centered in bubble using NSAttributedString
+        // Draw cached text centered in bubble
         NSGraphicsContext.saveGraphicsState()
         let nsCtx = NSGraphicsContext(cgContext: ctx, flipped: false)
         NSGraphicsContext.current = nsCtx
-        let attrStr = NSAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: 7, weight: .bold),
-            .foregroundColor: NSColor.white,
-        ])
-        let textSize = attrStr.size()
         attrStr.draw(at: NSPoint(
             x: rectX + (bubbleW - textSize.width) / 2,
             y: cgY + (bubbleH - textSize.height) / 2

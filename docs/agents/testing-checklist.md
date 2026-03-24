@@ -413,3 +413,10 @@
 - [ ] Frame rate is smooth (~15 FPS, no visible stuttering)
 - [ ] Walk animation is fluid (not jerky)
 - [ ] Spawn effect renders progressively (not all-at-once)
+- [ ] Software mode with popover closed: CPU drops to ~1-2% in Activity Monitor (was 20%+)
+- [ ] Software mode with popover open: scene renders at smooth 15 FPS, characters animate normally
+- [ ] Closing popover and reopening after 10s: characters are in correct positions (no teleporting), immediate frame on open (no stale image flash)
+- [ ] PIP window open with popover closed: scene renders at 15 FPS in PIP
+- [ ] Closing PIP with popover also closed: CPU drops to background level
+- [ ] Starting/stopping a Claude Code session while popover is open: character moves correctly (dirty-frame detection does not suppress legitimate redraws)
+- [ ] Speech bubbles ("!" and "...") render correctly (cached attributed strings)

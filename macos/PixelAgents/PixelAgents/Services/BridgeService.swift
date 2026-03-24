@@ -72,9 +72,22 @@ final class BridgeService: ObservableObject {
     let officeRenderer = OfficeRenderer()
     @Published var officeFrame: CGImage?
     @Published var isPIPShown = false
+    private(set) var isPopoverVisible = false
     lazy var pipController = PIPWindowController(bridge: self)
     private var sceneTimer: Timer?
     private var lastSceneDate: Date?
+    private var sceneTimerInterval: TimeInterval = 0
+
+    /// Whether anything is currently displaying the rendered office scene.
+    private var isSceneVisible: Bool { isPopoverVisible || isPIPShown }
+
+    private let foregroundTickInterval: TimeInterval = 1.0 / 15.0
+    private let backgroundTickInterval: TimeInterval = 1.0 / 4.0
+
+    // Dirty-frame detection: skip re-rendering when nothing visual changed.
+    // NOTE: Update CharVis/PetVis if new visual properties are added to the scene.
+    private var lastFingerprint: SceneFingerprint?
+    private var lastRenderedFrame: CGImage?
 
     // MARK: - Sub-components
 
@@ -292,33 +305,40 @@ final class BridgeService: ObservableObject {
         lastCount = -1
         officeScene.resetAppliedStates()
         deviceSettingsReceived = false
+        lastFingerprint = nil
+        lastRenderedFrame = nil
     }
 
     // MARK: - Timers
 
+    // Timer callbacks use MainActor.assumeIsolated because Timer.scheduledTimer on
+    // RunLoop.main always fires on the main thread, which IS the MainActor. This avoids
+    // the overhead of creating a new Task on every tick.
     private func startTimers() {
         heartbeatTimer = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.sendHeartbeat()
                 self?.pruneAndUpdateDisplay()
             }
         }
 
         usageTimer = Timer.scheduledTimer(withTimeInterval: usageInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.checkUsageStats()
             }
         }
 
         usageFetchTimer = Timer.scheduledTimer(withTimeInterval: usageFetchInterval, repeats: true) { [weak self] _ in
-            self?.usageFetcher.fetchAndCache()
-            self?.codexUsageFetcher.fetchAndCache()
-            self?.geminiUsageFetcher.fetchAndCache()
-            self?.cursorUsageFetcher.fetchAndCache()
+            MainActor.assumeIsolated {
+                self?.usageFetcher.fetchAndCache()
+                self?.codexUsageFetcher.fetchAndCache()
+                self?.geminiUsageFetcher.fetchAndCache()
+                self?.cursorUsageFetcher.fetchAndCache()
+            }
         }
 
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 guard let self = self else { return }
                 if self.displayMode == .software { return }
                 if !(self.activeTransport?.isConnected ?? false) {
@@ -580,6 +600,20 @@ final class BridgeService: ObservableObject {
         updateSceneTimerState()
     }
 
+    // MARK: - Popover Visibility
+
+    /// Called by AppDelegate when the popover opens.
+    func popoverDidOpen() {
+        isPopoverVisible = true
+        updateSceneTimerState()
+    }
+
+    /// Called by AppDelegate when the popover closes.
+    func popoverDidClose() {
+        isPopoverVisible = false
+        updateSceneTimerState()
+    }
+
     // MARK: - Scene Timer
 
     /// Called by PIPWindowController when the window closes via the OS close button.
@@ -587,20 +621,37 @@ final class BridgeService: ObservableObject {
         updateSceneTimerState()
     }
 
-    /// Starts/stops the 15 FPS scene timer based on whether the office scene is needed.
+    /// Starts/stops the scene timer and adjusts its rate based on visibility.
+    /// When visible: 15 FPS with rendering. When not visible: 4 FPS sim-only.
     private func updateSceneTimerState() {
         let needsScene = displayMode == .software || isPIPShown
-        if needsScene && sceneTimer == nil {
-            startSceneTimer()
-        } else if !needsScene && sceneTimer != nil {
+        let targetInterval = isSceneVisible ? foregroundTickInterval : backgroundTickInterval
+
+        if needsScene {
+            if sceneTimer == nil {
+                startSceneTimer(interval: targetInterval)
+            } else if sceneTimerInterval != targetInterval {
+                // Visibility changed — swap timer rate
+                stopSceneTimer()
+                startSceneTimer(interval: targetInterval)
+                // Force fresh render when becoming visible
+                if isSceneVisible {
+                    lastFingerprint = nil
+                    let frame = officeRenderer.render(scene: officeScene)
+                    lastRenderedFrame = frame
+                    officeFrame = frame
+                }
+            }
+        } else if sceneTimer != nil {
             stopSceneTimer()
         }
     }
 
-    private func startSceneTimer() {
+    private func startSceneTimer(interval: TimeInterval) {
         lastSceneDate = Date()
-        sceneTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+        sceneTimerInterval = interval
+        sceneTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
                 self?.tickScene()
             }
         }
@@ -610,6 +661,7 @@ final class BridgeService: ObservableObject {
         sceneTimer?.invalidate()
         sceneTimer = nil
         lastSceneDate = nil
+        sceneTimerInterval = 0
     }
 
     private func tickScene() {
@@ -624,7 +676,22 @@ final class BridgeService: ObservableObject {
 
         officeScene.applyAgentStates(displayAgents)
         officeScene.update(dt: dt)
-        officeFrame = officeRenderer.render(scene: officeScene)
+
+        // Only render + publish when something is actually displaying the frame
+        guard isSceneVisible else { return }
+
+        // Dirty-frame detection: skip re-rendering if nothing visual changed
+        let fp = SceneFingerprint(scene: officeScene)
+        if fp == lastFingerprint, let cached = lastRenderedFrame {
+            // No visual change — reuse cached frame, don't republish (avoids SwiftUI invalidation)
+            if officeFrame == nil { officeFrame = cached }
+            return
+        }
+        lastFingerprint = fp
+
+        let frame = officeRenderer.render(scene: officeScene)
+        lastRenderedFrame = frame
+        officeFrame = frame
     }
 
     // MARK: - Sleep/Wake
@@ -640,6 +707,64 @@ final class BridgeService: ObservableObject {
         if !(activeTransport?.isConnected ?? false) {
             attemptConnect()
         }
+    }
+}
+
+// MARK: - Scene Fingerprint (dirty-frame detection)
+
+/// Captures the visual state of all entities for comparison between frames.
+/// If two fingerprints are equal, the rendered image is identical and can be reused.
+/// NOTE: Update this struct whenever new visual properties are added to Character or Pet.
+private struct SceneFingerprint: Equatable {
+    struct CharVis: Equatable {
+        let alive: Bool
+        let x: Float, y: Float
+        let state: OfficeSim.SimCharState
+        let dir: OfficeSim.Dir
+        let frame: Int
+        let palette: Int
+        let bubbleType: Int
+        let effectTimer: Int16   // quantized to 0.05s steps
+        let idleActivity: OfficeSim.IdleActivity
+    }
+    struct PetVis: Equatable {
+        let x: Float, y: Float
+        let dir: OfficeSim.Dir
+        let frame: Int
+        let idleFrame: Int
+        let walking: Bool
+        let isRunning: Bool
+        let isSitting: Bool
+        let isPeeing: Bool
+        let behavior: OfficeSim.DogBehavior
+    }
+    let chars: [CharVis]
+    let pet: PetVis
+    let dogEnabled: Bool
+    let dogColor: OfficeSim.DogColor
+
+    @MainActor init(scene: OfficeScene) {
+        chars = scene.characters.map { ch in
+            CharVis(
+                alive: ch.alive, x: ch.x, y: ch.y,
+                state: ch.state, dir: ch.dir, frame: ch.frame,
+                palette: ch.palette, bubbleType: ch.bubbleType,
+                effectTimer: Int16(ch.effectTimer * 20),  // 0.05s quantization
+                idleActivity: ch.idleActivity
+            )
+        }
+        pet = PetVis(
+            x: scene.pet.x, y: scene.pet.y,
+            dir: scene.pet.dir, frame: scene.pet.frame,
+            idleFrame: scene.pet.idleFrame,
+            walking: scene.pet.walking,
+            isRunning: scene.pet.isRunning,
+            isSitting: scene.pet.isSitting,
+            isPeeing: scene.pet.isPeeing,
+            behavior: scene.pet.behavior
+        )
+        dogEnabled = scene.dogEnabled
+        dogColor = scene.dogColor
     }
 }
 

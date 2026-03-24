@@ -238,14 +238,14 @@ enum OfficeSim {
 // MARK: - OfficeScene
 
 @MainActor
-final class OfficeScene: ObservableObject {
+final class OfficeScene {
 
-    // MARK: - Published Properties
+    // MARK: - Scene State
 
-    @Published var characters: [OfficeSim.Character]
-    @Published var pet: OfficeSim.Pet
-    @Published var dogEnabled: Bool = true
-    @Published var dogColor: OfficeSim.DogColor = .brown
+    var characters: [OfficeSim.Character]
+    var pet: OfficeSim.Pet
+    var dogEnabled: Bool = true
+    var dogColor: OfficeSim.DogColor = .brown
 
     // MARK: - Internal State
 
@@ -572,9 +572,14 @@ final class OfficeScene: ObservableObject {
     // MARK: - Update (called at 15 FPS)
 
     func update(dt: Float) {
+        // Copy-out/mutate/copy-back pattern: avoids Swift exclusivity violation
+        // where updateCharacter's inout locks the array while methods like
+        // pickActivityTarget and findSocializeTarget need to read other elements.
         for i in 0..<characters.count {
             guard characters[i].alive else { continue }
-            updateCharacter(&characters[i], dt: dt)
+            var ch = characters[i]
+            updateCharacter(&ch, dt: dt)
+            characters[i] = ch
         }
         if dogEnabled {
             updatePet(dt: dt)
