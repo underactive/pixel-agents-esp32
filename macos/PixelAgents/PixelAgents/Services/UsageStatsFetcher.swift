@@ -1,11 +1,11 @@
 import Foundation
 import os
-import Security
 
-/// Fetches usage stats directly from the Anthropic OAuth API, replacing the external
-/// launchd-based fetch-usage.sh script. Reads the OAuth token from macOS Keychain
-/// (stored by Claude Code), polls the API, and writes results to
+/// Fetches usage stats directly from the Anthropic OAuth API and writes results to
 /// ~/.claude/rate-limits-cache.json so both the macOS app and Python bridge can consume them.
+///
+/// Token management is delegated to ClaudeAuthService, which stores tokens in the app's
+/// own Keychain entry (no system permission dialogs).
 ///
 /// Owned by BridgeService which drives the fetch timer alongside its other timers.
 @MainActor
@@ -16,7 +16,6 @@ final class UsageStatsFetcher {
     private static let log = Logger(subsystem: "com.pixelagents", category: "Usage")
 
     private let apiURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-    private let keychainService = "Claude Code-credentials"
     private let cachePath: URL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".claude/rate-limits-cache.json")
 
@@ -25,11 +24,8 @@ final class UsageStatsFetcher {
     /// Latest data from the API. Falls back to cache file if nil.
     private(set) var latestData: UsageStatsData?
 
-    /// Cached OAuth token to avoid repeated Keychain prompts.
-    /// Each access triggers a macOS Keychain permission dialog for dev-signed builds,
-    /// so we cache the token and only re-read when it expires.
-    private var cachedToken: String?
-    private var cachedTokenExpiresAt: Double = 0
+    /// Auth service for token management (injected by BridgeService).
+    var authService: ClaudeAuthService?
 
     /// Returns latest fetched data, or falls back to reading the cache file.
     func currentStats() -> UsageStatsData? {
@@ -39,8 +35,8 @@ final class UsageStatsFetcher {
     /// Fetch from API and update cache. Call from a timer or on-demand.
     func fetchAndCache() {
         Task {
-            guard let token = readOAuthToken() else {
-                Self.log.warning("Skipping fetch — no valid OAuth token (missing, expired, or unreadable)")
+            guard let token = authService?.readToken() else {
+                Self.log.warning("Skipping fetch — no valid OAuth token (not signed in or expired)")
                 return
             }
             guard let data = await callUsageAPI(token: token) else { return }
@@ -51,63 +47,6 @@ final class UsageStatsFetcher {
 
             writeCacheFile(data)
         }
-    }
-
-    // MARK: - Keychain
-
-    /// Reads the Claude Code OAuth access token, returning a cached copy when still valid
-    /// to avoid repeated Keychain access prompts on dev-signed builds.
-    private func readOAuthToken() -> String? {
-        // Return cached token if still valid (with 60s safety margin)
-        let nowMs = Date().timeIntervalSince1970 * 1000
-        if let token = cachedToken, cachedTokenExpiresAt > nowMs + 60_000 {
-            return token
-        }
-
-        // Cache miss or expired — read from Keychain
-        cachedToken = nil
-        cachedTokenExpiresAt = 0
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess else {
-            Self.log.error("Keychain lookup failed (status \(status)) — Claude Code OAuth token not found")
-            return nil
-        }
-        guard let data = result as? Data,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let oauth = json["claudeAiOauth"] as? [String: Any],
-              let accessToken = oauth["accessToken"] as? String,
-              !accessToken.isEmpty
-        else {
-            Self.log.error("Keychain data found but OAuth token missing or malformed")
-            return nil
-        }
-
-        // Check expiry
-        if let expiresAt = oauth["expiresAt"] as? Double {
-            if expiresAt < nowMs {
-                let expiredAgo = Int((nowMs - expiresAt) / 1000 / 60)
-                Self.log.error("OAuth token expired \(expiredAgo) minutes ago — start Claude Code to refresh")
-                return nil
-            }
-            cachedToken = accessToken
-            cachedTokenExpiresAt = expiresAt
-        } else {
-            // No expiry info — cache for 1 hour as a reasonable default
-            cachedToken = accessToken
-            cachedTokenExpiresAt = nowMs + 3_600_000
-        }
-
-        return accessToken
     }
 
     // MARK: - API call
@@ -134,6 +73,9 @@ final class UsageStatsFetcher {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                authService?.handleTokenExpired()
+            }
             let body = String(data: responseData.prefix(256), encoding: .utf8) ?? "<binary>"
             Self.log.error("API returned HTTP \(httpResponse.statusCode): \(body, privacy: .public)")
             return nil

@@ -9,7 +9,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            CompanionSettingsTab(updater: updater)
+            CompanionSettingsTab(updater: updater, claudeAuth: bridge.claudeAuth)
                 .tabItem { Label("Companion", systemImage: "laptopcomputer") }
 
             DeviceSettingsView(bridge: bridge)
@@ -22,11 +22,15 @@ struct SettingsView: View {
     }
 }
 
-/// Companion settings tab: usage stats, menu bar, launch at login, auto-updates.
+/// Companion settings tab: usage stats, Claude auth, menu bar, launch at login, auto-updates.
 private struct CompanionSettingsTab: View {
     let updater: SPUUpdater
+    @ObservedObject var claudeAuth: ClaudeAuthService
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var autoCheckForUpdates: Bool = true
+    @State private var showPasteSheet = false
+    @State private var pastedToken = ""
+    @State private var pasteError: String?
     @AppStorage(SettingsKeys.showClaudeUsage) private var showClaudeUsage = true
     @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
     @AppStorage(SettingsKeys.showGeminiUsage) private var showGeminiUsage = true
@@ -49,6 +53,51 @@ private struct CompanionSettingsTab: View {
 
             Toggle("Show Cursor usage", isOn: $showCursorUsage)
                 .font(.subheadline)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            // Claude Account section
+            Text("Claude Account")
+                .font(.subheadline.weight(.semibold))
+
+            if claudeAuth.isAuthenticated {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.subheadline)
+                    Text("Signed in")
+                        .font(.subheadline)
+                    if let expiry = claudeAuth.tokenExpiryDescription {
+                        Text("(\(expiry))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button("Sign Out") {
+                        claudeAuth.signOut()
+                    }
+                    .font(.subheadline)
+                }
+            } else {
+                Text("Sign in to see Claude usage stats.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 8) {
+                    Button("Import from Claude Code") {
+                        claudeAuth.importFromClaudeCode()
+                    }
+                    .font(.subheadline)
+
+                    Button("Paste Token\u{2026}") {
+                        pastedToken = ""
+                        pasteError = nil
+                        showPasteSheet = true
+                    }
+                    .font(.subheadline)
+                }
+            }
 
             Divider()
                 .padding(.vertical, 4)
@@ -86,6 +135,45 @@ private struct CompanionSettingsTab: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             autoCheckForUpdates = updater.automaticallyChecksForUpdates
+        }
+        .sheet(isPresented: $showPasteSheet) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Paste Claude Token")
+                    .font(.headline)
+
+                Text("Run `claude setup-token` in your terminal and paste the output below.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                TextEditor(text: $pastedToken)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(height: 80)
+                    .border(Color.secondary.opacity(0.3))
+
+                if let error = pasteError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        showPasteSheet = false
+                    }
+                    Button("Import") {
+                        let trimmed = pastedToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if claudeAuth.importFromPastedJSON(trimmed) {
+                            showPasteSheet = false
+                        } else {
+                            pasteError = "Invalid token format. Expected JSON from `claude setup-token`."
+                        }
+                    }
+                    .disabled(pastedToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(20)
+            .frame(width: 400)
         }
     }
 

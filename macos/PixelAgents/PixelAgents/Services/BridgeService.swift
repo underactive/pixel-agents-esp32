@@ -94,7 +94,9 @@ final class BridgeService: ObservableObject {
     let serialPortDetector = SerialPortDetector()
     let bleTransport = BLETransport()
 
-    // MARK: - Private state
+    // MARK: - Auth & Private state
+
+    let claudeAuth = ClaudeAuthService()
 
     private let tracker = AgentTracker()
     private let watcher = TranscriptWatcher()
@@ -157,6 +159,10 @@ final class BridgeService: ObservableObject {
         bleTransport.onSettingsState = { [weak self] payload in
             self?.handleSettingsState(payload)
         }
+
+        // Wire auth service and bootstrap token from app Keychain (no system dialog)
+        usageFetcher.authService = claudeAuth
+        claudeAuth.bootstrap()
 
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
@@ -330,10 +336,15 @@ final class BridgeService: ObservableObject {
 
         usageFetchTimer = Timer.scheduledTimer(withTimeInterval: usageFetchInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.usageFetcher.fetchAndCache()
-                self?.codexUsageFetcher.fetchAndCache()
-                self?.geminiUsageFetcher.fetchAndCache()
-                self?.cursorUsageFetcher.fetchAndCache()
+                guard let self = self else { return }
+                // Attempt token refresh before fetching (no-op if token is still valid)
+                Task {
+                    _ = await self.claudeAuth.refreshTokenIfNeeded()
+                    self.usageFetcher.fetchAndCache()
+                }
+                self.codexUsageFetcher.fetchAndCache()
+                self.geminiUsageFetcher.fetchAndCache()
+                self.cursorUsageFetcher.fetchAndCache()
             }
         }
 

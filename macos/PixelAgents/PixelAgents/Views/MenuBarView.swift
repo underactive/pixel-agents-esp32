@@ -152,6 +152,24 @@ struct MenuBarView: View {
         let effectiveCursorStats = showCursorUsage ? bridge.cursorUsageStats : nil
 
         if showClaudeUsage || showCodexUsage || showGeminiUsage || showCursorUsage {
+            // Show sign-in hint when Claude usage is enabled but no data and not authenticated
+            if showClaudeUsage && effectiveClaudeStats == nil && !bridge.claudeAuth.isAuthenticated {
+                HStack(spacing: 4) {
+                    BrandIconView(icon: BrandIcon.claude, size: 12, color: .secondary)
+                    Text("Claude")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Sign In") {
+                        bridge.onOpenSettings?()
+                    }
+                    .font(.system(size: 10))
+                    .foregroundColor(.accentColor)
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 12)
+            }
+
             UsageStatsView(stats: effectiveClaudeStats,
                            codexStats: effectiveCodexStats,
                            geminiStats: effectiveGeminiStats,
