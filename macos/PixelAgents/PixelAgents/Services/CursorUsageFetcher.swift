@@ -64,6 +64,8 @@ final class CursorUsageFetcher {
             return nil
         }
         defer { sqlite3_close(db) }
+        // Allow up to 1s for Cursor to release WAL locks
+        sqlite3_busy_timeout(db, 1000)
 
         let sql = "SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken' LIMIT 1"
         var stmt: OpaquePointer?
@@ -152,10 +154,10 @@ final class CursorUsageFetcher {
         let plan = individual?["plan"] as? [String: Any]
         let onDemand = individual?["onDemand"] as? [String: Any]
 
-        // Primary: plan usage (totalPercentUsed is 0-100 scale as a fraction, e.g. 0.44 = 0.44%)
+        // Primary: plan usage (totalPercentUsed is a percentage, e.g. 0.164 = 0.164%)
         let totalPercentUsed = (plan?["totalPercentUsed"] as? NSNumber)?.doubleValue ?? 0
-        // The API returns percent as a fraction of 100 (e.g. 0.44 means 0.44%), so round it
-        let planPct = UInt8(min(100, max(0, totalPercentUsed.rounded())))
+        // Use ceiling so any nonzero usage shows at least 1%
+        let planPct = UInt8(min(100, max(0, ceil(totalPercentUsed))))
 
         // Secondary: on-demand usage (if enabled)
         var onDemandPct: UInt8 = 0
