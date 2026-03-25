@@ -2,6 +2,12 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.1] - 2026-03-25
+
+- Add iCloud Drive sync for activity heatmap data across Macs via ubiquitous container (`iCloud.com.pixelagents.companion`)
+- Add iCloud sync toggle in Settings (on by default when iCloud is available)
+- Fix Gemini usage showing 100% when quota hasn't been used today — filter out expired quota buckets whose reset time has already passed
+
 ## [0.11.0] - 2026-03-24
 
 - Add activity heatmaps for Claude, Codex, and Gemini: GitHub-style 53-week contribution grids showing daily tool call counts, colored per provider (orange/blue/pink)
