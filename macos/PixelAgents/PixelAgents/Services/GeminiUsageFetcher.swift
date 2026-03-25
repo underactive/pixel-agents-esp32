@@ -34,20 +34,40 @@ final class GeminiUsageFetcher {
     private var cachedProjectId: String?
     /// Cached OAuth client credentials extracted from Gemini CLI installation.
     private var cachedClientCreds: (id: String, secret: String)?
+    /// Set when API returns 401/403 — forces token refresh on next attempt, ignoring on-disk expiry.
+    private var tokenRejected = false
 
     func currentStats() -> UsageStatsData? {
         latestData
     }
 
-    /// Fetch from API and update latestData.
+    /// Fetch from API and update latestData. Retries once on 401 with a refreshed token.
     func fetchAndCache() {
         Task {
-            guard let token = await getValidAccessToken() else { return }
-            guard let projectId = await resolveProjectId(token: token) else { return }
-            guard let data = await fetchQuota(token: token, projectId: projectId) else { return }
+            var didRetry = false
 
-            Self.log.info("Gemini usage: \(data.currentPct)%")
-            self.latestData = data
+            while true {
+                guard let token = await getValidAccessToken() else { return }
+                guard let projectId = await resolveProjectId(token: token) else {
+                    // If token was rejected (401/403), retry once with refreshed token
+                    if tokenRejected && !didRetry {
+                        didRetry = true
+                        continue
+                    }
+                    return
+                }
+                guard let data = await fetchQuota(token: token, projectId: projectId) else {
+                    if tokenRejected && !didRetry {
+                        didRetry = true
+                        continue
+                    }
+                    return
+                }
+
+                Self.log.info("Gemini usage: \(data.currentPct)%")
+                self.latestData = data
+                return
+            }
         }
     }
 
@@ -152,17 +172,19 @@ final class GeminiUsageFetcher {
         return (accessToken, refreshToken, expiryDate)
     }
 
-    /// Get a valid access token, refreshing if expired.
+    /// Get a valid access token, refreshing if expired or rejected by API.
     private func getValidAccessToken() async -> String? {
-        // Check cached token
-        if let token = cachedAccessToken, let expiry = tokenExpiry, expiry > Date() {
+        // Check cached token (skip if API previously rejected it)
+        if !tokenRejected, let token = cachedAccessToken, let expiry = tokenExpiry, expiry > Date() {
             return token
         }
 
         guard let creds = readCredentials() else { return nil }
 
-        // Check if token is still valid (expiry_date is Unix timestamp in seconds)
-        if let expiry = creds.expiryDate {
+        // Check if token is still valid (expiry_date is Unix timestamp in seconds).
+        // Skip this trust check if the API already rejected the token — the on-disk
+        // expiry_date may be unreliable (e.g. far-future values from Gemini CLI).
+        if !tokenRejected, let expiry = creds.expiryDate {
             let expiryDate = Date(timeIntervalSince1970: expiry)
             if expiryDate > Date().addingTimeInterval(60) {
                 // Token still valid with 60s safety margin
@@ -172,13 +194,15 @@ final class GeminiUsageFetcher {
             }
         }
 
-        // Token expired — try to refresh
+        // Token expired or rejected by API — try to refresh
         guard let refreshToken = creds.refreshToken, !refreshToken.isEmpty else {
             Self.log.debug("Gemini token expired and no refresh_token available")
             return nil
         }
 
-        return await refreshAccessToken(refreshToken: refreshToken)
+        let result = await refreshAccessToken(refreshToken: refreshToken)
+        if result != nil { tokenRejected = false }
+        return result
     }
 
     /// Refresh the access token using Google OAuth2 token endpoint.
@@ -248,6 +272,7 @@ final class GeminiUsageFetcher {
                 if code == 401 || code == 403 {
                     cachedAccessToken = nil
                     tokenExpiry = nil
+                    tokenRejected = true
                 }
                 Self.log.error("Gemini loadCodeAssist failed with HTTP \(code)")
                 return nil
@@ -302,6 +327,7 @@ final class GeminiUsageFetcher {
             Self.log.error("Gemini access token expired during quota fetch")
             cachedAccessToken = nil
             tokenExpiry = nil
+            tokenRejected = true
             return nil
         default:
             let body = String(data: responseData.prefix(256), encoding: .utf8) ?? "<binary>"
