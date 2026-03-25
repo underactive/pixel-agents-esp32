@@ -409,20 +409,14 @@ final class BridgeService: ObservableObject {
             cursorUsageStats = cursorData
         }
 
-        // Claude usage: requires transport connection in hardware mode
-        if !isSoftware {
-            guard let transport = activeTransport, transport.isConnected else { return }
-            _ = transport
-        }
-
         guard let data = usageFetcher.currentStats() else { return }
 
         // Only update if changed
         if data != lastUsageData {
             lastUsageData = data
             usageStats = data
-            // Send to hardware (skip in software mode)
-            if !isSoftware, let transport = activeTransport {
+            // Send to hardware (only when connected in hardware mode)
+            if !isSoftware, let transport = activeTransport, transport.isConnected {
                 let msg = ProtocolBuilder.usageStats(
                     currentPct: data.currentPct,
                     weeklyPct: data.weeklyPct,

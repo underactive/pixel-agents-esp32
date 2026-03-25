@@ -124,7 +124,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
             popover.performClose(sender)
         } else {
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
+            // Note: avoid NSApp.activate() here — it makes the app "active", and when
+            // the popover closes macOS switches Spaces to focus any existing app window
+            // (Settings/About) on another desktop.
+            popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
         }
     }
 

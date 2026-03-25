@@ -85,9 +85,6 @@ struct MenuBarView: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                // Usage stats
-                usageStatsSection
-
             } else {
                 // Hardware mode: transport picker
                 TransportPicker()
@@ -100,10 +97,11 @@ struct MenuBarView: View {
 
                     Divider()
                         .padding(.vertical, 4)
-
-                    usageStatsSection
                 }
             }
+
+            // Usage stats (always visible regardless of display mode or connection)
+            usageStatsSection
 
             // Bottom actions
             HStack {
@@ -146,35 +144,22 @@ struct MenuBarView: View {
     /// Usage stats section, conditionally shown based on settings toggles.
     @ViewBuilder
     private var usageStatsSection: some View {
-        let effectiveClaudeStats = showClaudeUsage ? bridge.usageStats : nil
-        let effectiveCodexStats = showCodexUsage ? bridge.codexUsageStats : nil
-        let effectiveGeminiStats = showGeminiUsage ? bridge.geminiUsageStats : nil
-        let effectiveCursorStats = showCursorUsage ? bridge.cursorUsageStats : nil
+        let claudeNeedsSignIn = showClaudeUsage && bridge.usageStats == nil && !bridge.claudeAuth.isAuthenticated
+        let enabledSet = Set<UsageProvider>(
+            [showClaudeUsage ? .claude : nil,
+             showCodexUsage ? .codex : nil,
+             showGeminiUsage ? .gemini : nil,
+             showCursorUsage ? .cursor : nil].compactMap { $0 }
+        )
 
-        if showClaudeUsage || showCodexUsage || showGeminiUsage || showCursorUsage {
-            // Show sign-in hint when Claude usage is enabled but no data and not authenticated
-            if showClaudeUsage && effectiveClaudeStats == nil && !bridge.claudeAuth.isAuthenticated {
-                HStack(spacing: 4) {
-                    BrandIconView(icon: BrandIcon.claude, size: 12, color: .secondary)
-                    Text("Claude")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Button("Sign In") {
-                        bridge.onOpenSettings?()
-                    }
-                    .font(.system(size: 10))
-                    .foregroundColor(.accentColor)
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 12)
-            }
-
-            UsageStatsView(stats: effectiveClaudeStats,
-                           codexStats: effectiveCodexStats,
-                           geminiStats: effectiveGeminiStats,
-                           cursorStats: effectiveCursorStats,
-                           showRemaining: $showRemaining)
+        if !enabledSet.isEmpty {
+            UsageStatsView(stats: bridge.usageStats,
+                           codexStats: bridge.codexUsageStats,
+                           geminiStats: bridge.geminiUsageStats,
+                           cursorStats: bridge.cursorUsageStats,
+                           enabled: enabledSet,
+                           showRemaining: $showRemaining,
+                           claudeSignInAction: claudeNeedsSignIn ? { bridge.onOpenSettings?() } : nil)
 
             Divider()
                 .padding(.vertical, 4)

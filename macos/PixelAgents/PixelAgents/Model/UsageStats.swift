@@ -1,11 +1,14 @@
 import Foundation
 
-/// Usage statistics from Claude Code rate limits cache.
+/// Usage statistics for an AI provider (Claude, Codex, Gemini, Cursor).
 struct UsageStatsData: Equatable {
     let currentPct: UInt8
     let weeklyPct: UInt8
     let currentResetMin: UInt16
     let weeklyResetMin: UInt16
+
+    /// Sentinel value for enabled providers with no data yet.
+    static let zero = UsageStatsData(currentPct: 0, weeklyPct: 0, currentResetMin: 0, weeklyResetMin: 0)
 }
 
 /// Reads ~/.claude/rate-limits-cache.json and produces UsageStatsData.
