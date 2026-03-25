@@ -54,6 +54,9 @@ final class BridgeService: ObservableObject {
     @Published var codexUsageStats: UsageStatsData?
     @Published var geminiUsageStats: UsageStatsData?
     @Published var cursorUsageStats: UsageStatsData?
+    @Published var cursorHeatmapData: CursorHeatmapData?
+    /// True once the initial cookie check is done and no session was found.
+    @Published var cursorNeedsDashboardAuth: Bool = false
     @Published var displayMode: DisplayMode = .hardware
     @Published var transportMode: TransportMode = .serial
 
@@ -169,6 +172,21 @@ final class BridgeService: ObservableObject {
         codexUsageFetcher.fetchAndCache()
         geminiUsageFetcher.fetchAndCache()
         cursorUsageFetcher.fetchAndCache()
+        // Wire immediate heatmap update callback (bypasses 10s usage timer)
+        cursorUsageFetcher.onHeatmapUpdate = { [weak self] data in
+            self?.cursorHeatmapData = data
+            self?.cursorNeedsDashboardAuth = false
+        }
+        // Try to restore cursor.com dashboard session and fetch heatmap.
+        let hadPreviousAuth = cursorUsageFetcher.dashboardAuth.checkExistingSession()
+        if hadPreviousAuth {
+            cursorUsageFetcher.fetchAnalytics()
+        } else {
+            // Try force-fetch in case HTTPCookieStorage has persisted cookies
+            cursorUsageFetcher.fetchAnalytics(force: true)
+            // Show connect button only if no previous auth (will be cleared if fetch succeeds)
+            cursorNeedsDashboardAuth = true
+        }
 
         startTimers()
         updateSceneTimerState()
@@ -183,6 +201,16 @@ final class BridgeService: ObservableObject {
         serialPortDetector.stopMonitoring()
         watcher.stopMonitoring()
         connectionState = .disconnected
+    }
+
+    /// Open the Cursor dashboard auth window and fetch heatmap on success.
+    func authenticateCursorDashboard() {
+        cursorUsageFetcher.dashboardAuth.authenticate { [weak self] success in
+            if success {
+                self?.cursorNeedsDashboardAuth = false
+                self?.cursorUsageFetcher.fetchAnalytics()
+            }
+        }
     }
 
     func setDisplayMode(_ mode: DisplayMode) {
@@ -345,6 +373,7 @@ final class BridgeService: ObservableObject {
                 self.codexUsageFetcher.fetchAndCache()
                 self.geminiUsageFetcher.fetchAndCache()
                 self.cursorUsageFetcher.fetchAndCache()
+                self.cursorUsageFetcher.fetchAnalytics()
             }
         }
 
@@ -407,6 +436,16 @@ final class BridgeService: ObservableObject {
         let cursorData = cursorUsageFetcher.currentStats()
         if cursorData != cursorUsageStats {
             cursorUsageStats = cursorData
+        }
+
+        // Update Cursor heatmap for UI
+        let heatmap = cursorUsageFetcher.currentHeatmap()
+        if heatmap != cursorHeatmapData {
+            cursorHeatmapData = heatmap
+            // Clear the auth-needed flag when heatmap data arrives
+            if heatmap != nil && cursorNeedsDashboardAuth {
+                cursorNeedsDashboardAuth = false
+            }
         }
 
         guard let data = usageFetcher.currentStats() else { return }

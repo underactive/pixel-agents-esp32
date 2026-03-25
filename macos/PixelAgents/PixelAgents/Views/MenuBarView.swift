@@ -159,7 +159,11 @@ struct MenuBarView: View {
                            cursorStats: bridge.cursorUsageStats,
                            enabled: enabledSet,
                            showRemaining: $showRemaining,
-                           claudeSignInAction: claudeNeedsSignIn ? { bridge.onOpenSettings?() } : nil)
+                           claudeSignInAction: claudeNeedsSignIn ? { bridge.onOpenSettings?() } : nil,
+                           cursorHeatmap: bridge.cursorHeatmapData,
+                           cursorConnectAction: bridge.cursorNeedsDashboardAuth && showCursorUsage
+                               ? { bridge.authenticateCursorDashboard() }
+                               : nil)
 
             Divider()
                 .padding(.vertical, 4)

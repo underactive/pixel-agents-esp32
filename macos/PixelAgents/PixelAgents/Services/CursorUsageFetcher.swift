@@ -1,20 +1,27 @@
 import Foundation
 import SQLite3
+import WebKit
 import os
 
 /// Fetches usage stats from the Cursor API using the IDE's access token.
 ///
-/// Auth pipeline:
+/// Auth pipeline (usage stats):
 /// 1. Read access token from Cursor's internal vscdb storage
 ///    (~/Library/Application Support/Cursor/User/globalStorage/state.vscdb)
 /// 2. Call GET https://api2.cursor.sh/auth/usage-summary with Bearer auth
 /// 3. Parse the usage-summary response (plan used/limit, billing cycle dates)
+///
+/// Auth pipeline (heatmap analytics):
+/// 1. Use WKWebView session cookies from CursorDashboardAuth
+/// 2. Call POST https://cursor.com/api/dashboard/get-user-analytics with cookie auth
+/// 3. Parse dailyMetrics for AI Line Edits heatmap
 @MainActor
 final class CursorUsageFetcher {
 
     private static let log = Logger(subsystem: "com.pixelagents", category: "CursorUsage")
 
     private static let usageSummaryURL = URL(string: "https://api2.cursor.sh/auth/usage-summary")!
+    private static let analyticsURL = URL(string: "https://cursor.com/api/dashboard/get-user-analytics")!
 
     private static let vscdbPath: String = {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -24,12 +31,26 @@ final class CursorUsageFetcher {
     // MARK: - State
 
     private(set) var latestData: UsageStatsData?
+    private(set) var latestHeatmapData: CursorHeatmapData?
+
+    /// Whether the dashboard session needs (re-)authentication.
+    private(set) var needsDashboardAuth: Bool = true
 
     /// Cached token to avoid re-reading the database on every poll.
     private var cachedToken: String?
 
+    /// Dashboard auth manager (shared with the app for the login window).
+    let dashboardAuth = CursorDashboardAuth()
+
+    /// Called when heatmap data is fetched, so BridgeService can publish immediately.
+    var onHeatmapUpdate: ((CursorHeatmapData) -> Void)?
+
     func currentStats() -> UsageStatsData? {
         latestData
+    }
+
+    func currentHeatmap() -> CursorHeatmapData? {
+        latestHeatmapData
     }
 
     /// Fetch from API and update latestData.
@@ -40,6 +61,20 @@ final class CursorUsageFetcher {
 
             Self.log.info("Cursor usage: plan=\(data.currentPct)%")
             self.latestData = data
+        }
+    }
+
+    /// Fetch heatmap analytics from cursor.com using dashboard session cookies.
+    /// If hasSession is false, skips unless `force` is true (used on startup to test cached cookies).
+    func fetchAnalytics(force: Bool = false) {
+        guard dashboardAuth.hasSession || force else { return }
+        Task {
+            guard let data = await callAnalyticsAPI() else { return }
+            Self.log.info("Cursor heatmap: \(data.totalEdits) total edits, \(data.days.count) active days")
+            self.latestHeatmapData = data
+            self.needsDashboardAuth = false
+            self.dashboardAuth.markAuthenticated()
+            self.onHeatmapUpdate?(data)
         }
     }
 
@@ -183,6 +218,74 @@ final class CursorUsageFetcher {
             currentResetMin: resetMin,
             weeklyResetMin: 0
         )
+    }
+
+    // MARK: - Analytics API (cookie-based, cursor.com)
+
+    private func callAnalyticsAPI() async -> CursorHeatmapData? {
+        // Try WKWebView cookies first (available after auth window was shown this session),
+        // then fall back to HTTPCookieStorage (persisted from previous sessions).
+        let wkCookies = await dashboardAuth.getCookies()
+        let httpCookies = HTTPCookieStorage.shared.cookies(for: Self.analyticsURL) ?? []
+        let cookies = !wkCookies.isEmpty ? wkCookies : httpCookies
+        guard !cookies.isEmpty else {
+            Self.log.debug("No cursor.com cookies available for analytics")
+            needsDashboardAuth = true
+            return nil
+        }
+
+        // Build cookie header
+        let cookieHeader = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+
+        // Date range: 1 year back
+        let now = Date()
+        guard let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: now) else { return nil }
+        let body: [String: String] = [
+            "startDate": String(Int(oneYearAgo.timeIntervalSince1970 * 1000)),
+            "endDate": String(Int(now.timeIntervalSince1970 * 1000))
+        ]
+
+        var request = URLRequest(url: Self.analyticsURL)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://cursor.com", forHTTPHeaderField: "Origin")
+        request.setValue("https://cursor.com/dashboard", forHTTPHeaderField: "Referer")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        let responseData: Data
+        let httpResponse: HTTPURLResponse
+        do {
+            let (d, r) = try await URLSession.shared.data(for: request)
+            guard let hr = r as? HTTPURLResponse else { return nil }
+            responseData = d
+            httpResponse = hr
+        } catch {
+            Self.log.error("Cursor analytics request failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401, 307, 403:
+            Self.log.info("Cursor dashboard session expired — needs re-auth")
+            needsDashboardAuth = true
+            dashboardAuth.markNeedsAuth()
+            return nil
+        default:
+            Self.log.error("Cursor analytics HTTP \(httpResponse.statusCode)")
+            return nil
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+              let dailyMetrics = json["dailyMetrics"] as? [[String: Any]] else {
+            Self.log.error("Cursor analytics response is not valid JSON")
+            return nil
+        }
+
+        return CursorHeatmapData.from(dailyMetrics: dailyMetrics)
     }
 
     // MARK: - Helpers

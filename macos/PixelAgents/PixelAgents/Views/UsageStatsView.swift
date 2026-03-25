@@ -4,7 +4,7 @@ import SwiftUI
 private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
 private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
 private let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
-private let cursorDark = Color(red: 0.15, green: 0.15, blue: 0.15)    // Near-black
+private let cursorGreen = Color(red: 0.224, green: 0.827, blue: 0.325) // #39D353 (matches heatmap "More")
 
 /// Converts a used percentage to a display value, applying the remaining-mode inversion.
 /// Clamps to 0-100 to guard against negative values when usedPct exceeds 100.
@@ -42,7 +42,7 @@ enum UsageProvider: String, CaseIterable, Identifiable {
         case .claude: return claudeOrange
         case .codex:  return codexBlue
         case .gemini: return geminiPink
-        case .cursor: return cursorDark
+        case .cursor: return cursorGreen
         }
     }
 }
@@ -66,6 +66,8 @@ struct UsageStatsView: View {
     let enabled: Set<UsageProvider>
     @Binding var showRemaining: Bool
     var claudeSignInAction: (() -> Void)? = nil
+    var cursorHeatmap: CursorHeatmapData? = nil
+    var cursorConnectAction: (() -> Void)? = nil
 
     @State private var selectedProvider: UsageProvider?
 
@@ -131,7 +133,9 @@ struct UsageStatsView: View {
                         ProviderDetailView(
                             provider: selected,
                             stats: entryStats,
-                            showRemaining: showRemaining
+                            showRemaining: showRemaining,
+                            cursorHeatmap: selected == .cursor ? cursorHeatmap : nil,
+                            cursorConnectAction: selected == .cursor ? cursorConnectAction : nil
                         )
                     } else {
                         // Loading state — stats not yet fetched
@@ -165,21 +169,12 @@ private struct ProviderTab: View {
     let isSelected: Bool
     let showRemaining: Bool
     let action: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
-
-    /// Foreground color for icon and name, with Cursor dark-mode fix.
     private var foregroundColor: Color {
-        if isSelected {
-            if entry.provider == .cursor && colorScheme == .dark { return .primary }
-            return entry.provider.brandColor
-        }
-        return .secondary
+        isSelected ? entry.provider.brandColor : .secondary
     }
 
-    /// Brand color safe for mini bars and tab background.
     private var safeColor: Color {
-        if entry.provider == .cursor && colorScheme == .dark { return .primary }
-        return entry.provider.brandColor
+        entry.provider.brandColor
     }
 
     var body: some View {
@@ -259,6 +254,8 @@ private struct ProviderDetailView: View {
     let provider: UsageProvider
     let stats: UsageStatsData
     let showRemaining: Bool
+    var cursorHeatmap: CursorHeatmapData? = nil
+    var cursorConnectAction: (() -> Void)? = nil
 
     var body: some View {
         let currentUsed = Int(stats.currentPct)
@@ -325,6 +322,21 @@ private struct ProviderDetailView: View {
                         tintColor: color
                     )
                 }
+                if let heatmap = cursorHeatmap {
+                    CursorHeatmapView(data: heatmap)
+                } else if let connect = cursorConnectAction {
+                    Button(action: connect) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.system(size: 10))
+                            Text("Connect Cursor Dashboard")
+                                .font(.system(size: 10))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+                    .padding(.top, 2)
+                }
             }
         }
     }
@@ -390,5 +402,193 @@ private struct UsageBar: View {
         let days = hours / 24
         let remainHours = hours % 24
         return "\(days)d \(remainHours)h"
+    }
+}
+
+// MARK: - Cursor Heatmap (GitHub-style contribution grid)
+
+/// Heatmap color palette (5 levels, GitHub-style greens).
+private let heatmapColors: [Color] = [
+    Color.gray.opacity(0.15),                              // 0: no activity
+    Color(red: 0.055, green: 0.267, blue: 0.161),         // 1: low
+    Color(red: 0.0, green: 0.427, blue: 0.196),           // 2: medium-low
+    Color(red: 0.149, green: 0.651, blue: 0.255),         // 3: medium-high
+    Color(red: 0.224, green: 0.827, blue: 0.325),         // 4: high
+]
+
+/// Pre-computed grid layout data for the heatmap Canvas.
+private struct HeatmapGridData {
+    let weeks: [Date]     // 53 Sunday-start week dates
+    let today: Date
+    let calendar: Calendar
+}
+
+private struct CursorHeatmapView: View {
+    let data: CursorHeatmapData
+
+    private static let weekCount = 53
+    private static let rowCount = 7
+    private static let gap: CGFloat = 1
+    private static let monthLabelHeight: CGFloat = 10
+    private static let dayLabelWidth: CGFloat = 12
+
+    /// Pre-compute the grid data once per render.
+    private var gridData: HeatmapGridData {
+        let calendar = Calendar(identifier: .gregorian)
+        let today = calendar.startOfDay(for: Date())
+        let weekday = calendar.component(.weekday, from: today)
+        let sundayOffset = -(weekday - 1)
+        guard let thisSunday = calendar.date(byAdding: .day, value: sundayOffset, to: today) else {
+            return HeatmapGridData(weeks: [], today: today, calendar: calendar)
+        }
+        var weeks: [Date] = []
+        for i in stride(from: -52, through: 0, by: 1) {
+            if let week = calendar.date(byAdding: .weekOfYear, value: i, to: thisSunday) {
+                weeks.append(week)
+            }
+        }
+        return HeatmapGridData(weeks: weeks, today: today, calendar: calendar)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Header
+            HStack(spacing: 4) {
+                Text("AI Line Edits")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text(formatCount(data.totalEdits))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+
+            // Canvas-based heatmap grid — renders within proposed size, never overflows
+            let grid = gridData
+            Canvas { ctx, size in
+                let cellStep = (size.width - Self.dayLabelWidth) / CGFloat(Self.weekCount)
+                let cell = max(2, cellStep - Self.gap)
+                let topOffset = Self.monthLabelHeight
+
+                // Draw month labels
+                drawMonthLabels(ctx: ctx, grid: grid, cellStep: cellStep)
+
+                // Draw 7 rows of cells
+                for row in 0..<Self.rowCount {
+                    let wd = row + 1  // weekday: 1=Sun ... 7=Sat
+                    let y = topOffset + CGFloat(row) * cellStep
+
+                    for col in 0..<grid.weeks.count {
+                        let x = Self.dayLabelWidth + CGFloat(col) * cellStep
+                        let date = grid.calendar.date(byAdding: .day, value: wd - 1, to: grid.weeks[col])
+                        let isFuture = date.map { $0 > grid.today } ?? true
+                        guard !isFuture else { continue }
+
+                        let edits = date.flatMap { data.days[$0] } ?? 0
+                        let level = data.level(for: edits)
+                        let color = heatmapColors[level]
+
+                        let rect = CGRect(x: x, y: y, width: cell, height: cell)
+                        let path = Path(roundedRect: rect, cornerRadius: 1)
+                        ctx.fill(path, with: .color(color))
+                    }
+
+                    // Day labels (Mon/Wed/Fri only, matching GitHub style)
+                    if wd == 2 || wd == 4 || wd == 6 {
+                        let label = wd == 2 ? "M" : wd == 4 ? "W" : "F"
+                        let text = Text(label).font(.system(size: 7)).foregroundColor(.secondary)
+                        let resolved = ctx.resolve(text)
+                        let labelY = y + cell / 2
+                        ctx.draw(resolved, at: CGPoint(x: Self.dayLabelWidth - 3, y: labelY), anchor: .trailing)
+                    }
+                }
+            }
+            .frame(height: Self.monthLabelHeight + CGFloat(Self.rowCount) * ((300 - Self.dayLabelWidth) / CGFloat(Self.weekCount)))
+            .fixedSize(horizontal: false, vertical: true)
+
+            // Legend
+            legendRow
+
+            // Stats
+            statsRow
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: - Canvas Drawing
+
+    private func drawMonthLabels(ctx: GraphicsContext, grid: HeatmapGridData, cellStep: CGFloat) {
+        let monthAbbrevs = ["", "J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+        var lastMonth = -1
+        for i in 0..<grid.weeks.count {
+            let month = grid.calendar.component(.month, from: grid.weeks[i])
+            if month != lastMonth {
+                let label = (month >= 1 && month <= 12) ? monthAbbrevs[month] : ""
+                let text = Text(label).font(.system(size: 7)).foregroundColor(.secondary)
+                let resolved = ctx.resolve(text)
+                let x = Self.dayLabelWidth + CGFloat(i) * cellStep
+                ctx.draw(resolved, at: CGPoint(x: x, y: 0), anchor: .topLeading)
+                lastMonth = month
+            }
+        }
+    }
+
+    // MARK: - Legend
+
+    private var legendRow: some View {
+        HStack(spacing: 2) {
+            Text("Less")
+                .font(.system(size: 7))
+                .foregroundColor(.secondary)
+            ForEach(0..<5, id: \.self) { level in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(heatmapColors[level])
+                    .frame(width: 8, height: 8)
+            }
+            Text("More")
+                .font(.system(size: 7))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Stats
+
+    private var statsRow: some View {
+        HStack(spacing: 0) {
+            statItem(label: "Most Active", value: data.mostActiveDay.map { formatDate($0.date) } ?? "-")
+            statItem(label: "Current", value: "\(data.currentStreak)d")
+            statItem(label: "Longest", value: "\(data.longestStreak)d")
+        }
+    }
+
+    private func statItem(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.system(size: 7))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 9, weight: .medium))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Formatting
+
+    private func formatCount(_ n: Int) -> String {
+        if n >= 1000 {
+            let k = Double(n) / 1000.0
+            return String(format: "%.1fk", k)
+        }
+        return "\(n)"
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
+    private func formatDate(_ date: Date) -> String {
+        Self.dateFormatter.string(from: date)
     }
 }
