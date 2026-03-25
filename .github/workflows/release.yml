@@ -139,7 +139,7 @@ jobs:
             "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
             "OTHER_CODE_SIGN_FLAGS=--timestamp" \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
-            "CODE_SIGN_ENTITLEMENTS=" \
+            "CODE_SIGN_ENTITLEMENTS=PixelAgents/PixelAgents.ci.entitlements" \
             "MARKETING_VERSION=$VERSION" \
             "CURRENT_PROJECT_VERSION=$VERSION"
 
@@ -169,7 +169,7 @@ jobs:
         run: |
           codesign --force --options runtime --timestamp \
             --sign "Developer ID Application" \
-            --entitlements PixelAgents/PixelAgents.entitlements \
+            --entitlements PixelAgents/PixelAgents.ci.entitlements \
             ".build/Build/Products/Release/Pixel Agents.app"
           codesign --verify --deep --strict ".build/Build/Products/Release/Pixel Agents.app"
 
