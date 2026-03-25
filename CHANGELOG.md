@@ -2,6 +2,13 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.0] - 2026-03-24
+
+- Add activity heatmaps for Claude, Codex, and Gemini: GitHub-style 53-week contribution grids showing daily tool call counts, colored per provider (orange/blue/pink)
+- Local SQLite database at `~/Library/Application Support/com.pixelagents.companion/activity.db` stores daily tool call aggregates per provider
+- Shared `HeatmapGridView` extracted from Cursor heatmap — Canvas-based renderer accepts provider-specific color palettes and metric labels
+- Cursor heatmap unchanged (still API-driven with green palette showing "AI Line Edits")
+
 ## [0.10.7] - 2026-03-23
 
 - Add Google Gemini CLI support: agent activity detection from `~/.gemini/tmp/` session JSON files, usage stats via Google Cloud quota API with OAuth token refresh

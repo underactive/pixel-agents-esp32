@@ -374,6 +374,20 @@
 - [ ] "Quit" in context menu terminates the app cleanly
 - [ ] About window reuses same window on re-open (not recreated)
 
+#### Activity Heatmaps (Claude/Codex/Gemini)
+- [ ] Claude tab shows orange-colored heatmap grid after tool calls are recorded
+- [ ] Codex tab shows blue-colored heatmap grid after tool calls are recorded
+- [ ] Gemini tab shows pink-colored heatmap grid after tool calls are recorded
+- [ ] Heatmap header shows "Tool Calls" with total count for Claude/Codex/Gemini
+- [ ] Cursor tab still shows green "AI Line Edits" heatmap from API (unchanged)
+- [ ] Heatmap grid displays 53 weeks × 7 days with month labels and M/W/F day labels
+- [ ] Legend shows "Less" → 5 color swatches → "More" in the provider's brand color
+- [ ] Stats row shows "Most Active" date, "Current" streak, and "Longest" streak
+- [ ] Heatmap data persists across app restarts (loads from SQLite on startup)
+- [ ] Activity database file created at ~/Library/Application Support/com.pixelagents.companion/activity.db
+- [ ] Gemini text-only responses (tool="Gemini") are NOT counted as tool calls
+- [ ] Empty heatmap displays all gray cells with "0" total and "-" for most active day
+
 #### Usage Stats
 - [ ] Usage stats display as "Usage" header with used percentages by default
 - [ ] Tapping the "Usage" header toggles to "Remaining" mode — header changes to "Remaining", percentages show 100 minus used value
