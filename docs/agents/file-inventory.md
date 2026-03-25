@@ -48,6 +48,7 @@ Complete file and directory listing for the Pixel Agents ESP32 project. Referenc
 | `macos/PixelAgents/PixelAgents/Model/ActivityHeatmapData.swift` | Local activity heatmap data model (tool call counts, streaks, thresholds) |
 | `macos/PixelAgents/PixelAgents/Model/GeminiStateDeriver.swift` | Gemini CLI session JSON state deriver |
 | `macos/PixelAgents/PixelAgents/Services/ActivityDatabase.swift` | SQLite wrapper for daily tool call persistence (Claude/Codex/Gemini heatmaps) |
+| `macos/PixelAgents/PixelAgents/Services/ActivitySyncService.swift` | iCloud Drive sync for activity heatmap data (per-device JSON, MAX merge) |
 | `macos/PixelAgents/PixelAgents/Services/GeminiUsageFetcher.swift` | Gemini CLI OAuth-based usage quota fetcher |
 | `macos/PixelAgents/PixelAgents/Views/SettingsView.swift` | Settings window: Launch at Login, usage stats toggles, auto-update toggle |
 | `macos/PixelAgents/PixelAgents/Views/AboutView.swift` | About window: app icon, version, GitHub link |

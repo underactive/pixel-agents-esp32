@@ -147,4 +147,67 @@ final class ActivityDatabase {
 
         return ActivityHeatmapData.from(rows: rows)
     }
+
+    // MARK: - Sync Support
+
+    /// Export all rows for iCloud sync. Returns (date, provider, count) tuples.
+    func exportAllRows() -> [(date: String, provider: String, count: Int)] {
+        guard let db = db else { return [] }
+
+        let sql = "SELECT date, provider, count FROM daily_activity ORDER BY date, provider"
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            Self.log.error("Failed to prepare exportAllRows query")
+            return []
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        var rows: [(date: String, provider: String, count: Int)] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let cDate = sqlite3_column_text(stmt, 0),
+                  let cProvider = sqlite3_column_text(stmt, 1) else { continue }
+            let date = String(cString: cDate)
+            let provider = String(cString: cProvider)
+            let count = Int(sqlite3_column_int(stmt, 2))
+            rows.append((date: date, provider: provider, count: count))
+        }
+
+        return rows
+    }
+
+    /// Merge remote rows using MAX strategy (takes the higher count for each date/provider).
+    /// Used by iCloud sync to avoid double-counting across devices.
+    /// Wrapped in a single transaction for atomicity and performance.
+    func mergeRows(_ rows: [(date: String, provider: String, count: Int)]) {
+        guard let db = db, !rows.isEmpty else { return }
+
+        let sql = """
+            INSERT INTO daily_activity (date, provider, count)
+            VALUES (?1, ?2, ?3)
+            ON CONFLICT(date, provider) DO UPDATE SET count = MAX(count, ?3)
+            """
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            Self.log.error("Failed to prepare mergeRows statement")
+            return
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_exec(db, "BEGIN", nil, nil, nil)
+
+        for row in rows {
+            sqlite3_reset(stmt)
+            sqlite3_bind_text(stmt, 1, (row.date as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmt, 2, (row.provider as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_int(stmt, 3, Int32(clamping: row.count))
+
+            if sqlite3_step(stmt) != SQLITE_DONE {
+                Self.log.error("Failed to merge row \(row.date)/\(row.provider)")
+            }
+        }
+
+        sqlite3_exec(db, "COMMIT", nil, nil, nil)
+    }
 }

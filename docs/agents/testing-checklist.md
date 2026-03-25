@@ -388,6 +388,14 @@
 - [ ] Gemini text-only responses (tool="Gemini") are NOT counted as tool calls
 - [ ] Empty heatmap displays all gray cells with "0" total and "-" for most active day
 
+#### iCloud Activity Sync
+- [ ] App logs "iCloud sync enabled" when iCloud is available and entitlement is active
+- [ ] App logs "iCloud unavailable" and works normally when iCloud is not signed in
+- [ ] Device JSON file appears at ~/Library/Mobile Documents/iCloud~com.pixelagents.companion/Documents/activity-{uuid}.json
+- [ ] Second Mac imports first Mac's data and shows merged heatmap after iCloud sync
+- [ ] MAX merge strategy: higher count wins (no double-counting across devices)
+- [ ] App does not crash when iCloud entitlement is commented out (graceful degradation)
+
 #### Usage Stats
 - [ ] Usage stats display as "Usage" header with used percentages by default
 - [ ] Tapping the "Usage" header toggles to "Remaining" mode — header changes to "Remaining", percentages show 100 minus used value

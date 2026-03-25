@@ -111,6 +111,7 @@ final class BridgeService: ObservableObject {
     private let codexUsageFetcher = CodexUsageFetcher()
     private let geminiUsageFetcher = GeminiUsageFetcher()
     private let cursorUsageFetcher = CursorUsageFetcher()
+    private lazy var activitySyncService = ActivitySyncService(database: ActivityDatabase.shared)
 
     private var activeTransport: TransportProtocol? {
         switch transportMode {
@@ -177,6 +178,12 @@ final class BridgeService: ObservableObject {
         codexHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.codex.heatmapKey!)
         geminiHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
         activityHeatmapDirty = false
+
+        // Start iCloud sync (degrades gracefully if iCloud unavailable)
+        activitySyncService.onRemoteDataMerged = { [weak self] in
+            self?.activityHeatmapDirty = true
+        }
+        activitySyncService.start()
 
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
@@ -470,6 +477,9 @@ final class BridgeService: ObservableObject {
             if newGemini != geminiHeatmapData { geminiHeatmapData = newGemini }
         }
 
+        // Export to iCloud if local data changed
+        activitySyncService.exportIfNeeded()
+
         guard let data = usageFetcher.currentStats() else { return }
 
         // Only update if changed
@@ -540,6 +550,7 @@ final class BridgeService: ObservableObject {
                         if isToolCall, let heatmapKey = source.heatmapKey {
                             ActivityDatabase.shared.recordToolCall(provider: heatmapKey)
                             activityHeatmapDirty = true
+                            activitySyncService.markNeedsExport()
                         }
                     }
 
