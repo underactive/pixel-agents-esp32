@@ -55,6 +55,9 @@ final class BridgeService: ObservableObject {
     @Published var geminiUsageStats: UsageStatsData?
     @Published var cursorUsageStats: UsageStatsData?
     @Published var cursorHeatmapData: CursorHeatmapData?
+    @Published var claudeHeatmapData: ActivityHeatmapData?
+    @Published var codexHeatmapData: ActivityHeatmapData?
+    @Published var geminiHeatmapData: ActivityHeatmapData?
     /// True once the initial cookie check is done and no session was found.
     @Published var cursorNeedsDashboardAuth: Bool = false
     @Published var displayMode: DisplayMode = .hardware
@@ -125,6 +128,8 @@ final class BridgeService: ObservableObject {
     private var lastStates: [String: (CharState, String)] = [:]
     private var lastUsageData: UsageStatsData?
     private var lastCount: Int = -1
+    /// Dirty flag for local activity heatmaps — reload from DB on next checkUsageStats().
+    private var activityHeatmapDirty = true
 
     /// Selected serial port path (nil = auto-detect).
     @Published var selectedPort: String?
@@ -166,6 +171,12 @@ final class BridgeService: ObservableObject {
         // Wire auth service and bootstrap token from app Keychain (no system dialog)
         usageFetcher.authService = claudeAuth
         claudeAuth.bootstrap()
+
+        // Load local activity heatmaps from DB (shows historical data immediately)
+        claudeHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.claude.heatmapKey!)
+        codexHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.codex.heatmapKey!)
+        geminiHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
+        activityHeatmapDirty = false
 
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
@@ -448,6 +459,17 @@ final class BridgeService: ObservableObject {
             }
         }
 
+        // Update local activity heatmaps (Claude/Codex/Gemini)
+        if activityHeatmapDirty {
+            activityHeatmapDirty = false
+            let newClaude = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.claude.heatmapKey!)
+            if newClaude != claudeHeatmapData { claudeHeatmapData = newClaude }
+            let newCodex = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.codex.heatmapKey!)
+            if newCodex != codexHeatmapData { codexHeatmapData = newCodex }
+            let newGemini = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
+            if newGemini != geminiHeatmapData { geminiHeatmapData = newGemini }
+        }
+
         guard let data = usageFetcher.currentStats() else { return }
 
         // Only update if changed
@@ -507,6 +529,20 @@ final class BridgeService: ObservableObject {
                 }
 
                 if let (state, tool) = result {
+                    // Record tool call in local activity DB for heatmap
+                    if state == .type || state == .read {
+                        let isToolCall: Bool
+                        switch source {
+                        case .claude, .codex: isToolCall = !tool.isEmpty
+                        case .gemini:         isToolCall = !tool.isEmpty && tool != "Gemini"
+                        case .cursor:         isToolCall = false
+                        }
+                        if isToolCall, let heatmapKey = source.heatmapKey {
+                            ActivityDatabase.shared.recordToolCall(provider: heatmapKey)
+                            activityHeatmapDirty = true
+                        }
+                    }
+
                     // Write back all mutated agent fields
                     tracker.update(key: key) { a in
                         a.state = state

@@ -6,6 +6,31 @@ private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
 private let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
 private let cursorGreen = Color(red: 0.224, green: 0.827, blue: 0.325) // #39D353 (matches heatmap "More")
 
+// Per-provider heatmap color palettes (5 levels: no activity → low → med-low → med-high → high)
+private let claudeHeatmapColors: [Color] = [
+    Color.gray.opacity(0.15),                              // 0: no activity
+    Color(red: 0.361, green: 0.145, blue: 0.094),         // 1: low (#5C2518)
+    Color(red: 0.545, green: 0.220, blue: 0.125),         // 2: medium-low (#8B3820)
+    Color(red: 0.753, green: 0.353, blue: 0.204),         // 3: medium-high (#C05A34)
+    Color(red: 0.850, green: 0.470, blue: 0.340),         // 4: high (#D97856)
+]
+
+private let codexHeatmapColors: [Color] = [
+    Color.gray.opacity(0.15),
+    Color(red: 0.059, green: 0.118, blue: 0.290),         // 1: #0F1E4A
+    Color(red: 0.106, green: 0.208, blue: 0.471),         // 2: #1B3578
+    Color(red: 0.173, green: 0.361, blue: 0.773),         // 3: #2C5CC5
+    Color(red: 0.240, green: 0.470, blue: 0.960),         // 4: #3D78F5
+]
+
+private let geminiHeatmapColors: [Color] = [
+    Color.gray.opacity(0.15),
+    Color(red: 0.239, green: 0.133, blue: 0.212),         // 1: #3D2236
+    Color(red: 0.384, green: 0.216, blue: 0.333),         // 2: #623755
+    Color(red: 0.604, green: 0.388, blue: 0.533),         // 3: #9A6388
+    Color(red: 0.769, green: 0.545, blue: 0.690),         // 4: #C48BB0
+]
+
 /// Converts a used percentage to a display value, applying the remaining-mode inversion.
 /// Clamps to 0-100 to guard against negative values when usedPct exceeds 100.
 private func displayPct(_ usedPct: Int, showRemaining: Bool) -> Int {
@@ -45,6 +70,22 @@ enum UsageProvider: String, CaseIterable, Identifiable {
         case .cursor: return cursorGreen
         }
     }
+
+    var heatmapColors: [Color] {
+        switch self {
+        case .claude: return claudeHeatmapColors
+        case .codex:  return codexHeatmapColors
+        case .gemini: return geminiHeatmapColors
+        case .cursor: return cursorHeatmapColors
+        }
+    }
+
+    var heatmapMetricLabel: String {
+        switch self {
+        case .cursor: return "AI Line Edits"
+        default:      return "Tool Calls"
+        }
+    }
 }
 
 private struct ProviderEntry: Identifiable {
@@ -66,10 +107,23 @@ struct UsageStatsView: View {
     let enabled: Set<UsageProvider>
     @Binding var showRemaining: Bool
     var claudeSignInAction: (() -> Void)? = nil
+    var claudeHeatmap: ActivityHeatmapData? = nil
+    var codexHeatmap: ActivityHeatmapData? = nil
+    var geminiHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
     var cursorConnectAction: (() -> Void)? = nil
 
     @State private var selectedProvider: UsageProvider?
+
+    /// Returns the local activity heatmap data for a given provider.
+    private func activityHeatmapFor(_ provider: UsageProvider) -> ActivityHeatmapData? {
+        switch provider {
+        case .claude: return claudeHeatmap
+        case .codex:  return codexHeatmap
+        case .gemini: return geminiHeatmap
+        case .cursor: return nil  // Cursor uses external API heatmap
+        }
+    }
 
     /// Tabs for all enabled providers. Stats may be nil (loading).
     private var enabledProviders: [ProviderEntry] {
@@ -134,6 +188,7 @@ struct UsageStatsView: View {
                             provider: selected,
                             stats: entryStats,
                             showRemaining: showRemaining,
+                            activityHeatmap: activityHeatmapFor(selected),
                             cursorHeatmap: selected == .cursor ? cursorHeatmap : nil,
                             cursorConnectAction: selected == .cursor ? cursorConnectAction : nil
                         )
@@ -254,6 +309,7 @@ private struct ProviderDetailView: View {
     let provider: UsageProvider
     let stats: UsageStatsData
     let showRemaining: Bool
+    var activityHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
     var cursorConnectAction: (() -> Void)? = nil
 
@@ -279,6 +335,9 @@ private struct ProviderDetailView: View {
                     resetMin: stats.weeklyResetMin,
                     tintColor: color
                 )
+                if let heatmap = activityHeatmap {
+                    ActivityHeatmapView(data: heatmap, provider: provider)
+                }
 
             case .codex:
                 UsageBar(
@@ -295,6 +354,9 @@ private struct ProviderDetailView: View {
                     resetMin: stats.weeklyResetMin,
                     tintColor: color
                 )
+                if let heatmap = activityHeatmap {
+                    ActivityHeatmapView(data: heatmap, provider: provider)
+                }
 
             case .gemini:
                 UsageBar(
@@ -304,6 +366,9 @@ private struct ProviderDetailView: View {
                     resetMin: stats.currentResetMin,
                     tintColor: color
                 )
+                if let heatmap = activityHeatmap {
+                    ActivityHeatmapView(data: heatmap, provider: provider)
+                }
 
             case .cursor:
                 UsageBar(
@@ -405,10 +470,10 @@ private struct UsageBar: View {
     }
 }
 
-// MARK: - Cursor Heatmap (GitHub-style contribution grid)
+// MARK: - Heatmap (GitHub-style contribution grid)
 
-/// Heatmap color palette (5 levels, GitHub-style greens).
-private let heatmapColors: [Color] = [
+/// Cursor heatmap color palette (5 levels, GitHub-style greens).
+private let cursorHeatmapColors: [Color] = [
     Color.gray.opacity(0.15),                              // 0: no activity
     Color(red: 0.055, green: 0.267, blue: 0.161),         // 1: low
     Color(red: 0.0, green: 0.427, blue: 0.196),           // 2: medium-low
@@ -423,8 +488,19 @@ private struct HeatmapGridData {
     let calendar: Calendar
 }
 
-private struct CursorHeatmapView: View {
-    let data: CursorHeatmapData
+// MARK: - Shared Heatmap Grid View
+
+/// Generic heatmap grid used by both Cursor (API-driven) and Claude/Codex/Gemini (local DB-driven).
+/// Renders a 53-week × 7-day contribution grid with provider-specific colors and metric labels.
+private struct HeatmapGridView: View {
+    let days: [Date: Int]
+    let totalCount: Int
+    let mostActiveDate: Date?
+    let currentStreak: Int
+    let longestStreak: Int
+    let metricLabel: String
+    let colors: [Color]
+    let levelForCount: (Int) -> Int
 
     private static let weekCount = 53
     private static let rowCount = 7
@@ -454,11 +530,11 @@ private struct CursorHeatmapView: View {
         VStack(alignment: .leading, spacing: 4) {
             // Header
             HStack(spacing: 4) {
-                Text("AI Line Edits")
+                Text(metricLabel)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text(formatCount(data.totalEdits))
+                Text(formatCount(totalCount))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundColor(.secondary)
             }
@@ -484,9 +560,9 @@ private struct CursorHeatmapView: View {
                         let isFuture = date.map { $0 > grid.today } ?? true
                         guard !isFuture else { continue }
 
-                        let edits = date.flatMap { data.days[$0] } ?? 0
-                        let level = data.level(for: edits)
-                        let color = heatmapColors[level]
+                        let count = date.flatMap { days[$0] } ?? 0
+                        let level = levelForCount(count)
+                        let color = colors[level]
 
                         let rect = CGRect(x: x, y: y, width: cell, height: cell)
                         let path = Path(roundedRect: rect, cornerRadius: 1)
@@ -542,7 +618,7 @@ private struct CursorHeatmapView: View {
                 .foregroundColor(.secondary)
             ForEach(0..<5, id: \.self) { level in
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(heatmapColors[level])
+                    .fill(colors[level])
                     .frame(width: 8, height: 8)
             }
             Text("More")
@@ -555,9 +631,9 @@ private struct CursorHeatmapView: View {
 
     private var statsRow: some View {
         HStack(spacing: 0) {
-            statItem(label: "Most Active", value: data.mostActiveDay.map { formatDate($0.date) } ?? "-")
-            statItem(label: "Current", value: "\(data.currentStreak)d")
-            statItem(label: "Longest", value: "\(data.longestStreak)d")
+            statItem(label: "Most Active", value: mostActiveDate.map { formatDate($0) } ?? "-")
+            statItem(label: "Current", value: "\(currentStreak)d")
+            statItem(label: "Longest", value: "\(longestStreak)d")
         }
     }
 
@@ -590,5 +666,44 @@ private struct CursorHeatmapView: View {
 
     private func formatDate(_ date: Date) -> String {
         Self.dateFormatter.string(from: date)
+    }
+}
+
+// MARK: - Cursor Heatmap (wraps HeatmapGridView with Cursor API data)
+
+private struct CursorHeatmapView: View {
+    let data: CursorHeatmapData
+
+    var body: some View {
+        HeatmapGridView(
+            days: data.days,
+            totalCount: data.totalEdits,
+            mostActiveDate: data.mostActiveDay?.date,
+            currentStreak: data.currentStreak,
+            longestStreak: data.longestStreak,
+            metricLabel: UsageProvider.cursor.heatmapMetricLabel,
+            colors: UsageProvider.cursor.heatmapColors,
+            levelForCount: { data.level(for: $0) }
+        )
+    }
+}
+
+// MARK: - Activity Heatmap (wraps HeatmapGridView with local DB data)
+
+private struct ActivityHeatmapView: View {
+    let data: ActivityHeatmapData
+    let provider: UsageProvider
+
+    var body: some View {
+        HeatmapGridView(
+            days: data.days,
+            totalCount: data.totalCount,
+            mostActiveDate: data.mostActiveDay?.date,
+            currentStreak: data.currentStreak,
+            longestStreak: data.longestStreak,
+            metricLabel: provider.heatmapMetricLabel,
+            colors: provider.heatmapColors,
+            levelForCount: { data.level(for: $0) }
+        )
     }
 }

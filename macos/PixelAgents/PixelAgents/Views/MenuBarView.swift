@@ -160,6 +160,9 @@ struct MenuBarView: View {
                            enabled: enabledSet,
                            showRemaining: $showRemaining,
                            claudeSignInAction: claudeNeedsSignIn ? { bridge.onOpenSettings?() } : nil,
+                           claudeHeatmap: bridge.claudeHeatmapData,
+                           codexHeatmap: bridge.codexHeatmapData,
+                           geminiHeatmap: bridge.geminiHeatmapData,
                            cursorHeatmap: bridge.cursorHeatmapData,
                            cursorConnectAction: bridge.cursorNeedsDashboardAuth && showCursorUsage
                                ? { bridge.authenticateCursorDashboard() }
