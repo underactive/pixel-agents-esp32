@@ -9,7 +9,7 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            CompanionSettingsTab(updater: updater, claudeAuth: bridge.claudeAuth)
+            CompanionSettingsTab(updater: updater, claudeAuth: bridge.claudeAuth, bridge: bridge)
                 .tabItem { Label("Companion", systemImage: "laptopcomputer") }
 
             DeviceSettingsView(bridge: bridge)
@@ -26,8 +26,10 @@ struct SettingsView: View {
 private struct CompanionSettingsTab: View {
     let updater: SPUUpdater
     @ObservedObject var claudeAuth: ClaudeAuthService
+    let bridge: BridgeService
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var autoCheckForUpdates: Bool = true
+    @AppStorage(SettingsKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
     @State private var showPasteSheet = false
     @State private var pastedToken = ""
     @State private var pasteError: String?
@@ -107,6 +109,18 @@ private struct CompanionSettingsTab: View {
 
             Toggle("Show active agent count", isOn: $showAgentCount)
                 .font(.subheadline)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Text("Sync")
+                .font(.subheadline.weight(.semibold))
+
+            Toggle("Sync activity heatmaps via iCloud", isOn: $iCloudSyncEnabled)
+                .font(.subheadline)
+                .onChange(of: iCloudSyncEnabled) { _, newValue in
+                    bridge.setICloudSyncEnabled(newValue)
+                }
 
             Divider()
                 .padding(.vertical, 4)

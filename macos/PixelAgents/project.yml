@@ -46,9 +46,8 @@ targets:
       path: PixelAgents/PixelAgents.entitlements
       properties:
         com.apple.security.network.client: true
-        # Uncomment after enabling iCloud Documents for this App ID at developer.apple.com:
-        # com.apple.developer.ubiquity-container-identifiers:
-        #   - iCloud.com.pixelagents.companion
+        com.apple.developer.ubiquity-container-identifiers:
+          - iCloud.com.pixelagents.companion
 
   PixelAgentsTests:
     type: bundle.unit-test

@@ -9,6 +9,7 @@ enum SettingsKeys {
     static let showRemaining = "showRemaining"
     static let showGeminiUsage = "showGeminiUsage"
     static let showCursorUsage = "showCursorUsage"
+    static let iCloudSyncEnabled = "iCloudSyncEnabled"
 }
 
 /// Connection state for display.
@@ -145,6 +146,16 @@ final class BridgeService: ObservableObject {
     private let staleTimeout: TimeInterval = 30.0
     private let reconnectInterval: TimeInterval = 2.0
 
+    /// Toggle iCloud sync on or off at runtime.
+    func setICloudSyncEnabled(_ enabled: Bool) {
+        if enabled {
+            activitySyncService.start()
+            activitySyncService.markNeedsExport()
+        } else {
+            activitySyncService.stop()
+        }
+    }
+
     // MARK: - Lifecycle
 
     func start() {
@@ -179,11 +190,13 @@ final class BridgeService: ObservableObject {
         geminiHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
         activityHeatmapDirty = false
 
-        // Start iCloud sync (degrades gracefully if iCloud unavailable)
+        // Start iCloud sync if enabled (degrades gracefully if iCloud unavailable)
         activitySyncService.onRemoteDataMerged = { [weak self] in
             self?.activityHeatmapDirty = true
         }
-        activitySyncService.start()
+        if UserDefaults.standard.bool(forKey: SettingsKeys.iCloudSyncEnabled) {
+            activitySyncService.start()
+        }
 
         // Kick off initial API fetch for usage stats
         usageFetcher.fetchAndCache()
