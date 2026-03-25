@@ -362,11 +362,19 @@ final class GeminiUsageFetcher {
             return nil
         }
 
-        // Find the most constrained bucket (lowest remainingFraction)
+        // Find the most constrained bucket (lowest remainingFraction).
+        // Skip buckets whose resetTime is in the past — their quota period has
+        // already rolled over, so the remainingFraction is stale.
+        let now = Date()
         var minRemaining: Double = 1.0
         var earliestResetTime: String?
 
         for bucket in buckets {
+            if let resetStr = bucket["resetTime"] as? String,
+               let resetDate = parseISO8601(resetStr),
+               resetDate <= now {
+                continue   // expired quota period — ignore stale remainingFraction
+            }
             let remaining = (bucket["remainingFraction"] as? NSNumber)?.doubleValue ?? 1.0
             if remaining < minRemaining {
                 minRemaining = remaining
@@ -393,17 +401,17 @@ final class GeminiUsageFetcher {
 
     // MARK: - Helpers
 
-    private func minutesFromISO8601(_ dateString: String) -> UInt16 {
+    private func parseISO8601(_ dateString: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: dateString) {
-            return minutesUntil(date)
-        }
+        if let date = formatter.date(from: dateString) { return date }
         formatter.formatOptions = [.withInternetDateTime]
-        if let date = formatter.date(from: dateString) {
-            return minutesUntil(date)
-        }
-        return 0
+        return formatter.date(from: dateString)
+    }
+
+    private func minutesFromISO8601(_ dateString: String) -> UInt16 {
+        guard let date = parseISO8601(dateString) else { return 0 }
+        return minutesUntil(date)
     }
 
     private func minutesUntil(_ date: Date) -> UInt16 {
