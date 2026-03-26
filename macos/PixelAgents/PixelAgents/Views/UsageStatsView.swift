@@ -222,6 +222,7 @@ private struct ProviderTab: View {
     let isSelected: Bool
     let showRemaining: Bool
     let action: () -> Void
+    @AppStorage(SettingsKeys.showMiniBarsWhenSelected) private var showMiniBarsWhenSelected = true
     private var foregroundColor: Color {
         isSelected ? entry.provider.brandColor : .secondary
     }
@@ -241,7 +242,7 @@ private struct ProviderTab: View {
                 VStack(spacing: 2) {
                     miniBars
                 }
-                .opacity(isSelected ? 0 : 1)
+                .opacity(isSelected && !showMiniBarsWhenSelected ? 0 : 1)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)

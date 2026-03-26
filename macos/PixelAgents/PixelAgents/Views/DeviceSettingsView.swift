@@ -24,6 +24,12 @@ struct DeviceSettingsView: View {
                 Text("Connected device is not a Pixel Agents device.")
                     .font(.subheadline)
                     .foregroundColor(.orange)
+
+                Button("Disconnect") {
+                    bridge.disconnect()
+                }
+                .font(.subheadline)
+
                 Spacer()
             } else if !bridge.deviceSettingsReceived {
                 Text("Waiting for device settings...")

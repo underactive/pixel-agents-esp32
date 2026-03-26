@@ -142,6 +142,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
         aboutItem.target = self
         rightClickMenu.addItem(aboutItem)
 
+        let settingsItem = NSMenuItem(title: "Settings\u{2026}",
+                                      action: #selector(settingsMenuClicked),
+                                      keyEquivalent: ",")
+        settingsItem.target = self
+        rightClickMenu.addItem(settingsItem)
+
         rightClickMenu.addItem(.separator())
 
         let quitItem = NSMenuItem(title: "Quit",
@@ -169,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
         window.title = "Pixel Agents Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.setContentSize(NSSize(width: 340, height: 540))
+        window.setContentSize(NSSize(width: 340, height: 480))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -202,6 +208,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
     }
 
     // MARK: - Actions
+
+    @objc private func settingsMenuClicked() {
+        openSettings()
+    }
 
     @objc private func quitApp() {
         bridge.stop()

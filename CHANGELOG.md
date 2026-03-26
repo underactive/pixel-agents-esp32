@@ -2,6 +2,15 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.7] - 2026-03-26
+
+- Add Accounts tab to Settings window, separating provider sign-in (Claude, Cursor, Codex, Gemini) from app preferences
+- Add caption text to each provider explaining auth requirements and auto-detection
+- Add "Settings..." item to menu bar right-click context menu
+- Add Disconnect button in Device tab for non-Pixel Agents devices
+- Add "Show mini progress bars when highlighted" option under Provider Options
+- Reorganize Companion tab: rename sections, group Launch at Login and Updates under Misc
+
 ## [0.11.6] - 2026-03-26
 
 - Replace agent list colored dots with provider brand icons (Claude orange, Codex blue, Gemini pink, Cursor green)

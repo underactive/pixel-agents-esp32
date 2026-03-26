@@ -9,6 +9,7 @@ enum SettingsKeys {
     static let showRemaining = "showRemaining"
     static let showGeminiUsage = "showGeminiUsage"
     static let showCursorUsage = "showCursorUsage"
+    static let showMiniBarsWhenSelected = "showMiniBarsWhenSelected"
     static let iCloudSyncEnabled = "iCloudSyncEnabled"
 }
 
