@@ -72,6 +72,8 @@ final class BridgeService: ObservableObject {
     @Published var deviceSoundEnabled: Bool = false
     @Published var deviceDogBarkEnabled: Bool = true
     @Published var deviceSettingsReceived: Bool = false
+    /// Device identification state: nil = waiting, true = confirmed Pixel Agents, false = timed out.
+    @Published var deviceIdentified: Bool? = nil
 
     // MARK: - Office scene (software display + PIP)
 
@@ -125,6 +127,7 @@ final class BridgeService: ObservableObject {
     private var usageTimer: Timer?
     private var usageFetchTimer: Timer?
     private var reconnectTimer: Timer?
+    private var identifyTimer: Timer?
 
     // Dedup state (reset on reconnect)
     private var lastStates: [String: (CharState, String)] = [:]
@@ -145,6 +148,7 @@ final class BridgeService: ObservableObject {
     private let usageFetchInterval: TimeInterval = 900  // 15 min API poll
     private let staleTimeout: TimeInterval = 30.0
     private let reconnectInterval: TimeInterval = 2.0
+    private let identifyTimeout: TimeInterval = 4.0
 
     /// Toggle iCloud sync on or off at runtime.
     func setICloudSyncEnabled(_ enabled: Bool) {
@@ -242,6 +246,8 @@ final class BridgeService: ObservableObject {
 
     func stop() {
         stopTimers()
+        identifyTimer?.invalidate()
+        identifyTimer = nil
         stopSceneTimer()
         pipController.close()
         activeTransport?.disconnect()
@@ -314,6 +320,9 @@ final class BridgeService: ObservableObject {
 
     func disconnect() {
         manualDisconnect = true
+        identifyTimer?.invalidate()
+        identifyTimer = nil
+        deviceIdentified = nil
         if transportMode == .ble {
             bleTransport.disconnectKeepDevices()
         } else {
@@ -342,6 +351,7 @@ final class BridgeService: ObservableObject {
                 connectionState = .connected("Serial: \(port.components(separatedBy: "/").last ?? port)")
                 resetSessionState()
                 _ = serialTransport.send(ProtocolBuilder.identifyRequest())
+                startIdentifyTimer()
             } else {
                 connectionState = .disconnected
             }
@@ -377,6 +387,9 @@ final class BridgeService: ObservableObject {
     }
 
     private func handleDisconnect() {
+        identifyTimer?.invalidate()
+        identifyTimer = nil
+        deviceIdentified = nil
         connectionState = .disconnected
         // Reconnect timer will handle retry
     }
@@ -387,6 +400,9 @@ final class BridgeService: ObservableObject {
         lastCount = -1
         officeScene.resetAppliedStates()
         deviceSettingsReceived = false
+        deviceIdentified = nil
+        identifyTimer?.invalidate()
+        identifyTimer = nil
         lastFingerprint = nil
         lastRenderedFrame = nil
     }
@@ -438,6 +454,7 @@ final class BridgeService: ObservableObject {
                         self.connectionState = .connected("BLE: \(name)")
                         self.resetSessionState()
                         _ = self.bleTransport.send(ProtocolBuilder.identifyRequest())
+                        self.startIdentifyTimer()
                     }
                 }
             }
@@ -701,8 +718,24 @@ final class BridgeService: ObservableObject {
     private func handleIdentifyResponse(_ payload: Data) {
         guard let info = ProtocolBuilder.parseIdentifyResponse(payload) else { return }
         Task { @MainActor in
+            self.identifyTimer?.invalidate()
+            self.identifyTimer = nil
+            self.deviceIdentified = true
             NSLog("[Bridge] Pixel Agents device: %@ firmware v%@ protocol %d",
                   info.boardName, info.firmwareVersion, info.protocolVersion)
+        }
+    }
+
+    private func startIdentifyTimer() {
+        identifyTimer?.invalidate()
+        identifyTimer = Timer.scheduledTimer(withTimeInterval: identifyTimeout, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self = self else { return }
+                if case .connected = self.connectionState, self.deviceIdentified == nil {
+                    self.deviceIdentified = false
+                    NSLog("[Bridge] Device did not identify within %.0fs — may not be a Pixel Agents device", self.identifyTimeout)
+                }
+            }
         }
     }
 

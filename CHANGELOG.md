@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.5] - 2026-03-26
+
+- Enforce device fingerprint validation: show orange "Not a Pixel Agents device" warning in macOS companion when a connected serial/BLE device fails to respond with a valid identify response within 4 seconds
+- Device settings tab shows warning message instead of "Waiting for device settings..." for unidentified devices
+
 ## [0.11.4] - 2026-03-25
 
 - Fix Settings window tabs (Companion/Device) not visible — increase window height from 400 to 540px to accommodate all settings content

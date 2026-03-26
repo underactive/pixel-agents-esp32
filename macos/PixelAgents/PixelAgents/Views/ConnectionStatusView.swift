@@ -4,6 +4,7 @@ import SwiftUI
 struct ConnectionStatusView: View {
     let state: ConnectionState
     var batteryLevel: UInt8? = nil
+    var deviceIdentified: Bool? = nil
 
     var body: some View {
         HStack(spacing: 8) {
@@ -36,7 +37,8 @@ struct ConnectionStatusView: View {
         switch state {
         case .disconnected: return .red
         case .connecting:   return .orange
-        case .connected:    return .green
+        case .connected:
+            return deviceIdentified == false ? .orange : .green
         }
     }
 
@@ -44,7 +46,8 @@ struct ConnectionStatusView: View {
         switch state {
         case .disconnected:        return "Disconnected"
         case .connecting:          return "Connecting..."
-        case .connected(let info): return info
+        case .connected(let info):
+            return deviceIdentified == false ? "Not a Pixel Agents device" : info
         }
     }
 

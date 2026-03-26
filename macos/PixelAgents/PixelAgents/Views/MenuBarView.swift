@@ -13,7 +13,8 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Connection status
             ConnectionStatusView(state: bridge.connectionState,
-                                 batteryLevel: bridge.deviceBatteryLevel)
+                                 batteryLevel: bridge.deviceBatteryLevel,
+                                 deviceIdentified: bridge.displayMode == .software ? true : bridge.deviceIdentified)
 
             Divider()
                 .padding(.vertical, 4)

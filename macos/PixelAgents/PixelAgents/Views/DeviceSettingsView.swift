@@ -20,6 +20,11 @@ struct DeviceSettingsView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
+            } else if bridge.deviceIdentified == false {
+                Text("Connected device is not a Pixel Agents device.")
+                    .font(.subheadline)
+                    .foregroundColor(.orange)
+                Spacer()
             } else if !bridge.deviceSettingsReceived {
                 Text("Waiting for device settings...")
                     .font(.subheadline)
