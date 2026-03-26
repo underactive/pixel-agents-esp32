@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.6] - 2026-03-26
+
+- Replace agent list colored dots with provider brand icons (Claude orange, Codex blue, Gemini pink, Cursor green)
+- Move Cursor connect/sign-out buttons from popover to Settings window, improving auth flow consistency
+
 ## [0.11.5] - 2026-03-26
 
 - Enforce device fingerprint validation: show orange "Not a Pixel Agents device" warning in macOS companion when a connected serial/BLE device fails to respond with a valid identify response within 4 seconds
