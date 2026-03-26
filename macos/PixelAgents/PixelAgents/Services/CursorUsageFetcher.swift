@@ -53,6 +53,11 @@ final class CursorUsageFetcher {
         latestHeatmapData
     }
 
+    /// Clear cached heatmap data (e.g., on sign-out).
+    func clearHeatmapCache() {
+        latestHeatmapData = nil
+    }
+
     /// Fetch from API and update latestData.
     func fetchAndCache() {
         Task {
@@ -70,6 +75,8 @@ final class CursorUsageFetcher {
         guard dashboardAuth.hasSession || force else { return }
         Task {
             guard let data = await callAnalyticsAPI() else { return }
+            // Re-check session after async call — user may have signed out while request was in flight
+            guard dashboardAuth.hasSession || force else { return }
             Self.log.info("Cursor heatmap: \(data.totalEdits) total edits, \(data.days.count) active days")
             self.latestHeatmapData = data
             self.needsDashboardAuth = false

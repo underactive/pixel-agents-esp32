@@ -165,9 +165,7 @@ struct MenuBarView: View {
                            codexHeatmap: bridge.codexHeatmapData,
                            geminiHeatmap: bridge.geminiHeatmapData,
                            cursorHeatmap: bridge.cursorHeatmapData,
-                           cursorConnectAction: bridge.cursorNeedsDashboardAuth && showCursorUsage
-                               ? { bridge.authenticateCursorDashboard() }
-                               : nil)
+                           )
 
             Divider()
                 .padding(.vertical, 4)

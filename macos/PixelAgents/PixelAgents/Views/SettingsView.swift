@@ -104,6 +104,37 @@ private struct CompanionSettingsTab: View {
             Divider()
                 .padding(.vertical, 4)
 
+            // Cursor Account section
+            Text("Cursor Account")
+                .font(.subheadline.weight(.semibold))
+
+            if !bridge.cursorNeedsDashboardAuth {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.subheadline)
+                    Text("Connected")
+                        .font(.subheadline)
+                    Spacer()
+                    Button("Sign Out") {
+                        bridge.signOutCursorDashboard()
+                    }
+                    .font(.subheadline)
+                }
+            } else {
+                Text("Sign in to see Cursor usage heatmap.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Button("Connect Cursor Dashboard") {
+                    bridge.authenticateCursorDashboard()
+                }
+                .font(.subheadline)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
             Text("Menu Bar")
                 .font(.subheadline.weight(.semibold))
 

@@ -4,6 +4,11 @@ import SwiftUI
 struct AgentListView: View {
     let agents: [Agent]
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 0),
+        GridItem(.flexible(), spacing: 0)
+    ]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Agents")
@@ -11,8 +16,10 @@ struct AgentListView: View {
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 12)
 
-            ForEach(agents) { agent in
-                AgentRow(agent: agent)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
+                ForEach(agents) { agent in
+                    AgentRow(agent: agent)
+                }
             }
         }
     }
@@ -38,12 +45,13 @@ struct AgentRow: View {
                 Text("(\(agent.toolName))")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-
-            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 2)
+        .clipped()
     }
 
     private var stateColor: Color {

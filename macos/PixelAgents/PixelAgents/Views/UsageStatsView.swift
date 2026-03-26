@@ -111,7 +111,6 @@ struct UsageStatsView: View {
     var codexHeatmap: ActivityHeatmapData? = nil
     var geminiHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
-    var cursorConnectAction: (() -> Void)? = nil
 
     @State private var selectedProvider: UsageProvider?
 
@@ -189,8 +188,7 @@ struct UsageStatsView: View {
                             stats: entryStats,
                             showRemaining: showRemaining,
                             activityHeatmap: activityHeatmapFor(selected),
-                            cursorHeatmap: selected == .cursor ? cursorHeatmap : nil,
-                            cursorConnectAction: selected == .cursor ? cursorConnectAction : nil
+                            cursorHeatmap: selected == .cursor ? cursorHeatmap : nil
                         )
                     } else {
                         // Loading state — stats not yet fetched
@@ -311,7 +309,6 @@ private struct ProviderDetailView: View {
     let showRemaining: Bool
     var activityHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
-    var cursorConnectAction: (() -> Void)? = nil
 
     var body: some View {
         let currentUsed = Int(stats.currentPct)
@@ -389,18 +386,6 @@ private struct ProviderDetailView: View {
                 }
                 if let heatmap = cursorHeatmap {
                     CursorHeatmapView(data: heatmap)
-                } else if let connect = cursorConnectAction {
-                    Button(action: connect) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chart.bar.xaxis")
-                                .font(.system(size: 10))
-                            Text("Connect Cursor Dashboard")
-                                .font(.system(size: 10))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
-                    .padding(.top, 2)
                 }
             }
         }

@@ -6,7 +6,7 @@ import os
 /// After the user completes the WorkOS OAuth login, session cookies are stored
 /// in a persistent WKWebsiteDataStore and can be extracted for API calls.
 @MainActor
-final class CursorDashboardAuth: NSObject, WKNavigationDelegate {
+final class CursorDashboardAuth: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     private static let log = Logger(subsystem: "com.pixelagents", category: "CursorDashboardAuth")
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
@@ -100,8 +100,8 @@ final class CursorDashboardAuth: NSObject, WKNavigationDelegate {
         config.websiteDataStore = Self.dataStore
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = self
+        wv.uiDelegate = self
         wv.translatesAutoresizingMaskIntoConstraints = false
-        // Allow navigation only to cursor.com and workos domains
         self.webView = wv
 
         // Container
@@ -149,9 +149,16 @@ final class CursorDashboardAuth: NSObject, WKNavigationDelegate {
     /// Clear stored session (for re-auth).
     func clearSession() {
         hasSession = false
+        // Clear WKWebsiteDataStore cookies
         Self.dataStore.httpCookieStore.getAllCookies { cookies in
             for cookie in cookies where cookie.domain == "cursor.com" || cookie.domain.hasSuffix(".cursor.com") {
                 Self.dataStore.httpCookieStore.delete(cookie)
+            }
+        }
+        // Clear HTTPCookieStorage cookies (used as fallback by analytics API)
+        if let cookies = HTTPCookieStorage.shared.cookies {
+            for cookie in cookies where cookie.domain == "cursor.com" || cookie.domain.hasSuffix(".cursor.com") {
+                HTTPCookieStorage.shared.deleteCookie(cookie)
             }
         }
     }
@@ -186,11 +193,37 @@ final class CursorDashboardAuth: NSObject, WKNavigationDelegate {
                              decidePolicyFor navigationAction: WKNavigationAction,
                              decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         // Allow cursor.com, workos.com, and related auth domains (exact or subdomain match)
+        let scheme = navigationAction.request.url?.scheme ?? ""
+        // Allow about:blank / about:srcdoc (used by Cloudflare Turnstile sandboxed iframes)
+        if scheme == "about" {
+            decisionHandler(.allow)
+            return
+        }
         let host = navigationAction.request.url?.host ?? ""
         let allowedDomains = ["cursor.com", "workos.com", "cursor.sh",
-                              "google.com", "github.com", "googleapis.com"]
+                              "google.com", "github.com", "googleapis.com",
+                              "cloudflare.com", "cloudflareinsights.com"]
         let allowed = allowedDomains.contains { host == $0 || host.hasSuffix(".\($0)") }
+        if !allowed {
+            let log = Logger(subsystem: "com.pixelagents", category: "CursorDashboardAuth")
+            log.warning("Blocked navigation to: \(navigationAction.request.url?.absoluteString ?? "nil", privacy: .public)")
+        }
         decisionHandler(allowed ? .allow : .cancel)
+    }
+
+    // MARK: - WKUIDelegate
+
+    /// Handle window.open() / target="_blank" (e.g., CAPTCHA human verification).
+    /// Load the request in the existing webview instead of silently dropping it.
+    nonisolated func webView(_ webView: WKWebView,
+                             createWebViewWith configuration: WKWebViewConfiguration,
+                             for navigationAction: WKNavigationAction,
+                             windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // If the target frame is nil, it's a new-window request — load in-place
+        if navigationAction.targetFrame == nil || navigationAction.targetFrame?.isMainFrame == false {
+            webView.load(navigationAction.request)
+        }
+        return nil
     }
 
     // MARK: - Private

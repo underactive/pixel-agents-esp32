@@ -266,6 +266,15 @@ final class BridgeService: ObservableObject {
         }
     }
 
+    /// Sign out of Cursor dashboard and clear session cookies.
+    func signOutCursorDashboard() {
+        cursorUsageFetcher.dashboardAuth.clearSession()
+        cursorUsageFetcher.dashboardAuth.markNeedsAuth()
+        cursorUsageFetcher.clearHeatmapCache()
+        cursorNeedsDashboardAuth = true
+        cursorHeatmapData = nil
+    }
+
     func setDisplayMode(_ mode: DisplayMode) {
         guard mode != displayMode else { return }
         displayMode = mode
