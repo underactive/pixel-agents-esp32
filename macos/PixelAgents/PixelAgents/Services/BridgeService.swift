@@ -174,18 +174,26 @@ final class BridgeService: ObservableObject {
 
         // Wire device-to-companion settings state callbacks
         serialTransport.onSettingsState = { [weak self] payload in
-            self?.handleSettingsState(payload)
+            Task { @MainActor in
+                self?.handleSettingsState(payload)
+            }
         }
         bleTransport.onSettingsState = { [weak self] payload in
-            self?.handleSettingsState(payload)
+            Task { @MainActor in
+                self?.handleSettingsState(payload)
+            }
         }
 
         // Wire device identification callbacks
         serialTransport.onIdentifyResponse = { [weak self] payload in
-            self?.handleIdentifyResponse(payload)
+            Task { @MainActor in
+                self?.handleIdentifyResponse(payload)
+            }
         }
         bleTransport.onIdentifyResponse = { [weak self] payload in
-            self?.handleIdentifyResponse(payload)
+            Task { @MainActor in
+                self?.handleIdentifyResponse(payload)
+            }
         }
 
         // Wire auth service and bootstrap token from app Keychain (no system dialog)

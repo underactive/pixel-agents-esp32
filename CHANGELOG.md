@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.4] - 2026-03-25
+
+- Fix Settings window tabs (Companion/Device) not visible — increase window height from 400 to 540px to accommodate all settings content
+- Fix Device settings tab stuck on "Waiting for device settings..." — wrap serial/BLE transport callbacks in `Task { @MainActor in }` to ensure `@MainActor`-isolated methods are called from the correct actor context
+
 ## [0.11.3] - 2026-03-25
 
 - Add device fingerprinting: new MSG_IDENTIFY_REQ/RSP protocol messages (0x09/0x0A) allow companions to verify they're connected to a Pixel Agents device, not an unrelated ESP32
