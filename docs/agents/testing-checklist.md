@@ -222,6 +222,17 @@
 - [ ] PIN logged to serial output: "[BLE] PIN: XXXX" visible in serial monitor
 - [ ] BLE reconnect after disconnect reuses entered PIN without re-prompting
 
+### Device Fingerprinting
+- [ ] Python serial connect prints "Pixel Agents device: CYD, firmware vX.Y.Z, protocol 1" after connecting
+- [ ] Python BLE connect prints "Pixel Agents device: CYD-S3, firmware vX.Y.Z, protocol 1" after connecting
+- [ ] macOS serial connect logs "[Bridge] Pixel Agents device: CYD..." to Console.app
+- [ ] macOS BLE connect logs "[Bridge] Pixel Agents device: CYD-S3..." to Console.app
+- [ ] Connect to non-Pixel-Agents ESP32: prints "Device did not identify (may be older firmware)" and proceeds
+- [ ] Connect to Pixel Agents device running older firmware (pre-identify): timeout after 2s, proceeds normally
+- [ ] Old Python companion (pre-identify) + new firmware: connects and operates normally (no errors from unsolicited identify response)
+- [ ] Identify response reports correct board type for each variant (0=CYD, 1=CYD-S3, 2=LILYGO)
+- [ ] Identify response reports correct firmware version matching SPLASH_VERSION_STR
+
 ### Companion BLE Script
 - [ ] `python3 companion/pixel_agents_bridge.py --transport ble --help` — shows transport/ble-name/ble-pin options
 - [ ] Without ESP32 in range: prints scan failure and retries after 2 seconds

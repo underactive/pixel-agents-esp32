@@ -81,6 +81,17 @@ static constexpr uint8_t MSG_USAGE_STATS  = 0x05;
 static constexpr uint8_t MSG_SCREENSHOT_REQ   = 0x06;
 static constexpr uint8_t MSG_DEVICE_SETTINGS   = 0x07;
 static constexpr uint8_t MSG_SETTINGS_STATE    = 0x08;
+static constexpr uint8_t MSG_IDENTIFY_REQ      = 0x09;
+static constexpr uint8_t MSG_IDENTIFY_RSP      = 0x0A;
+
+// Device identification (identify response payload)
+static constexpr uint8_t IDENTIFY_MAGIC[4] = {0x50, 0x58, 0x41, 0x47};  // "PXAG"
+static constexpr uint8_t IDENTIFY_PROTOCOL_VERSION = 1;
+static constexpr uint8_t BOARD_TYPE_CYD    = 0;
+static constexpr uint8_t BOARD_TYPE_CYD_S3 = 1;
+static constexpr uint8_t BOARD_TYPE_LILYGO = 2;
+// Encoded as major*1000 + minor*10 + patch (0.11.2 → 112)
+static constexpr uint16_t FIRMWARE_VERSION_ENCODED = 113;
 
 // Screenshot response (ESP32 → companion) uses distinct sync bytes
 static constexpr uint8_t SCREENSHOT_SYNC1 = 0xBB;
@@ -396,7 +407,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.11.2 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.11.3 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SPLASH_TITLE_Y = 15;

@@ -98,6 +98,44 @@ void onDeviceSettings(const DeviceSettingsMsg& ds) {
     sendSettingsState();
 }
 
+// ── Device identification ────────────────────────────────
+
+void sendIdentifyResponse() {
+    uint8_t msg[12];
+    msg[0] = SYNC_BYTE_1;
+    msg[1] = SYNC_BYTE_2;
+    msg[2] = MSG_IDENTIFY_RSP;
+    memcpy(&msg[3], IDENTIFY_MAGIC, 4);
+    msg[7] = IDENTIFY_PROTOCOL_VERSION;
+#if defined(BOARD_CYD)
+    msg[8] = BOARD_TYPE_CYD;
+#elif defined(BOARD_CYD_S3)
+    msg[8] = BOARD_TYPE_CYD_S3;
+#else
+    msg[8] = BOARD_TYPE_LILYGO;
+#endif
+    msg[9]  = (uint8_t)(FIRMWARE_VERSION_ENCODED >> 8);
+    msg[10] = (uint8_t)(FIRMWARE_VERSION_ENCODED & 0xFF);
+    // XOR checksum over type + payload
+    uint8_t check = 0;
+    for (int i = 2; i <= 10; i++) check ^= msg[i];
+    msg[11] = check;
+    Serial.write(msg, 12);
+#if defined(HAS_BLE)
+    if (bleService.isConnected()) {
+        bleService.sendResponse(msg, 12);
+    }
+#endif
+}
+
+void onSerialIdentifyReq() {
+    sendIdentifyResponse();
+}
+
+void onBleIdentifyReq() {
+    sendIdentifyResponse();
+}
+
 // ── Protocol callbacks ──────────────────────────────────
 
 void onAgentUpdate(const AgentUpdate& upd) {
@@ -113,7 +151,13 @@ void onSerialHeartbeat(uint32_t timestamp) {
     (void)timestamp;
     bool wasConnected = office.isSerialConnected();
     office.onSerialHeartbeat();
-    if (!wasConnected) sendSettingsState();
+    if (!wasConnected) {
+        sendSettingsState();
+        // WHY: Old companions (pre-identify) never send MSG_IDENTIFY_REQ.
+        // Sending unsolicited — old companions ignore unknown message types,
+        // new companions that also sent an explicit request just get a duplicate.
+        sendIdentifyResponse();
+    }
     if (splashActive) {
         splash.onHeartbeat();
     }
@@ -123,7 +167,13 @@ void onBleHeartbeat(uint32_t timestamp) {
     (void)timestamp;
     bool wasConnected = office.isBleConnected();
     office.onBleHeartbeat();
-    if (!wasConnected) sendSettingsState();
+    if (!wasConnected) {
+        sendSettingsState();
+        // WHY: Old companions (pre-identify) never send MSG_IDENTIFY_REQ.
+        // Sending unsolicited — old companions ignore unknown message types,
+        // new companions that also sent an explicit request just get a duplicate.
+        sendIdentifyResponse();
+    }
     if (splashActive) {
         splash.onHeartbeat();
     }
@@ -216,13 +266,13 @@ void setup() {
     renderer.begin(tft);
     splash.addLog("Render buffer allocated");
 
-    serialProtocol.begin(onAgentUpdate, onAgentCount, onSerialHeartbeat, onStatusText, onUsageStats, onScreenshotReq, onDeviceSettings);
+    serialProtocol.begin(onAgentUpdate, onAgentCount, onSerialHeartbeat, onStatusText, onUsageStats, onScreenshotReq, onDeviceSettings, onSerialIdentifyReq);
     splash.addLog("Protocol ready");
 
 #if defined(HAS_BLE)
     // Separate protocol instance for BLE to avoid state corruption
     // when partial messages arrive on both transports simultaneously
-    bleProtocol.begin(onAgentUpdate, onAgentCount, onBleHeartbeat, onStatusText, onUsageStats, nullptr, onDeviceSettings);
+    bleProtocol.begin(onAgentUpdate, onAgentCount, onBleHeartbeat, onStatusText, onUsageStats, nullptr, onDeviceSettings, onBleIdentifyReq);
     if (bleService.begin(bleTransport)) {
         splash.setPinCode(bleService.getPin());
         office.setBlePin(bleService.getPin());

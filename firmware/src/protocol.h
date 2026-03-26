@@ -37,6 +37,7 @@ using StatusTextCb   = void(*)(const StatusText&);
 using UsageStatsCb   = void(*)(const UsageStatsMsg&);
 using ScreenshotReqCb = void(*)();
 using DeviceSettingsCb = void(*)(const DeviceSettingsMsg&);
+using IdentifyReqCb   = void(*)();
 
 class Protocol {
 public:
@@ -44,7 +45,8 @@ public:
                HeartbeatCb onHeartbeat, StatusTextCb onStatus,
                UsageStatsCb onUsage = nullptr,
                ScreenshotReqCb onScreenshotReq = nullptr,
-               DeviceSettingsCb onDeviceSettings = nullptr);
+               DeviceSettingsCb onDeviceSettings = nullptr,
+               IdentifyReqCb onIdentifyReq = nullptr);
     void process(Transport& transport);  // call each loop iteration — reads available bytes from transport
 
 private:
@@ -69,6 +71,7 @@ private:
     UsageStatsCb  _onUsage = nullptr;
     ScreenshotReqCb _onScreenshotReq = nullptr;
     DeviceSettingsCb _onDeviceSettings = nullptr;
+    IdentifyReqCb   _onIdentifyReq = nullptr;
 
     int payloadLength(uint8_t msgType) const;
     void dispatch();

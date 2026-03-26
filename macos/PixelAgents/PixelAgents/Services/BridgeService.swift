@@ -180,6 +180,14 @@ final class BridgeService: ObservableObject {
             self?.handleSettingsState(payload)
         }
 
+        // Wire device identification callbacks
+        serialTransport.onIdentifyResponse = { [weak self] payload in
+            self?.handleIdentifyResponse(payload)
+        }
+        bleTransport.onIdentifyResponse = { [weak self] payload in
+            self?.handleIdentifyResponse(payload)
+        }
+
         // Wire auth service and bootstrap token from app Keychain (no system dialog)
         usageFetcher.authService = claudeAuth
         claudeAuth.bootstrap()
@@ -325,6 +333,7 @@ final class BridgeService: ObservableObject {
             if serialTransport.connect(port: port) {
                 connectionState = .connected("Serial: \(port.components(separatedBy: "/").last ?? port)")
                 resetSessionState()
+                _ = serialTransport.send(ProtocolBuilder.identifyRequest())
             } else {
                 connectionState = .disconnected
             }
@@ -420,6 +429,7 @@ final class BridgeService: ObservableObject {
                         let name = self.bleTransport.connectedDeviceName ?? "Device"
                         self.connectionState = .connected("BLE: \(name)")
                         self.resetSessionState()
+                        _ = self.bleTransport.send(ProtocolBuilder.identifyRequest())
                     }
                 }
             }
@@ -678,6 +688,14 @@ final class BridgeService: ObservableObject {
             dogBarkEnabled: deviceDogBarkEnabled
         )
         _ = transport.send(msg)
+    }
+
+    private func handleIdentifyResponse(_ payload: Data) {
+        guard let info = ProtocolBuilder.parseIdentifyResponse(payload) else { return }
+        Task { @MainActor in
+            NSLog("[Bridge] Pixel Agents device: %@ firmware v%@ protocol %d",
+                  info.boardName, info.firmwareVersion, info.protocolVersion)
+        }
     }
 
     private func handleSettingsState(_ payload: Data) {

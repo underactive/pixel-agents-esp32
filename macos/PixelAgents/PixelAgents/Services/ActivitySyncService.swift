@@ -1,4 +1,5 @@
 import Foundation
+import IOKit
 import os
 
 /// Syncs local activity heatmap data to iCloud Drive using per-device JSON files.
@@ -38,7 +39,7 @@ final class ActivitySyncService {
     /// Observer tokens for notification cleanup.
     private var queryObservers: [Any] = []
 
-    /// This device's unique identifier (persisted in UserDefaults).
+    /// This device's unique identifier (hardware UUID, falling back to persisted random UUID).
     private let deviceId: String
 
     /// Filename for this device's sync file.
@@ -49,14 +50,31 @@ final class ActivitySyncService {
     init(database: ActivityDatabase) {
         self.database = database
 
-        // Get or create stable device ID
-        if let existing = UserDefaults.standard.string(forKey: Self.deviceIdKey) {
+        // Use the Mac's hardware UUID so each physical machine always gets a unique ID,
+        // even when UserDefaults syncs across devices via iCloud.
+        if let hwUUID = Self.platformUUID() {
+            self.deviceId = hwUUID
+            // Migrate: update stored key so future lookups are consistent
+            UserDefaults.standard.set(hwUUID, forKey: Self.deviceIdKey)
+        } else if let existing = UserDefaults.standard.string(forKey: Self.deviceIdKey) {
             self.deviceId = existing
         } else {
             let newId = UUID().uuidString
             UserDefaults.standard.set(newId, forKey: Self.deviceIdKey)
             self.deviceId = newId
         }
+    }
+
+    /// Returns the Mac's IOPlatformUUID (hardware UUID), or nil on failure.
+    private nonisolated static func platformUUID() -> String? {
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault,
+                                                  IOServiceMatching("IOPlatformExpertDevice"))
+        guard service != IO_OBJECT_NULL else { return nil }
+        defer { IOObjectRelease(service) }
+        guard let uuidRef = IORegistryEntryCreateCFProperty(
+            service, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0
+        ) else { return nil }
+        return uuidRef.takeRetainedValue() as? String
     }
 
     /// Mark that local data changed and needs to be exported on the next cycle.

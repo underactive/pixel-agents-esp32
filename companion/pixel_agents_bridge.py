@@ -47,6 +47,12 @@ MSG_USAGE_STATS = 0x05
 MSG_SCREENSHOT_REQ = 0x06
 MSG_DEVICE_SETTINGS = 0x07
 MSG_SETTINGS_STATE = 0x08
+MSG_IDENTIFY_REQ = 0x09
+MSG_IDENTIFY_RSP = 0x0A
+
+IDENTIFY_MAGIC = b"PXAG"
+IDENTIFY_TIMEOUT_SEC = 2.0
+BOARD_TYPE_NAMES = {0: "CYD", 1: "CYD-S3", 2: "LILYGO"}
 
 # Screenshot response sync bytes (ESP32 → companion)
 SCREENSHOT_SYNC1 = 0xBB
@@ -144,6 +150,44 @@ def build_heartbeat() -> bytes:
 def build_screenshot_req() -> bytes:
     """Build SCREENSHOT_REQ message (no payload)."""
     return build_message(MSG_SCREENSHOT_REQ, b"")
+
+
+def build_identify_req() -> bytes:
+    """Build IDENTIFY_REQ message (no payload)."""
+    return build_message(MSG_IDENTIFY_REQ, b"")
+
+
+def parse_identify_response(data: bytes) -> Optional[dict]:
+    """Parse an identify response frame from raw bytes.
+
+    Scans for a valid MSG_IDENTIFY_RSP frame (12 bytes):
+    [sync1][sync2][0x0A][8 payload bytes][checksum]
+    Returns info dict or None.
+    """
+    for i in range(len(data) - 11):
+        if (data[i] == SYNC_BYTE_1
+                and data[i + 1] == SYNC_BYTE_2
+                and data[i + 2] == MSG_IDENTIFY_RSP):
+            payload = data[i + 3:i + 11]
+            checksum = data[i + 11]
+            check = MSG_IDENTIFY_RSP
+            for b in payload:
+                check ^= b
+            if (check & 0xFF) != checksum:
+                continue
+            if payload[0:4] != IDENTIFY_MAGIC:
+                continue
+            version_enc = (payload[6] << 8) | payload[7]
+            major = version_enc // 1000
+            minor = (version_enc % 1000) // 10
+            patch = version_enc % 10
+            return {
+                "protocol_version": payload[4],
+                "board_type": payload[5],
+                "board_name": BOARD_TYPE_NAMES.get(payload[5], f"unknown({payload[5]})"),
+                "firmware_version": f"{major}.{minor}.{patch}",
+            }
+    return None
 
 
 def build_device_settings(dog_enabled: bool, dog_color: int,
@@ -764,6 +808,31 @@ class PixelAgentsBridge:
             return self._connect_ble()
         return self._connect_serial()
 
+    def _try_identify(self) -> Optional[dict]:
+        """Send identify request and wait for response. Returns device info or None."""
+        self.send(build_identify_req())
+        buf = b""
+        deadline = time.time() + IDENTIFY_TIMEOUT_SEC
+        while time.time() < deadline:
+            if self.transport_mode == "ble":
+                # BLE: read available bytes from transport
+                if self._ble:
+                    chunk = self._ble.read(timeout=0.1)
+                    if chunk:
+                        buf += chunk
+                else:
+                    break
+            else:
+                # Serial: read available bytes
+                if self.ser and self.ser.in_waiting:
+                    buf += self.ser.read(self.ser.in_waiting)
+                else:
+                    time.sleep(0.05)
+            result = parse_identify_response(buf)
+            if result:
+                return result
+        return None
+
     def _connect_serial(self) -> bool:
         """Connect to ESP32 serial port."""
         port = self.serial_port or find_esp32_port()
@@ -775,6 +844,13 @@ class PixelAgentsBridge:
             self.ser = serial.Serial(port, SERIAL_BAUD, timeout=0.1)
             self._reset_session_state()
             print(f"Connected to {port}")
+            info = self._try_identify()
+            if info:
+                print(f"  Pixel Agents device: {info['board_name']}, "
+                      f"firmware v{info['firmware_version']}, "
+                      f"protocol {info['protocol_version']}")
+            else:
+                print("  Device did not identify (may be older firmware)")
             return True
         except serial.SerialException as e:
             print(f"Failed to connect to {port}: {e}")
@@ -827,6 +903,13 @@ class PixelAgentsBridge:
 
         if connected:
             self._reset_session_state()
+            info = self._try_identify()
+            if info:
+                print(f"  Pixel Agents device: {info['board_name']}, "
+                      f"firmware v{info['firmware_version']}, "
+                      f"protocol {info['protocol_version']}")
+            else:
+                print("  Device did not identify (may be older firmware)")
         return connected
 
     def send(self, data: bytes) -> bool:

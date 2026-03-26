@@ -115,4 +115,35 @@ final class ProtocolBuilderTests: XCTestCase {
         )
         XCTAssertEqual(msg[4], 3) // clamped to max (TAN)
     }
+
+    func testIdentifyRequest() {
+        let msg = ProtocolBuilder.identifyRequest()
+        // [sync1][sync2][type][checksum] = 4 bytes (no payload)
+        XCTAssertEqual(msg.count, 4)
+        XCTAssertEqual(msg[0], 0xAA) // sync1
+        XCTAssertEqual(msg[1], 0x55) // sync2
+        XCTAssertEqual(msg[2], 0x09) // MSG_IDENTIFY_REQ
+        XCTAssertEqual(msg[3], 0x09) // checksum = type XOR (nothing) = type
+    }
+
+    func testParseIdentifyResponse() {
+        // Valid payload: "PXAG" + protocol(1) + board(1) + version(0x0070 = 112 → 0.11.2)
+        let payload = Data([0x50, 0x58, 0x41, 0x47, 1, 1, 0x00, 0x70])
+        let result = ProtocolBuilder.parseIdentifyResponse(payload)
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.protocolVersion, 1)
+        XCTAssertEqual(result?.boardType, 1)
+        XCTAssertEqual(result?.boardName, "CYD-S3")
+        XCTAssertEqual(result?.firmwareVersion, "0.11.2")
+    }
+
+    func testParseIdentifyResponseBadMagic() {
+        let payload = Data([0x00, 0x00, 0x00, 0x00, 1, 0, 0x00, 0x70])
+        XCTAssertNil(ProtocolBuilder.parseIdentifyResponse(payload))
+    }
+
+    func testParseIdentifyResponseTooShort() {
+        let payload = Data([0x50, 0x58, 0x41])
+        XCTAssertNil(ProtocolBuilder.parseIdentifyResponse(payload))
+    }
 }

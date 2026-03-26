@@ -1,5 +1,21 @@
 import Foundation
 
+/// Device identification response from firmware.
+struct IdentifyResponse {
+    let protocolVersion: UInt8
+    let boardType: UInt8
+    let firmwareVersion: String  // e.g. "0.11.2"
+
+    var boardName: String {
+        switch boardType {
+        case 0: return "CYD"
+        case 1: return "CYD-S3"
+        case 2: return "LILYGO"
+        default: return "Unknown(\(boardType))"
+        }
+    }
+}
+
 /// Binary protocol message builder matching firmware protocol in config.h / protocol.cpp.
 /// Frame: [0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]
 enum ProtocolBuilder {
@@ -16,6 +32,10 @@ enum ProtocolBuilder {
     static let msgScreenshotReq: UInt8    = 0x06
     static let msgDeviceSettings: UInt8   = 0x07
     static let msgSettingsState: UInt8    = 0x08
+    static let msgIdentifyReq: UInt8     = 0x09
+    static let msgIdentifyRsp: UInt8     = 0x0A
+
+    static let identifyMagic: [UInt8] = [0x50, 0x58, 0x41, 0x47]  // "PXAG"
 
     static let maxToolNameLen = 24
 
@@ -81,6 +101,27 @@ enum ProtocolBuilder {
     /// SCREENSHOT_REQ: no payload
     static func screenshotRequest() -> Data {
         return buildMessage(type: msgScreenshotReq, payload: Data())
+    }
+
+    /// IDENTIFY_REQ: no payload
+    static func identifyRequest() -> Data {
+        return buildMessage(type: msgIdentifyReq, payload: Data())
+    }
+
+    /// Parse an IDENTIFY_RSP payload (8 bytes) into an IdentifyResponse.
+    static func parseIdentifyResponse(_ payload: Data) -> IdentifyResponse? {
+        guard payload.count >= 8 else { return nil }
+        let magic = [payload[0], payload[1], payload[2], payload[3]]
+        guard magic == identifyMagic else { return nil }
+        let versionEncoded = (UInt16(payload[6]) << 8) | UInt16(payload[7])
+        let major = versionEncoded / 1000
+        let minor = (versionEncoded % 1000) / 10
+        let patch = versionEncoded % 10
+        return IdentifyResponse(
+            protocolVersion: payload[4],
+            boardType: payload[5],
+            firmwareVersion: "\(major).\(minor).\(patch)"
+        )
     }
 
     /// DEVICE_SETTINGS: dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1)

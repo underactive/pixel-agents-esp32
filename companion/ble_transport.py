@@ -41,6 +41,8 @@ class BleTransport:
         self._connected = False
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
+        self._rx_buf = bytearray()  # Buffer for data received via NUS TX notifications
+        self._rx_lock = threading.Lock()
         self._start_event_loop()
 
     def _start_event_loop(self):
@@ -148,9 +150,36 @@ class BleTransport:
         if hasattr(self._client, "mtu_size"):
             print(f"BLE MTU: {self._client.mtu_size}")
 
+        # Clear receive buffer before subscribing to avoid stale data
+        with self._rx_lock:
+            self._rx_buf.clear()
+
+        # Subscribe to NUS TX notifications (device → companion)
+        await self._client.start_notify(NUS_TX_UUID, self._on_notify)
+
         self._connected = True
         print(f"BLE connected to {address}")
         return True
+
+    def _on_notify(self, sender, data: bytearray):
+        """Handle NUS TX notifications (device → companion)."""
+        with self._rx_lock:
+            self._rx_buf.extend(data)
+
+    def read(self, timeout: float = 0.1) -> Optional[bytes]:
+        """Read available bytes from NUS TX notification buffer.
+
+        Waits up to `timeout` seconds for data. Returns bytes or None.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with self._rx_lock:
+                if self._rx_buf:
+                    data = bytes(self._rx_buf)
+                    self._rx_buf.clear()
+                    return data
+            time.sleep(0.01)
+        return None
 
     def send(self, data: bytes) -> bool:
         """Send data to the ESP32 via NUS RX characteristic."""

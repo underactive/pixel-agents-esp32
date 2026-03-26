@@ -15,6 +15,9 @@ final class SerialTransport: TransportProtocol {
     /// Callback for device-to-companion protocol messages (settings state).
     var onSettingsState: ((_ payload: Data) -> Void)?
 
+    /// Callback for device identification response.
+    var onIdentifyResponse: ((_ payload: Data) -> Void)?
+
     /// Small buffer for detecting protocol frames in the incoming stream.
     private var protocolScanBuf = Data()
 
@@ -188,23 +191,26 @@ final class SerialTransport: TransportProtocol {
         }
     }
 
-    /// Scan protocolScanBuf for complete MSG_SETTINGS_STATE frames, invoke callback,
-    /// and remove consumed bytes. Non-matching bytes remain for the screenshot read buffer.
+    /// Scan protocolScanBuf for complete protocol frames (settings state, identify response),
+    /// invoke callbacks, and remove consumed bytes. Non-matching bytes remain for the screenshot read buffer.
     private func extractProtocolFrames() {
         var i = 0
         var remaining = Data()
 
         while i < protocolScanBuf.count {
-            // Need at least 9 bytes for a settings state frame
+            guard protocolScanBuf[i] == ProtocolBuilder.syncByte1 else {
+                remaining.append(protocolScanBuf[i])
+                i += 1
+                continue
+            }
+
+            // Check for MSG_SETTINGS_STATE: 9 bytes total
             // [sync1][sync2][type][5 payload bytes][checksum]
             if i + 8 < protocolScanBuf.count,
-               protocolScanBuf[i] == ProtocolBuilder.syncByte1,
                protocolScanBuf[i + 1] == ProtocolBuilder.syncByte2,
                protocolScanBuf[i + 2] == ProtocolBuilder.msgSettingsState {
-                // Verify checksum: XOR of type + 5 payload bytes
-                let check = protocolScanBuf[i + 2] ^ protocolScanBuf[i + 3] ^
-                            protocolScanBuf[i + 4] ^ protocolScanBuf[i + 5] ^
-                            protocolScanBuf[i + 6] ^ protocolScanBuf[i + 7]
+                var check: UInt8 = 0
+                for j in (i + 2)...(i + 7) { check ^= protocolScanBuf[j] }
                 if check == protocolScanBuf[i + 8] {
                     let payload = protocolScanBuf.subdata(in: (i + 3)..<(i + 8))
                     onSettingsState?(payload)
@@ -212,6 +218,22 @@ final class SerialTransport: TransportProtocol {
                     continue
                 }
             }
+
+            // Check for MSG_IDENTIFY_RSP: 12 bytes total
+            // [sync1][sync2][type][8 payload bytes][checksum]
+            if i + 11 < protocolScanBuf.count,
+               protocolScanBuf[i + 1] == ProtocolBuilder.syncByte2,
+               protocolScanBuf[i + 2] == ProtocolBuilder.msgIdentifyRsp {
+                var check: UInt8 = 0
+                for j in (i + 2)...(i + 10) { check ^= protocolScanBuf[j] }
+                if check == protocolScanBuf[i + 11] {
+                    let payload = protocolScanBuf.subdata(in: (i + 3)..<(i + 11))
+                    onIdentifyResponse?(payload)
+                    i += 12
+                    continue
+                }
+            }
+
             remaining.append(protocolScanBuf[i])
             i += 1
         }

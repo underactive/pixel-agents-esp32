@@ -40,8 +40,12 @@ Binary framing: `[0xAA][0x55][MSG_TYPE][PAYLOAD...][XOR_CHECKSUM]`
 | SCREENSHOT_REQ | 0x06 | (none) |
 | DEVICE_SETTINGS | 0x07 | dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1) + dog_bark_enabled(1) |
 | SETTINGS_STATE | 0x08 | dog_enabled(1) + dog_color(1) + screen_flip(1) + sound_enabled(1) + dog_bark_enabled(1) |
+| IDENTIFY_REQ | 0x09 | (none) |
+| IDENTIFY_RSP | 0x0A | magic("PXAG", 4) + protocol_version(1) + board_type(1) + firmware_version(2, BE) |
 
 `DEVICE_SETTINGS` (0x07) is companion → device. `SETTINGS_STATE` (0x08) is device → companion, sent on first heartbeat after connect, after applying received settings, and after on-device touch menu changes.
+
+`IDENTIFY_REQ` (0x09) is companion → device. `IDENTIFY_RSP` (0x0A) is device → companion, sent in response to an identify request and proactively on first heartbeat after connect (for backwards compatibility with companions that don't send identify requests). Board type: 0=CYD, 1=CYD-S3, 2=LILYGO. Firmware version encoded as `major*1000 + minor*10 + patch`.
 
 Screenshot response (ESP32 → companion) uses distinct sync bytes `[0xBB][0x66]` followed by a 10-byte header and RLE pixel data. Not part of the standard framing protocol.
 
@@ -82,7 +86,7 @@ Non-blocking state machine parser. Per-transport heartbeat watchdog: serial and 
 - NimBLE Nordic UART Service (NUS) — standard BLE serial profile
 - ESP32 acts as BLE peripheral (server), companion as central (client)
 - RX characteristic receives protocol messages from companion
-- TX characteristic reserved for future bidirectional messages
+- TX characteristic sends device → companion messages (settings state, identify response)
 - Lock-free SPSC ring buffer transfers bytes from NimBLE callback context to main loop
 - Ring buffer uses `std::atomic` acquire/release ordering for multi-core safety
 - Deferred reset on disconnect (flagged atomically, executed in main loop)

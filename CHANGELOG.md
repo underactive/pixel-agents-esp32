@@ -2,6 +2,14 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.3] - 2026-03-25
+
+- Add device fingerprinting: new MSG_IDENTIFY_REQ/RSP protocol messages (0x09/0x0A) allow companions to verify they're connected to a Pixel Agents device, not an unrelated ESP32
+- Identify response includes magic "PXAG", protocol version, board type (CYD/CYD-S3/LILYGO), and firmware version
+- Backwards compatible: old firmware silently ignores identify requests, old companions ignore unsolicited identify responses
+- Add BLE NUS TX notification support in Python companion for receiving device-to-companion messages over BLE
+- Fix iCloud activity sync using hardware UUID instead of UserDefaults device ID (prevents cross-device collisions when UserDefaults syncs via iCloud)
+
 ## [0.11.2] - 2026-03-25
 
 - Fix Cursor usage stuck at "Loading..." when Cursor's WAL file doesn't exist — use SQLite immutable URI mode to skip WAL/SHM handling

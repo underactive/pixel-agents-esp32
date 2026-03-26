@@ -4,7 +4,8 @@
 void Protocol::begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
                      HeartbeatCb onHeartbeat, StatusTextCb onStatus,
                      UsageStatsCb onUsage, ScreenshotReqCb onScreenshotReq,
-                     DeviceSettingsCb onDeviceSettings) {
+                     DeviceSettingsCb onDeviceSettings,
+                     IdentifyReqCb onIdentifyReq) {
     _onUpdate = onUpdate;
     _onCount = onCount;
     _onHeartbeat = onHeartbeat;
@@ -12,6 +13,7 @@ void Protocol::begin(AgentUpdateCb onUpdate, AgentCountCb onCount,
     _onUsage = onUsage;
     _onScreenshotReq = onScreenshotReq;
     _onDeviceSettings = onDeviceSettings;
+    _onIdentifyReq = onIdentifyReq;
     _state = State::WAIT_SYNC1;
 }
 
@@ -23,6 +25,7 @@ int Protocol::payloadLength(uint8_t msgType) const {
         case MSG_USAGE_STATS: return 6;
         case MSG_SCREENSHOT_REQ: return 0;
         case MSG_DEVICE_SETTINGS: return 5;
+        case MSG_IDENTIFY_REQ: return 0;
         case MSG_STATUS_TEXT:  return -1;  // variable: 2 + text
         default: return -2;  // unknown
     }
@@ -167,6 +170,9 @@ void Protocol::dispatch() {
         }
         case MSG_SCREENSHOT_REQ:
             if (_onScreenshotReq) _onScreenshotReq();
+            break;
+        case MSG_IDENTIFY_REQ:
+            if (_onIdentifyReq) _onIdentifyReq();
             break;
         case MSG_DEVICE_SETTINGS: {
             if (_bufIdx < 5) break;
