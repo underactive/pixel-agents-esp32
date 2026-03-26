@@ -30,12 +30,12 @@ struct AgentRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(stateColor)
-                .frame(width: 6, height: 6)
-
-            if agent.state != .offline {
-                BrandIconView(icon: agent.brandIcon, size: 10, color: .primary)
+            if agent.state == .offline {
+                Circle()
+                    .fill(Color.gray)
+                    .frame(width: 6, height: 6)
+            } else {
+                BrandIconView(icon: agent.brandIcon, size: 10, color: agent.brandColor)
             }
 
             Text(agent.state.label)
@@ -52,16 +52,5 @@ struct AgentRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 2)
         .clipped()
-    }
-
-    private var stateColor: Color {
-        switch agent.state {
-        case .type:    return .green
-        case .read:    return .blue
-        case .idle:    return .yellow
-        case .walk:    return .orange
-        case .offline: return .gray
-        case .spawn, .despawn: return .purple
-        }
     }
 }

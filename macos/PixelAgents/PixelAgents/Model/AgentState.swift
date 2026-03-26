@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Character states matching firmware CharState enum in config.h
 enum CharState: UInt8, CaseIterable {
@@ -59,6 +60,16 @@ struct Agent: Identifiable, Equatable {
         case .codex:  return BrandIcon.codex
         case .gemini: return BrandIcon.gemini
         case .cursor: return BrandIcon.cursor
+        }
+    }
+
+    /// Brand color matching the provider's usage progress bar.
+    var brandColor: Color {
+        switch source {
+        case .claude: return claudeOrange
+        case .codex:  return codexBlue
+        case .gemini: return geminiPink
+        case .cursor: return cursorGreen
         }
     }
 

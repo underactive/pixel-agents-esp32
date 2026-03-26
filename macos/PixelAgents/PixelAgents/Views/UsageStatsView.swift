@@ -1,10 +1,10 @@
 import SwiftUI
 
-// Brand colors for usage bars
-private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
-private let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
-private let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
-private let cursorGreen = Color(red: 0.224, green: 0.827, blue: 0.325) // #39D353 (matches heatmap "More")
+// Brand colors for usage bars (internal — also used by AgentListView)
+let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
+let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
+let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
+let cursorGreen = Color(red: 0.224, green: 0.827, blue: 0.325) // #39D353 (matches heatmap "More")
 
 // Per-provider heatmap color palettes (5 levels: no activity → low → med-low → med-high → high)
 private let claudeHeatmapColors: [Color] = [
