@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.2] - 2026-03-25
+
+- Fix Cursor usage stuck at "Loading..." when Cursor's WAL file doesn't exist — use SQLite immutable URI mode to skip WAL/SHM handling
+
 ## [0.11.1] - 2026-03-25
 
 - Add iCloud Drive sync for activity heatmap data across Macs via ubiquitous container (`iCloud.com.pixelagents.companion`)

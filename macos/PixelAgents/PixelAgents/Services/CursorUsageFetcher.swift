@@ -93,8 +93,11 @@ final class CursorUsageFetcher {
         }
 
         var db: OpaquePointer?
-        let flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX
-        guard sqlite3_open_v2(Self.vscdbPath, &db, flags, nil) == SQLITE_OK else {
+        // Use immutable URI mode so SQLite skips WAL/SHM handling — avoids failure
+        // when the -wal file doesn't exist (Cursor checkpointed and deleted it).
+        let uri = "file:\(Self.vscdbPath)?immutable=1"
+        let flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX | SQLITE_OPEN_URI
+        guard sqlite3_open_v2(uri, &db, flags, nil) == SQLITE_OK else {
             Self.log.error("Failed to open Cursor state.vscdb")
             return nil
         }
