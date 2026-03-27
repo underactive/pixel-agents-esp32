@@ -35,7 +35,7 @@ struct AgentRow: View {
                     .fill(Color.gray)
                     .frame(width: 6, height: 6)
             } else {
-                BrandIconView(icon: agent.brandIcon, size: 10, color: agent.brandColor)
+                BrandIconView(icon: agent.brandIcon, size: 14, color: agent.brandColor)
             }
 
             Text(agent.state.label)

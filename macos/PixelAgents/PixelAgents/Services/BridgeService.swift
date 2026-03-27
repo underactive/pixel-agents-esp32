@@ -63,7 +63,7 @@ final class BridgeService: ObservableObject {
     @Published var cursorAgentHeatmapData: ActivityHeatmapData?
     /// True once the initial cookie check is done and no session was found.
     @Published var cursorNeedsDashboardAuth: Bool = false
-    @Published var displayMode: DisplayMode = .hardware
+    @Published var displayMode: DisplayMode = .software
     @Published var transportMode: TransportMode = .serial
 
     // MARK: - Device settings (synced from ESP32)

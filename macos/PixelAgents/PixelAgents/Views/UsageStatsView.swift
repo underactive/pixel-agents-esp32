@@ -3,7 +3,7 @@ import SwiftUI
 // Brand colors for usage bars (internal — also used by AgentListView)
 let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)  // #D97856
 let codexBlue = Color(red: 0.24, green: 0.47, blue: 0.96)     // #3D78F5
-let geminiPink = Color(red: 0.769, green: 0.545, blue: 0.690) // #C48BB0
+let geminiPink = Color(red: 1.0, green: 0.420, blue: 0.612)   // #FF6B9C
 let cursorGreen = Color(red: 0.224, green: 0.827, blue: 0.325) // #39D353 (matches heatmap "More")
 
 // Per-provider heatmap color palettes (5 levels: no activity → low → med-low → med-high → high)
@@ -25,10 +25,10 @@ private let codexHeatmapColors: [Color] = [
 
 private let geminiHeatmapColors: [Color] = [
     Color.gray.opacity(0.15),
-    Color(red: 0.239, green: 0.133, blue: 0.212),         // 1: #3D2236
-    Color(red: 0.384, green: 0.216, blue: 0.333),         // 2: #623755
-    Color(red: 0.604, green: 0.388, blue: 0.533),         // 3: #9A6388
-    Color(red: 0.769, green: 0.545, blue: 0.690),         // 4: #C48BB0
+    Color(red: 0.353, green: 0.098, blue: 0.176),         // 1: #5A192D
+    Color(red: 0.576, green: 0.176, blue: 0.318),         // 2: #932D51
+    Color(red: 0.820, green: 0.310, blue: 0.478),         // 3: #D14F7A
+    Color(red: 1.0, green: 0.420, blue: 0.612),           // 4: #FF6B9C
 ]
 
 /// Converts a used percentage to a display value, applying the remaining-mode inversion.
@@ -82,7 +82,7 @@ enum UsageProvider: String, CaseIterable, Identifiable {
 
     var heatmapMetricLabel: String {
         switch self {
-        default: return "Tool Calls"
+        default: return "CLI Tool Calls"
         }
     }
 }
@@ -502,6 +502,7 @@ private struct HeatmapGridView: View {
     let metricLabel: String
     let colors: [Color]
     let levelForCount: (Int) -> Int
+    @Binding var isExpanded: Bool
 
     private static let weekCount = 53
     private static let rowCount = 7
@@ -527,67 +528,87 @@ private struct HeatmapGridView: View {
         return HeatmapGridData(weeks: weeks, today: today, calendar: calendar)
     }
 
+    @State private var contentHeight: CGFloat = 0
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Header
-            HStack(spacing: 4) {
-                Text(metricLabel)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary)
-                Spacer()
-                Text(formatCount(totalCount))
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundColor(.secondary)
+            // Header (entire row is tappable)
+            Button(action: { withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() } }) {
+                HStack(spacing: 4) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 10)
+
+                    Text(metricLabel)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(formatCount(totalCount))
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            // Canvas-based heatmap grid — renders within proposed size, never overflows
-            let grid = gridData
-            Canvas { ctx, size in
-                let cellStep = (size.width - Self.dayLabelWidth) / CGFloat(Self.weekCount)
-                let cell = max(2, cellStep - Self.gap)
-                let topOffset = Self.monthLabelHeight
+            // Collapsible content — always rendered, height animated via clip
+            VStack(alignment: .leading, spacing: 4) {
+                // Canvas-based heatmap grid — renders within proposed size, never overflows
+                let grid = gridData
+                Canvas { ctx, size in
+                    let cellStep = (size.width - Self.dayLabelWidth) / CGFloat(Self.weekCount)
+                    let cell = max(2, cellStep - Self.gap)
+                    let topOffset = Self.monthLabelHeight
 
-                // Draw month labels
-                drawMonthLabels(ctx: ctx, grid: grid, cellStep: cellStep)
+                    // Draw month labels
+                    drawMonthLabels(ctx: ctx, grid: grid, cellStep: cellStep)
 
-                // Draw 7 rows of cells
-                for row in 0..<Self.rowCount {
-                    let wd = row + 1  // weekday: 1=Sun ... 7=Sat
-                    let y = topOffset + CGFloat(row) * cellStep
+                    // Draw 7 rows of cells
+                    for row in 0..<Self.rowCount {
+                        let wd = row + 1  // weekday: 1=Sun ... 7=Sat
+                        let y = topOffset + CGFloat(row) * cellStep
 
-                    for col in 0..<grid.weeks.count {
-                        let x = Self.dayLabelWidth + CGFloat(col) * cellStep
-                        let date = grid.calendar.date(byAdding: .day, value: wd - 1, to: grid.weeks[col])
-                        let isFuture = date.map { $0 > grid.today } ?? true
-                        guard !isFuture else { continue }
+                        for col in 0..<grid.weeks.count {
+                            let x = Self.dayLabelWidth + CGFloat(col) * cellStep
+                            let date = grid.calendar.date(byAdding: .day, value: wd - 1, to: grid.weeks[col])
+                            let isFuture = date.map { $0 > grid.today } ?? true
+                            guard !isFuture else { continue }
 
-                        let count = date.flatMap { days[$0] } ?? 0
-                        let level = levelForCount(count)
-                        let color = colors[level]
+                            let count = date.flatMap { days[$0] } ?? 0
+                            let level = levelForCount(count)
+                            let color = colors[level]
 
-                        let rect = CGRect(x: x, y: y, width: cell, height: cell)
-                        let path = Path(roundedRect: rect, cornerRadius: 1)
-                        ctx.fill(path, with: .color(color))
-                    }
+                            let rect = CGRect(x: x, y: y, width: cell, height: cell)
+                            let path = Path(roundedRect: rect, cornerRadius: 1)
+                            ctx.fill(path, with: .color(color))
+                        }
 
-                    // Day labels (Mon/Wed/Fri only, matching GitHub style)
-                    if wd == 2 || wd == 4 || wd == 6 {
-                        let label = wd == 2 ? "M" : wd == 4 ? "W" : "F"
-                        let text = Text(label).font(.system(size: 7)).foregroundColor(.secondary)
-                        let resolved = ctx.resolve(text)
-                        let labelY = y + cell / 2
-                        ctx.draw(resolved, at: CGPoint(x: Self.dayLabelWidth - 3, y: labelY), anchor: .trailing)
+                        // Day labels (Mon/Wed/Fri only, matching GitHub style)
+                        if wd == 2 || wd == 4 || wd == 6 {
+                            let label = wd == 2 ? "M" : wd == 4 ? "W" : "F"
+                            let text = Text(label).font(.system(size: 7)).foregroundColor(.secondary)
+                            let resolved = ctx.resolve(text)
+                            let labelY = y + cell / 2
+                            ctx.draw(resolved, at: CGPoint(x: Self.dayLabelWidth - 3, y: labelY), anchor: .trailing)
+                        }
                     }
                 }
+                .frame(height: Self.monthLabelHeight + CGFloat(Self.rowCount) * ((300 - Self.dayLabelWidth) / CGFloat(Self.weekCount)))
+                .fixedSize(horizontal: false, vertical: true)
+
+                // Legend
+                legendRow
+
+                // Stats
+                statsRow
             }
-            .frame(height: Self.monthLabelHeight + CGFloat(Self.rowCount) * ((300 - Self.dayLabelWidth) / CGFloat(Self.weekCount)))
-            .fixedSize(horizontal: false, vertical: true)
-
-            // Legend
-            legendRow
-
-            // Stats
-            statsRow
+            .background(GeometryReader { geo in
+                Color.clear.onChange(of: geo.size.height) { _, h in contentHeight = h }
+                    .onAppear { contentHeight = geo.size.height }
+            })
+            .frame(height: isExpanded ? contentHeight : 0, alignment: .top)
+            .clipped()
         }
         .padding(.top, 4)
     }
@@ -674,6 +695,7 @@ private struct HeatmapGridView: View {
 
 private struct CursorHeatmapView: View {
     let data: CursorHeatmapData
+    @AppStorage("heatmapExpanded_cursorLineEdits") private var isExpanded = true
 
     var body: some View {
         HeatmapGridView(
@@ -682,9 +704,10 @@ private struct CursorHeatmapView: View {
             mostActiveDate: data.mostActiveDay?.date,
             currentStreak: data.currentStreak,
             longestStreak: data.longestStreak,
-            metricLabel: "AI Line Edits",
+            metricLabel: "IDE Line Edits",
             colors: UsageProvider.cursor.heatmapColors,
-            levelForCount: { data.level(for: $0) }
+            levelForCount: { data.level(for: $0) },
+            isExpanded: $isExpanded
         )
     }
 }
@@ -694,6 +717,13 @@ private struct CursorHeatmapView: View {
 private struct ActivityHeatmapView: View {
     let data: ActivityHeatmapData
     let provider: UsageProvider
+    @AppStorage private var isExpanded: Bool
+
+    init(data: ActivityHeatmapData, provider: UsageProvider) {
+        self.data = data
+        self.provider = provider
+        self._isExpanded = AppStorage(wrappedValue: true, "heatmapExpanded_\(provider.rawValue)")
+    }
 
     var body: some View {
         HeatmapGridView(
@@ -704,7 +734,8 @@ private struct ActivityHeatmapView: View {
             longestStreak: data.longestStreak,
             metricLabel: provider.heatmapMetricLabel,
             colors: provider.heatmapColors,
-            levelForCount: { data.level(for: $0) }
+            levelForCount: { data.level(for: $0) },
+            isExpanded: $isExpanded
         )
     }
 }

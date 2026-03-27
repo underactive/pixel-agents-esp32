@@ -82,9 +82,13 @@ struct MenuBarView: View {
 
                 // Agent list
                 AgentListView(agents: bridge.displayAgents)
-
-                Divider()
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                    )
+                    .padding(.horizontal, 4)
+                Spacer().frame(height: 2)
 
             } else {
                 // Hardware mode: transport picker
@@ -95,14 +99,19 @@ struct MenuBarView: View {
 
                 if bridge.isConnected {
                     AgentListView(agents: bridge.displayAgents)
-
-                    Divider()
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                        )
+                        .padding(.horizontal, 4)
+                    Spacer().frame(height: 2)
                 }
             }
 
             // Usage stats (always visible regardless of display mode or connection)
             usageStatsSection
+            Spacer().frame(height: 4)
 
             // Bottom actions
             HStack {
@@ -167,9 +176,12 @@ struct MenuBarView: View {
                            cursorHeatmap: bridge.cursorHeatmapData,
                            cursorAgentHeatmap: bridge.cursorAgentHeatmapData
                            )
-
-            Divider()
-                .padding(.vertical, 4)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            )
+            .padding(.horizontal, 4)
         }
     }
 }
