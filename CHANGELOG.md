@@ -2,6 +2,16 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.12.0] - 2026-03-27
+
+- Add semi-opaque card backgrounds to Agents and Usage sections for better contrast on translucent popover backgrounds regardless of wallpaper
+- Add collapsible heatmaps with persistent expand/collapse state per provider (chevron toggle, smooth animated roll-up/down, persists across app restarts)
+- Update Gemini brand color from muted mauve (#C48BB0) to vibrant pink (#FF6B9C) with matching heatmap gradient
+- Rename heatmap labels: "Tool Calls" → "CLI Tool Calls", "AI Line Edits" → "IDE Line Edits"
+- Increase agent list brand icon size for better visibility
+- Default display mode to Software on first launch
+- Fix usage stats stuck on "Loading..." after first-time Claude sign-in (trigger immediate fetch on auth success)
+
 ## [0.11.9] - 2026-03-26
 
 - Fix tool call heatmap not counting when ESP32 hardware is disconnected: remove transport guard from processTranscripts() that blocked all transcript processing (including local SQLite heatmap recording) in hardware display mode without a connected device
