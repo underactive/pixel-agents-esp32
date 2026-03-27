@@ -82,8 +82,7 @@ enum UsageProvider: String, CaseIterable, Identifiable {
 
     var heatmapMetricLabel: String {
         switch self {
-        case .cursor: return "AI Line Edits"
-        default:      return "Tool Calls"
+        default: return "Tool Calls"
         }
     }
 }
@@ -111,6 +110,7 @@ struct UsageStatsView: View {
     var codexHeatmap: ActivityHeatmapData? = nil
     var geminiHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
+    var cursorAgentHeatmap: ActivityHeatmapData? = nil
 
     @State private var selectedProvider: UsageProvider?
 
@@ -120,7 +120,7 @@ struct UsageStatsView: View {
         case .claude: return claudeHeatmap
         case .codex:  return codexHeatmap
         case .gemini: return geminiHeatmap
-        case .cursor: return nil  // Cursor uses external API heatmap
+        case .cursor: return cursorAgentHeatmap
         }
     }
 
@@ -385,8 +385,23 @@ private struct ProviderDetailView: View {
                         tintColor: color
                     )
                 }
-                if let heatmap = cursorHeatmap {
-                    CursorHeatmapView(data: heatmap)
+                // Show whichever heatmap is busier first
+                let toolCalls = activityHeatmap?.totalCount ?? 0
+                let lineEdits = cursorHeatmap?.totalEdits ?? 0
+                if toolCalls >= lineEdits {
+                    if let heatmap = activityHeatmap {
+                        ActivityHeatmapView(data: heatmap, provider: provider)
+                    }
+                    if let heatmap = cursorHeatmap {
+                        CursorHeatmapView(data: heatmap)
+                    }
+                } else {
+                    if let heatmap = cursorHeatmap {
+                        CursorHeatmapView(data: heatmap)
+                    }
+                    if let heatmap = activityHeatmap {
+                        ActivityHeatmapView(data: heatmap, provider: provider)
+                    }
                 }
             }
         }
@@ -667,7 +682,7 @@ private struct CursorHeatmapView: View {
             mostActiveDate: data.mostActiveDay?.date,
             currentStreak: data.currentStreak,
             longestStreak: data.longestStreak,
-            metricLabel: UsageProvider.cursor.heatmapMetricLabel,
+            metricLabel: "AI Line Edits",
             colors: UsageProvider.cursor.heatmapColors,
             levelForCount: { data.level(for: $0) }
         )

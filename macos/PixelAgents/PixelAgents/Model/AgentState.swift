@@ -32,13 +32,12 @@ enum TranscriptSource: Equatable {
     case cursor
 
     /// Database provider key for local activity heatmap storage.
-    /// Returns nil for providers that use external APIs (Cursor).
     var heatmapKey: String? {
         switch self {
         case .claude: return "claude"
         case .codex:  return "codex"
         case .gemini: return "gemini"
-        case .cursor: return nil
+        case .cursor: return "cursor_agent"
         }
     }
 }

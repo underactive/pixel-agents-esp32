@@ -60,6 +60,7 @@ final class BridgeService: ObservableObject {
     @Published var claudeHeatmapData: ActivityHeatmapData?
     @Published var codexHeatmapData: ActivityHeatmapData?
     @Published var geminiHeatmapData: ActivityHeatmapData?
+    @Published var cursorAgentHeatmapData: ActivityHeatmapData?
     /// True once the initial cookie check is done and no session was found.
     @Published var cursorNeedsDashboardAuth: Bool = false
     @Published var displayMode: DisplayMode = .hardware
@@ -209,6 +210,7 @@ final class BridgeService: ObservableObject {
         claudeHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.claude.heatmapKey!)
         codexHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.codex.heatmapKey!)
         geminiHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
+        cursorAgentHeatmapData = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.cursor.heatmapKey!)
         activityHeatmapDirty = false
 
         // Start iCloud sync if enabled (degrades gracefully if iCloud unavailable)
@@ -524,7 +526,7 @@ final class BridgeService: ObservableObject {
             }
         }
 
-        // Update local activity heatmaps (Claude/Codex/Gemini)
+        // Update local activity heatmaps (Claude/Codex/Gemini/Cursor Agent)
         if activityHeatmapDirty {
             activityHeatmapDirty = false
             let newClaude = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.claude.heatmapKey!)
@@ -533,6 +535,8 @@ final class BridgeService: ObservableObject {
             if newCodex != codexHeatmapData { codexHeatmapData = newCodex }
             let newGemini = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.gemini.heatmapKey!)
             if newGemini != geminiHeatmapData { geminiHeatmapData = newGemini }
+            let newCursorAgent = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.cursor.heatmapKey!)
+            if newCursorAgent != cursorAgentHeatmapData { cursorAgentHeatmapData = newCursorAgent }
         }
 
         // Export to iCloud if local data changed
@@ -603,7 +607,7 @@ final class BridgeService: ObservableObject {
                         switch source {
                         case .claude, .codex: isToolCall = !tool.isEmpty
                         case .gemini:         isToolCall = !tool.isEmpty && tool != "Gemini"
-                        case .cursor:         isToolCall = false
+                        case .cursor:         isToolCall = !tool.isEmpty && tool != "Cursor"
                         }
                         if isToolCall, let heatmapKey = source.heatmapKey {
                             ActivityDatabase.shared.recordToolCall(provider: heatmapKey)

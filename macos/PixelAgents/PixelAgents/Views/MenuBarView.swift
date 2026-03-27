@@ -165,6 +165,7 @@ struct MenuBarView: View {
                            codexHeatmap: bridge.codexHeatmapData,
                            geminiHeatmap: bridge.geminiHeatmapData,
                            cursorHeatmap: bridge.cursorHeatmapData,
+                           cursorAgentHeatmap: bridge.cursorAgentHeatmapData
                            )
 
             Divider()
