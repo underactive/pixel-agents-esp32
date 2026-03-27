@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.9] - 2026-03-26
+
+- Fix tool call heatmap not counting when ESP32 hardware is disconnected: remove transport guard from processTranscripts() that blocked all transcript processing (including local SQLite heatmap recording) in hardware display mode without a connected device
+
 ## [0.11.8] - 2026-03-26
 
 - Add Tool Calls heatmap for Cursor agent CLI: parse tool_use blocks from Cursor agent transcripts, count in local activity database, display alongside existing AI Line Edits heatmap

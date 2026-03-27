@@ -563,10 +563,6 @@ final class BridgeService: ObservableObject {
 
     private func processTranscripts() {
         let isSoftware = displayMode == .software
-        if !isSoftware {
-            guard let transport = activeTransport, transport.isConnected else { return }
-            _ = transport  // suppress unused warning; used below
-        }
 
         let transcripts = watcher.findActiveTranscripts()
 
