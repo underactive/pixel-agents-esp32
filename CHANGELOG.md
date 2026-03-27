@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.11.8] - 2026-03-26
+
+- Add Tool Calls heatmap for Cursor agent CLI: parse tool_use blocks from Cursor agent transcripts, count in local activity database, display alongside existing AI Line Edits heatmap
+- Busier heatmap renders first on Cursor tab (Tool Calls vs AI Line Edits)
+
 ## [0.11.7] - 2026-03-26
 
 - Add Accounts tab to Settings window, separating provider sign-in (Claude, Cursor, Codex, Gemini) from app preferences
