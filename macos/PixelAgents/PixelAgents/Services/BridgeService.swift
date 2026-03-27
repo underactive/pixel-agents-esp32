@@ -204,6 +204,9 @@ final class BridgeService: ObservableObject {
 
         // Wire auth service and bootstrap token from app Keychain (no system dialog)
         usageFetcher.authService = claudeAuth
+        claudeAuth.onAuthenticated = { [weak self] in
+            self?.usageFetcher.fetchAndCache()
+        }
         claudeAuth.bootstrap()
 
         // Load local activity heatmaps from DB (shows historical data immediately)

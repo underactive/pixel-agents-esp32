@@ -25,6 +25,11 @@ final class ClaudeAuthService: ObservableObject {
     /// Claude Code's public OAuth client ID (installed-app credential).
     private let clientId = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 
+    // MARK: - Callbacks
+
+    /// Called when authentication succeeds (import or bootstrap). Use to trigger immediate data fetch.
+    var onAuthenticated: (() -> Void)?
+
     // MARK: - Published State
 
     @Published private(set) var isAuthenticated: Bool = false
@@ -117,6 +122,7 @@ final class ClaudeAuthService: ObservableObject {
             cachedExpiresAt = token.expiresAt
             isAuthenticated = true
             updateExpiryDescription(token.expiresAt)
+            onAuthenticated?()
             Self.log.info("Imported token from Claude Code Keychain")
             return true
         }
@@ -167,6 +173,7 @@ final class ClaudeAuthService: ObservableObject {
         cachedExpiresAt = expiresAt
         isAuthenticated = true
         updateExpiryDescription(expiresAt)
+        onAuthenticated?()
         Self.log.info("Imported token from pasted JSON")
         return true
     }
