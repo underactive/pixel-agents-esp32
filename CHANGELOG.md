@@ -2,6 +2,14 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.12.1] - 2026-03-27
+
+- Redesign popover display mode picker: rename to "Pixel Agents Office", add "Off" mode (transcript tracking without rendering), rename "ESP32 Device" to "ESP32", reorder tabs to Off | Software | ESP32
+- Remove connection status row from popover top bar
+- Show agents list in all display modes (including ESP32 disconnected and Off)
+- Reorganize Settings window: rename Device tab to "ESP32 Device", add dedicated "Update" tab with check-for-updates button, last-checked date, and auto-update toggle (moved from Companion tab)
+- Widen Settings window for better tab spacing
+
 ## [0.12.0] - 2026-03-27
 
 - Add semi-opaque card backgrounds to Agents and Usage sections for better contrast on translucent popover backgrounds regardless of wallpaper

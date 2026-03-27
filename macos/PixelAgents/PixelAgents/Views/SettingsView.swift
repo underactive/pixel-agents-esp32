@@ -2,21 +2,24 @@ import SwiftUI
 import ServiceManagement
 import Sparkle
 
-/// Settings window with Companion, Accounts, and Device tabs.
+/// Settings window with Companion, Accounts, Device, and Update tabs.
 struct SettingsView: View {
     let updater: SPUUpdater
     @ObservedObject var bridge: BridgeService
 
     var body: some View {
         TabView {
-            CompanionSettingsTab(updater: updater, bridge: bridge)
-                .tabItem { Label("Companion", systemImage: "laptopcomputer") }
+            CompanionSettingsTab(bridge: bridge)
+                .tabItem { Text("Companion") }
 
             AccountsSettingsView(claudeAuth: bridge.claudeAuth, bridge: bridge)
-                .tabItem { Label("Accounts", systemImage: "person.crop.circle") }
+                .tabItem { Text("Accounts") }
 
             DeviceSettingsView(bridge: bridge)
-                .tabItem { Label("Device", systemImage: "cpu") }
+                .tabItem { Text("ESP32 Device") }
+
+            UpdateSettingsTab(updater: updater)
+                .tabItem { Text("Update") }
         }
         .padding(.horizontal, 12)
         .padding(.top, 8)
@@ -25,12 +28,10 @@ struct SettingsView: View {
     }
 }
 
-/// Companion settings tab: usage stats, menu bar, sync, launch at login, auto-updates.
+/// Companion settings tab: usage stats, menu bar, sync, launch at login.
 private struct CompanionSettingsTab: View {
-    let updater: SPUUpdater
     let bridge: BridgeService
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @State private var autoCheckForUpdates: Bool = true
     @AppStorage(SettingsKeys.iCloudSyncEnabled) private var iCloudSyncEnabled = false
     @AppStorage(SettingsKeys.showClaudeUsage) private var showClaudeUsage = true
     @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
@@ -92,19 +93,10 @@ private struct CompanionSettingsTab: View {
                     setLaunchAtLogin(newValue)
                 }
 
-            Toggle("Check for updates automatically", isOn: $autoCheckForUpdates)
-                .font(.subheadline)
-                .onChange(of: autoCheckForUpdates) { _, newValue in
-                    updater.automaticallyChecksForUpdates = newValue
-                }
-
             Spacer()
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            autoCheckForUpdates = updater.automaticallyChecksForUpdates
-        }
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -117,5 +109,53 @@ private struct CompanionSettingsTab: View {
         } catch {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
+    }
+}
+
+/// Update settings tab: check for updates, last checked date, auto-update toggle.
+private struct UpdateSettingsTab: View {
+    let updater: SPUUpdater
+    @State private var lastCheckDate: Date?
+    @State private var autoCheckForUpdates: Bool = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Software Update")
+                .font(.subheadline.weight(.semibold))
+
+            HStack(spacing: 12) {
+                Button("Check for Updates...") {
+                    updater.checkForUpdates()
+                    lastCheckDate = updater.lastUpdateCheckDate
+                }
+                .font(.subheadline)
+
+                Text(lastCheckDateText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Toggle("Check for updates automatically", isOn: $autoCheckForUpdates)
+                .font(.subheadline)
+                .onChange(of: autoCheckForUpdates) { _, newValue in
+                    updater.automaticallyChecksForUpdates = newValue
+                }
+
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            lastCheckDate = updater.lastUpdateCheckDate
+            autoCheckForUpdates = updater.automaticallyChecksForUpdates
+        }
+    }
+
+    private var lastCheckDateText: String {
+        guard let date = lastCheckDate else { return "Last checked: Never" }
+        return "Last checked: \(date.formatted(date: .abbreviated, time: .shortened))"
     }
 }

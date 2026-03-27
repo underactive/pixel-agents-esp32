@@ -20,10 +20,11 @@ enum ConnectionState: Equatable {
     case connected(String) // transport info string
 }
 
-/// Display mode: hardware (physical device) or software (local rendering).
+/// Display mode: off (no rendering), hardware (physical device), or software (local rendering).
 enum DisplayMode: String, CaseIterable, Identifiable {
-    case hardware = "ESP32 Device"
+    case off = "Off"
     case software = "Software"
+    case hardware = "ESP32"
 
     var id: String { rawValue }
 }
@@ -284,13 +285,19 @@ final class BridgeService: ObservableObject {
     func setDisplayMode(_ mode: DisplayMode) {
         guard mode != displayMode else { return }
         displayMode = mode
-        if mode == .software {
+        switch mode {
+        case .off:
+            // Disconnect hardware, no rendering
+            activeTransport?.disconnect()
+            connectionState = .disconnected
+            resetSessionState()
+        case .software:
             // Disconnect hardware, enter software display
             activeTransport?.disconnect()
             connectionState = .connected("Software Display")
             resetSessionState()
-        } else {
-            // Switch back to hardware — reconnect
+        case .hardware:
+            // Switch to hardware — reconnect
             connectionState = .disconnected
             attemptConnect()
         }
@@ -351,6 +358,7 @@ final class BridgeService: ObservableObject {
             connectionState = .connected("Software Display")
             return
         }
+        if displayMode == .off { return }
         guard !(activeTransport?.isConnected ?? false) else { return }
         guard !manualDisconnect else { return }
 
@@ -459,7 +467,7 @@ final class BridgeService: ObservableObject {
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: reconnectInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self = self else { return }
-                if self.displayMode == .software { return }
+                if self.displayMode != .hardware { return }
                 if !(self.activeTransport?.isConnected ?? false) {
                     self.attemptConnect()
                 } else if case .connecting = self.connectionState {
@@ -490,7 +498,7 @@ final class BridgeService: ObservableObject {
     // MARK: - Core logic
 
     private func sendHeartbeat() {
-        if displayMode == .software { return }
+        if displayMode != .hardware { return }
         guard let transport = activeTransport, transport.isConnected else { return }
         let msg = ProtocolBuilder.heartbeat()
         if !transport.send(msg) {
@@ -499,7 +507,7 @@ final class BridgeService: ObservableObject {
     }
 
     private func checkUsageStats() {
-        let isSoftware = displayMode == .software
+        let skipHardware = displayMode != .hardware
 
         // Update Codex usage stats for UI (always, not sent to hardware)
         let codexData = codexUsageFetcher.currentStats()
@@ -552,7 +560,7 @@ final class BridgeService: ObservableObject {
             lastUsageData = data
             usageStats = data
             // Send to hardware (only when connected in hardware mode)
-            if !isSoftware, let transport = activeTransport, transport.isConnected {
+            if !skipHardware, let transport = activeTransport, transport.isConnected {
                 let msg = ProtocolBuilder.usageStats(
                     currentPct: data.currentPct,
                     weeklyPct: data.weeklyPct,
@@ -565,7 +573,7 @@ final class BridgeService: ObservableObject {
     }
 
     private func processTranscripts() {
-        let isSoftware = displayMode == .software
+        let skipHardware = displayMode != .hardware
 
         let transcripts = watcher.findActiveTranscripts()
 
@@ -626,7 +634,7 @@ final class BridgeService: ObservableObject {
                     if lastStates[key]?.0 != state || lastStates[key]?.1 != tool {
                         lastStates[key] = (state, tool)
                         // Send protocol message to hardware (skip in software mode)
-                        if !isSoftware, let transport = activeTransport {
+                        if !skipHardware, let transport = activeTransport {
                             let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: state, tool: tool)
                             _ = transport.send(msg)
                         }
@@ -647,14 +655,14 @@ final class BridgeService: ObservableObject {
     /// Prune stale agents, send count updates, and refresh the published display array.
     /// Called from both FSEvents-driven processTranscripts() and the periodic heartbeat timer.
     private func pruneAndUpdateDisplay() {
-        let isSoftware = displayMode == .software
+        let skipHardware = displayMode != .hardware
         let transportConnected = activeTransport?.isConnected ?? false
 
-        if isSoftware || transportConnected {
+        if skipHardware || transportConnected {
             // Prune stale agents
             let pruned = tracker.pruneStale(timeout: staleTimeout)
             for agent in pruned {
-                if !isSoftware, let transport = activeTransport {
+                if !skipHardware, let transport = activeTransport {
                     let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: .offline)
                     _ = transport.send(msg)
                 }
@@ -667,7 +675,7 @@ final class BridgeService: ObservableObject {
             let count = tracker.count
             if count != lastCount {
                 lastCount = count
-                if !isSoftware, let transport = activeTransport {
+                if !skipHardware, let transport = activeTransport {
                     let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
                     _ = transport.send(msg)
                 }

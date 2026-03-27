@@ -11,32 +11,35 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Connection status
-            ConnectionStatusView(state: bridge.connectionState,
-                                 batteryLevel: bridge.deviceBatteryLevel,
-                                 deviceIdentified: bridge.displayMode == .software ? true : bridge.deviceIdentified)
+            // Display mode picker
+            Picker("Pixel Agents Office", selection: Binding(
+                get: { bridge.displayMode },
+                set: { bridge.setDisplayMode($0) }
+            )) {
+                ForEach(DisplayMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
 
             Divider()
                 .padding(.vertical, 4)
 
-            // Display mode picker (hidden when hardware transport is connected)
-            if !(bridge.isConnected && !bridge.isSoftwareMode) {
-                Picker("Display Mode", selection: Binding(
-                    get: { bridge.displayMode },
-                    set: { bridge.setDisplayMode($0) }
-                )) {
-                    ForEach(DisplayMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 12)
+            switch bridge.displayMode {
+            case .off:
+                // Off mode: just show agents list
+                AgentListView(agents: bridge.displayAgents)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                    )
+                    .padding(.horizontal, 4)
+                Spacer().frame(height: 2)
 
-                Divider()
-                    .padding(.vertical, 4)
-            }
-
-            if bridge.isSoftwareMode {
+            case .software:
                 // Software mode: office canvas or PIP indicator
                 if bridge.isPIPShown {
                     HStack {
@@ -90,23 +93,21 @@ struct MenuBarView: View {
                     .padding(.horizontal, 4)
                 Spacer().frame(height: 2)
 
-            } else {
-                // Hardware mode: transport picker
+            case .hardware:
+                // Hardware mode: transport picker + agents
                 TransportPicker()
 
                 Divider()
                     .padding(.vertical, 4)
 
-                if bridge.isConnected {
-                    AgentListView(agents: bridge.displayAgents)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                        )
-                        .padding(.horizontal, 4)
-                    Spacer().frame(height: 2)
-                }
+                AgentListView(agents: bridge.displayAgents)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                    )
+                    .padding(.horizontal, 4)
+                Spacer().frame(height: 2)
             }
 
             // Usage stats (always visible regardless of display mode or connection)
@@ -128,7 +129,7 @@ struct MenuBarView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
 
-                if !bridge.isSoftwareMode && bridge.transportMode == .serial {
+                if bridge.displayMode == .hardware && bridge.transportMode == .serial {
                     Button("Screenshot") {
                         bridge.requestScreenshot()
                     }
@@ -147,7 +148,7 @@ struct MenuBarView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
         }
-        .frame(width: (bridge.isSoftwareMode && !bridge.isPIPShown) ? 328 : 300)
+        .frame(width: (bridge.displayMode == .software && !bridge.isPIPShown) ? 328 : 300)
         .padding(.vertical, 4)
     }
 
@@ -191,10 +192,6 @@ extension BridgeService {
     var isConnected: Bool {
         if case .connected = connectionState { return true }
         return false
-    }
-
-    var isSoftwareMode: Bool {
-        displayMode == .software
     }
 
     var serialTransportConnected: Bool {
