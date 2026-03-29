@@ -490,7 +490,9 @@ final class BridgeService: ObservableObject {
                     if self.bleTransport.isConnected {
                         let name = self.bleTransport.connectedDeviceName ?? "Device"
                         self.connectionState = .connected("BLE: \(name)")
+                        let hadSettings = self.deviceSettingsReceived
                         self.resetSessionState()
+                        self.deviceSettingsReceived = hadSettings
                         _ = self.bleTransport.send(ProtocolBuilder.identifyRequest())
                         self.startIdentifyTimer()
                     }

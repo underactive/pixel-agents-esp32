@@ -130,10 +130,12 @@ void sendIdentifyResponse() {
 
 void onSerialIdentifyReq() {
     sendIdentifyResponse();
+    sendSettingsState();
 }
 
 void onBleIdentifyReq() {
     sendIdentifyResponse();
+    sendSettingsState();
 }
 
 // ── Protocol callbacks ──────────────────────────────────
