@@ -2,6 +2,14 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.12.2] - 2026-03-29
+
+- Restore battery percentage display in BLE transport picker (replaces device name with battery icon + colored percentage when connected)
+- Fix device settings stuck on "Waiting for device settings..." over BLE: firmware now sends settings state alongside identify response, macOS preserves settings flag across session resets for continuous BLE connections
+- Extract battery icon/color helpers from ConnectionStatusView for reuse
+- Add connectedPortPath property to BridgeService for serial port tracking
+- Hide picker label in display mode segmented control (use .labelsHidden())
+
 ## [0.12.1] - 2026-03-27
 
 - Redesign popover display mode picker: rename to "Pixel Agents Office", add "Off" mode (transcript tracking without rendering), rename "ESP32 Device" to "ESP32", reorder tabs to Off | Software | ESP32
