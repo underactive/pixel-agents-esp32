@@ -51,19 +51,22 @@ struct ConnectionStatusView: View {
         }
     }
 
-    private func batteryIconName(_ level: UInt8) -> String {
-        switch level {
-        case 76...100: return "battery.100"
-        case 51...75:  return "battery.75"
-        case 26...50:  return "battery.50"
-        case 1...25:   return "battery.25"
-        default:       return "battery.0"
-        }
-    }
+}
 
-    private func batteryColor(_ level: UInt8) -> Color {
-        if level > 50 { return .green }
-        if level > 20 { return .yellow }
-        return .red
+/// SF Symbol name for a given battery level.
+func batteryIconName(_ level: UInt8) -> String {
+    switch level {
+    case 76...100: return "battery.100"
+    case 51...75:  return "battery.75"
+    case 26...50:  return "battery.50"
+    case 1...25:   return "battery.25"
+    default:       return "battery.0"
     }
+}
+
+/// Color for a given battery level (green/yellow/red).
+func batteryColor(_ level: UInt8) -> Color {
+    if level > 50 { return .green }
+    if level > 20 { return .yellow }
+    return .red
 }

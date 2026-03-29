@@ -87,10 +87,22 @@ struct TransportPicker: View {
             }
         } else {
             ForEach(bridge.bleTransport.discoveredDevices) { device in
+                let isThisDeviceConnected = bridge.bleTransport.isConnected && device.id == bridge.bleTransport.connectedPeripheralID
                 HStack {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(device.name)
-                            .font(.system(size: 11))
+                        if isThisDeviceConnected, let level = bridge.deviceBatteryLevel {
+                            HStack(spacing: 3) {
+                                Image(systemName: batteryIconName(level))
+                                    .foregroundColor(batteryColor(level))
+                                    .font(.system(size: 11))
+                                Text("\(level)%")
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .foregroundColor(batteryColor(level))
+                            }
+                        } else {
+                            Text(device.name)
+                                .font(.system(size: 11))
+                        }
                         if let pin = device.pin {
                             Text("PIN: \(String(format: "%04d", pin))")
                                 .font(.system(size: 10, design: .monospaced))
@@ -98,7 +110,7 @@ struct TransportPicker: View {
                         }
                     }
                     Spacer()
-                    if bridge.bleTransport.isConnected && device.id == bridge.bleTransport.connectedPeripheralID {
+                    if isThisDeviceConnected {
                         Button("Disconnect") {
                             bridge.disconnect()
                         }

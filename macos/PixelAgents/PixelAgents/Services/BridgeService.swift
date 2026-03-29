@@ -141,6 +141,8 @@ final class BridgeService: ObservableObject {
 
     /// Selected serial port path (nil = auto-detect).
     @Published var selectedPort: String?
+    /// The actual serial port path currently connected (full /dev/cu.* path).
+    @Published private(set) var connectedPortPath: String?
     /// Selected BLE device PIN.
     @Published var selectedBLEPin: UInt16?
 
@@ -289,11 +291,13 @@ final class BridgeService: ObservableObject {
         case .off:
             // Disconnect hardware, no rendering
             activeTransport?.disconnect()
+            connectedPortPath = nil
             connectionState = .disconnected
             resetSessionState()
         case .software:
             // Disconnect hardware, enter software display
             activeTransport?.disconnect()
+            connectedPortPath = nil
             connectionState = .connected("Software Display")
             resetSessionState()
         case .hardware:
@@ -309,6 +313,7 @@ final class BridgeService: ObservableObject {
         manualDisconnect = false
         activeTransport?.disconnect()
         transportMode = mode
+        connectedPortPath = nil
         resetSessionState()
         connectionState = .disconnected
         attemptConnect()
@@ -345,6 +350,7 @@ final class BridgeService: ObservableObject {
         identifyTimer?.invalidate()
         identifyTimer = nil
         deviceIdentified = nil
+        connectedPortPath = nil
         if transportMode == .ble {
             bleTransport.disconnectKeepDevices()
         } else {
@@ -371,6 +377,7 @@ final class BridgeService: ObservableObject {
                 return
             }
             if serialTransport.connect(port: port) {
+                connectedPortPath = port
                 connectionState = .connected("Serial: \(port.components(separatedBy: "/").last ?? port)")
                 resetSessionState()
                 _ = serialTransport.send(ProtocolBuilder.identifyRequest())
@@ -413,6 +420,7 @@ final class BridgeService: ObservableObject {
         identifyTimer?.invalidate()
         identifyTimer = nil
         deviceIdentified = nil
+        connectedPortPath = nil
         connectionState = .disconnected
         // Reconnect timer will handle retry
     }

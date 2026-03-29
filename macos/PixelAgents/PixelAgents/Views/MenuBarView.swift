@@ -12,7 +12,7 @@ struct MenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Display mode picker
-            Picker("Pixel Agents Office", selection: Binding(
+            Picker("Mode", selection: Binding(
                 get: { bridge.displayMode },
                 set: { bridge.setDisplayMode($0) }
             )) {
@@ -20,6 +20,7 @@ struct MenuBarView: View {
                     Text(mode.rawValue).tag(mode)
                 }
             }
+            .labelsHidden()
             .pickerStyle(.segmented)
             .padding(.horizontal, 12)
             .padding(.top, 4)
@@ -61,23 +62,8 @@ struct MenuBarView: View {
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
                 } else {
-                    ZStack(alignment: .topTrailing) {
-                        OfficeCanvasView()
-
-                        Button {
-                            bridge.togglePIP()
-                        } label: {
-                            Image(systemName: "pip.enter")
-                                .font(.system(size: 11))
-                                .foregroundColor(.white)
-                                .padding(4)
-                                .background(.black.opacity(0.5))
-                                .cornerRadius(4)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(6)
-                    }
-                    .padding(.horizontal, 4)
+                    OfficeCanvasWithPIP()
+                        .padding(.horizontal, 4)
                 }
 
                 Divider()
@@ -183,6 +169,39 @@ struct MenuBarView: View {
                     .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
             )
             .padding(.horizontal, 4)
+        }
+    }
+}
+
+/// Office canvas with a PIP button that only appears on hover.
+private struct OfficeCanvasWithPIP: View {
+    @EnvironmentObject var bridge: BridgeService
+    @State private var isHovering = false
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            OfficeCanvasView()
+
+            if isHovering {
+                Button {
+                    bridge.togglePIP()
+                } label: {
+                    Image(systemName: "pip.enter")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(.black.opacity(0.5))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .padding(6)
+                .transition(.opacity)
+            }
+        }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
         }
     }
 }
