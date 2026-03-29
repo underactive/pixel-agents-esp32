@@ -391,6 +391,8 @@ final class BridgeService: ObservableObject {
                 let name = bleTransport.connectedDeviceName ?? "Device"
                 connectionState = .connected("BLE: \(name)")
                 resetSessionState()
+                _ = bleTransport.send(ProtocolBuilder.identifyRequest())
+                startIdentifyTimer()
                 return
             }
             // If a manual connect is already in progress, don't overwrite .connecting
