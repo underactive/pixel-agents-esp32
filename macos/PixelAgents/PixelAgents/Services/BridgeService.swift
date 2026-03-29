@@ -390,7 +390,12 @@ final class BridgeService: ObservableObject {
             if bleTransport.isConnected {
                 let name = bleTransport.connectedDeviceName ?? "Device"
                 connectionState = .connected("BLE: \(name)")
+                // Preserve deviceSettingsReceived: BLE never disconnected,
+                // so the firmware won't re-send settings (it only sends on
+                // first heartbeat after connection transition).
+                let hadSettings = deviceSettingsReceived
                 resetSessionState()
+                deviceSettingsReceived = hadSettings
                 _ = bleTransport.send(ProtocolBuilder.identifyRequest())
                 startIdentifyTimer()
                 return
