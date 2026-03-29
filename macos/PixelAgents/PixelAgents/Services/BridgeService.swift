@@ -42,8 +42,10 @@ enum TransportMode: String, CaseIterable, Identifiable {
 @MainActor
 final class BridgeService: ObservableObject {
 
-    /// Number of character slots shown in the UI (matches firmware workstation count).
-    static let maxDisplaySlots = 6
+    /// Maximum number of character slots shown in the UI (6 desk + 12 mini).
+    static let maxDisplaySlots = 18
+    /// Minimum number of rows in the agent list (matches firmware desk count).
+    static let minDisplaySlots = 6
 
     // MARK: - Actions (set by AppDelegate)
 
@@ -52,7 +54,7 @@ final class BridgeService: ObservableObject {
     // MARK: - Published state for SwiftUI
 
     @Published var connectionState: ConnectionState = .disconnected
-    @Published var displayAgents: [Agent] = (0..<maxDisplaySlots).map { Agent(id: UInt8($0), state: .offline) }
+    @Published var displayAgents: [Agent] = (0..<minDisplaySlots).map { Agent(id: UInt8($0), state: .offline) }
     @Published var usageStats: UsageStatsData?
     @Published var codexUsageStats: UsageStatsData?
     @Published var geminiUsageStats: UsageStatsData?
@@ -699,14 +701,14 @@ final class BridgeService: ObservableObject {
             }
         }
 
-        // Update published agents for UI — only if changed to prevent unnecessary SwiftUI redraws.
+        // Update published agents for UI — dynamically sized, padded to minimum 6.
         let active = tracker.sortedAgents
-        let newAgents = (0..<Self.maxDisplaySlots).map { i in
-            if i < active.count {
-                return Agent(id: UInt8(i), state: active[i].state, toolName: active[i].toolName, source: active[i].source)
-            } else {
-                return Agent(id: UInt8(i), state: .offline)
-            }
+        let capped = active.prefix(Self.maxDisplaySlots)
+        var newAgents = capped.enumerated().map { i, agent in
+            Agent(id: UInt8(i), state: agent.state, toolName: agent.toolName, source: agent.source)
+        }
+        while newAgents.count < Self.minDisplaySlots {
+            newAgents.append(Agent(id: UInt8(newAgents.count), state: .offline))
         }
         if newAgents != displayAgents {
             displayAgents = newAgents
@@ -738,6 +740,12 @@ final class BridgeService: ObservableObject {
     func setDeviceDogBarkEnabled(_ enabled: Bool) {
         deviceDogBarkEnabled = enabled
         sendDeviceSettings()
+    }
+
+    func rebootDevice() {
+        guard displayMode == .hardware,
+              let transport = activeTransport, transport.isConnected else { return }
+        _ = transport.send(ProtocolBuilder.reboot())
     }
 
     private func sendDeviceSettings() {

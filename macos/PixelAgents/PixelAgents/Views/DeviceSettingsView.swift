@@ -88,6 +88,14 @@ struct DeviceSettingsView: View {
                 .font(.subheadline)
                 .disabled(!bridge.deviceSoundEnabled)
 
+                Divider()
+                    .padding(.vertical, 4)
+
+                Button("Reboot Device") {
+                    bridge.rebootDevice()
+                }
+                .font(.subheadline)
+
                 Spacer()
             }
         }

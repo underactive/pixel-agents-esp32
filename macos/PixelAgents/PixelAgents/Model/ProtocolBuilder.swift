@@ -34,6 +34,7 @@ enum ProtocolBuilder {
     static let msgSettingsState: UInt8    = 0x08
     static let msgIdentifyReq: UInt8     = 0x09
     static let msgIdentifyRsp: UInt8     = 0x0A
+    static let msgReboot: UInt8          = 0x0B
 
     static let identifyMagic: [UInt8] = [0x50, 0x58, 0x41, 0x47]  // "PXAG"
 
@@ -106,6 +107,11 @@ enum ProtocolBuilder {
     /// IDENTIFY_REQ: no payload
     static func identifyRequest() -> Data {
         return buildMessage(type: msgIdentifyReq, payload: Data())
+    }
+
+    /// REBOOT: no payload — device restarts immediately
+    static func reboot() -> Data {
+        return buildMessage(type: msgReboot, payload: Data())
     }
 
     /// Parse an IDENTIFY_RSP payload (8 bytes) into an IdentifyResponse.

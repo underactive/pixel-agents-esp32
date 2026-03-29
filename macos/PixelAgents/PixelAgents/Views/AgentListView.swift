@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Displays all 6 character slots with their current state.
+/// Displays agent slots with their current state. Expands as more agents become active.
+/// Always shows at least 6 slots (padded with "Off") to match the desk agent count.
 struct AgentListView: View {
     let agents: [Agent]
 

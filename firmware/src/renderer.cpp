@@ -224,17 +224,18 @@ void Renderer::drawScene(OfficeState& office) {
         } else {
             const Character& ch = chars[indices[i]];
             if (ch.state == CharState::SPAWN || ch.state == CharState::DESPAWN) {
-                drawSpawnEffect(ch);
+                ch.isMini ? drawMiniSpawnEffect(ch) : drawSpawnEffect(ch);
             } else {
-                drawCharacter(ch);
+                ch.isMini ? drawMiniCharacter(ch) : drawCharacter(ch);
             }
         }
     }
 
-    // 6. Draw speech bubbles (skip dog index -1)
+    // 6. Draw speech bubbles (skip dog and mini-agents)
     for (int i = 0; i < count; i++) {
         if (indices[i] < 0) continue;
         const Character& ch = chars[indices[i]];
+        if (ch.isMini) continue;
         if (ch.bubbleType > 0) {
             drawBubble(ch);
         }
@@ -469,6 +470,93 @@ void Renderer::drawSpawnEffect(const Character& ch) {
     }
 }
 
+void Renderer::drawMiniCharacter(const Character& ch) {
+    int drawY = (int)(ch.y) - MINI_CHAR_H;  // no sitting offset — mini-agents stand
+    if (drawY + MINI_CHAR_H <= _clipYMin || drawY >= _clipYMax) return;
+
+    int localFrame;
+    if (ch.state == CharState::TYPE || ch.state == CharState::READ) {
+        // Walk-in-place animation: cycle 0→1→2→1
+        static const int walkCycle[] = {0, 1, 2, 1};
+        localFrame = walkCycle[ch.frame % 4];
+    } else if (ch.state == CharState::WALK) {
+        static const int walkCycle[] = {0, 1, 2, 1};
+        localFrame = walkCycle[ch.frame % 4];
+    } else {
+        localFrame = 1;  // standing frame
+    }
+
+    Dir renderDir = ch.dir;
+    bool flipH = false;
+    if (ch.dir == Dir::LEFT) {
+        renderDir = Dir::RIGHT;
+        flipH = true;
+    }
+
+    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + localFrame;
+    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
+
+    int charIdx = ch.palette % NUM_PALETTES;
+    const uint16_t* sprite = MINI_CHAR_SPRITES[charIdx][frameIdx];
+
+    int drawX = (int)(ch.x) - MINI_CHAR_W / 2;
+    drawRGB565SpriteFlip(drawX, drawY, sprite, MINI_CHAR_W, MINI_CHAR_H, flipH);
+}
+
+void Renderer::drawMiniSpawnEffect(const Character& ch) {
+    int spawnDrawY = (int)(ch.y) - MINI_CHAR_H;
+    if (spawnDrawY + MINI_CHAR_H <= _clipYMin || spawnDrawY >= _clipYMax) return;
+
+    float progress = ch.effectTimer / SPAWN_DURATION_SEC;
+    if (progress > 1.0f) progress = 1.0f;
+    if (ch.state == CharState::DESPAWN) {
+        progress = 1.0f - progress;
+    }
+
+    Dir renderDir = ch.dir;
+    bool flipH = false;
+    if (ch.dir == Dir::LEFT) {
+        renderDir = Dir::RIGHT;
+        flipH = true;
+    }
+
+    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + 1; // standing frame
+    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
+
+    int charIdx = ch.palette % NUM_PALETTES;
+    const uint16_t* sprite = MINI_CHAR_SPRITES[charIdx][frameIdx];
+
+    int drawX = (int)(ch.x) - MINI_CHAR_W / 2;
+    int drawY = (int)(ch.y) - MINI_CHAR_H;
+
+    int revealCols = (int)(progress * MINI_CHAR_W);
+
+    for (int col = 0; col < revealCols && col < MINI_CHAR_W; col++) {
+        int srcCol = flipH ? (MINI_CHAR_W - 1 - col) : col;
+        for (int row = 0; row < MINI_CHAR_H; row++) {
+            uint16_t color = sprite[row * MINI_CHAR_W + srcCol];
+            if (color == 0x0000) continue;
+
+            if (progress < 0.8f) {
+                float greenBlend = 1.0f - (progress / 0.8f);
+                uint8_t r = ((color >> 11) & 0x1F) << 3;
+                uint8_t g = ((color >> 5) & 0x3F) << 2;
+                uint8_t b = (color & 0x1F) << 3;
+                r = (uint8_t)(r * (1.0f - greenBlend));
+                g = (uint8_t)(g + (255 - g) * greenBlend * 0.5f);
+                b = (uint8_t)(b * (1.0f - greenBlend));
+                color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+            }
+
+            int dx = drawX + col;
+            int dy = drawY + row;
+            if (dx >= 0 && dx < SCREEN_W && dy >= 0 && dy < SCREEN_H) {
+                gfxDrawPixel(dx, dy, color);
+            }
+        }
+    }
+}
+
 void Renderer::drawBubble(const Character& ch) {
     // Bubble is above the character's head — estimate worst-case Y for clip check
     int sittingOff2 = (ch.state == CharState::TYPE || ch.state == CharState::READ) ? SITTING_OFFSET_PX : 0;
@@ -603,7 +691,7 @@ void Renderer::drawStatusBar(OfficeState& office) {
     switch (office.getStatusMode()) {
         case StatusMode::OVERVIEW: {
             int activeCount = office.getActiveAgentCount();
-            snprintf(buf, sizeof(buf), "%d/%d active", activeCount, MAX_AGENTS);
+            snprintf(buf, sizeof(buf), "%d active", activeCount);
             gfxDrawString(buf, textLeft, y + 1);
             if (!office.isConnected()) {
                 uint16_t pin = office.getBlePin();
@@ -680,7 +768,7 @@ void Renderer::drawStatusBar(OfficeState& office) {
         case StatusMode::AGENT_LIST: {
             int pos = textLeft;
             const Character* chars = office.getCharacters();
-            for (int i = 0; i < MAX_AGENTS; i++) {
+            for (int i = 0; i < MAX_DESK_AGENTS; i++) {
                 if (!chars[i].alive) continue;
                 const char* stateStr;
                 switch (chars[i].state) {

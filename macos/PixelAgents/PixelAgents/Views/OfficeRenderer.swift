@@ -130,6 +130,8 @@ final class OfficeRenderer {
     private let sceneH = 224  // Grid area only (14 rows * 16px), no status bar
     private let charW: CGFloat = 16
     private let charH: CGFloat = 32
+    private let miniCharW: CGFloat = 10
+    private let miniCharH: CGFloat = 19
     private let dogW: CGFloat = 25
     private let dogH: CGFloat = 19
     private let sittingOffsetPx: CGFloat = 6
@@ -217,9 +219,9 @@ final class OfficeRenderer {
             case .character(let idx):
                 let ch = scene.characters[idx]
                 if ch.state == .spawn || ch.state == .despawn {
-                    drawSpawnEffect(ctx, character: ch)
+                    ch.isMini ? drawMiniSpawnEffect(ctx, character: ch) : drawSpawnEffect(ctx, character: ch)
                 } else {
-                    drawCharacter(ctx, character: ch, scene: scene)
+                    ch.isMini ? drawMiniCharacter(ctx, character: ch) : drawCharacter(ctx, character: ch, scene: scene)
                 }
             case .dog:
                 drawDog(ctx, pet: scene.pet, dogColor: scene.dogColor)
@@ -228,7 +230,7 @@ final class OfficeRenderer {
 
         // 6. Draw speech bubbles (on top of all entities)
         for ch in scene.characters {
-            guard ch.alive, ch.bubbleType > 0 else { continue }
+            guard ch.alive, !ch.isMini, ch.bubbleType > 0 else { continue }
             drawBubble(ctx, character: ch)
         }
 
@@ -362,6 +364,108 @@ final class OfficeRenderer {
         ctx.saveGState()
         ctx.setFillColor(CGColor(red: 0, green: 1, blue: 0, alpha: overlayAlpha))
         ctx.fill(CGRect(x: overlayX, y: overlayCGY, width: CGFloat(cropW), height: charH))
+        ctx.restoreGState()
+    }
+
+    // MARK: - Mini Character Rendering
+
+    private func drawMiniCharacter(_ ctx: CGContext, character ch: OfficeSim.Character) {
+        let drawX = CGFloat(ch.x) - miniCharW / 2
+        let drawY = CGFloat(ch.y) - miniCharH  // no sitting offset
+
+        // Walk-in-place for TYPE/READ, normal walk for WALK, standing for IDLE
+        let frameCol: Int
+        if ch.state == .type || ch.state == .read {
+            let walkCycle = [0, 1, 2, 1]
+            frameCol = walkCycle[ch.frame % 4]
+        } else if ch.state == .walk {
+            let walkCycle = [0, 1, 2, 1]
+            frameCol = walkCycle[ch.frame % 4]
+        } else {
+            frameCol = 1  // standing
+        }
+
+        let renderDir: OfficeSim.Dir
+        let flipH: Bool
+        if ch.dir == .left {
+            renderDir = .right
+            flipH = true
+        } else {
+            renderDir = ch.dir
+            flipH = false
+        }
+
+        guard let frame = sprites.characterFrame(
+            palette: ch.palette,
+            dir: renderDir,
+            frameCol: frameCol
+        ) else { return }
+
+        // Draw at 3/4 scale — CoreGraphics scales with nearest-neighbor (interpolationQuality = .none)
+        drawSprite(ctx, image: frame, x: drawX, y: drawY, w: miniCharW, h: miniCharH, flipH: flipH)
+    }
+
+    private func drawMiniSpawnEffect(_ ctx: CGContext, character ch: OfficeSim.Character) {
+        let drawX = CGFloat(ch.x) - miniCharW / 2
+        let drawY = CGFloat(ch.y) - miniCharH
+        let frameCol = 1  // standing pose
+
+        let renderDir: OfficeSim.Dir
+        let flipH: Bool
+        if ch.dir == .left {
+            renderDir = .right
+            flipH = true
+        } else {
+            renderDir = ch.dir
+            flipH = false
+        }
+
+        guard let frame = sprites.characterFrame(
+            palette: ch.palette,
+            dir: renderDir,
+            frameCol: frameCol
+        ) else { return }
+
+        let progress = CGFloat(min(ch.effectTimer / OfficeSim.spawnDurationSec, 1.0))
+        let revealCols = Int(progress * miniCharW)
+        guard revealCols > 0 else { return }
+
+        let cropX: Int
+        let cropW: Int
+        if ch.state == .despawn {
+            cropX = Int(miniCharW) - revealCols
+            cropW = revealCols
+        } else {
+            cropX = 0
+            cropW = revealCols
+        }
+
+        // Scale crop coordinates from mini to full-size frame for CGImage cropping
+        let scaleX = CGFloat(frame.width) / miniCharW
+        let scaleY = CGFloat(frame.height) / miniCharH
+        let srcCropRect = CGRect(
+            x: CGFloat(cropX) * scaleX,
+            y: 0,
+            width: CGFloat(cropW) * scaleX,
+            height: CGFloat(frame.height)
+        )
+        guard let croppedFrame = frame.cropping(to: srcCropRect) else { return }
+
+        let offsetX = drawX + CGFloat(cropX)
+        drawSprite(ctx, image: croppedFrame, x: offsetX, y: drawY, w: CGFloat(cropW), h: miniCharH, flipH: flipH)
+
+        // Matrix-style green tint overlay
+        let overlayAlpha = 0.3 * (1.0 - progress)
+        let overlayX: CGFloat
+        if flipH {
+            overlayX = drawX + miniCharW - CGFloat(cropX) - CGFloat(cropW)
+        } else {
+            overlayX = offsetX
+        }
+        let overlayCGY = CGFloat(sceneH) - drawY - miniCharH
+        ctx.saveGState()
+        ctx.setFillColor(CGColor(red: 0, green: 1, blue: 0, alpha: overlayAlpha))
+        ctx.fill(CGRect(x: overlayX, y: overlayCGY, width: CGFloat(cropW), height: miniCharH))
         ctx.restoreGState()
     }
 

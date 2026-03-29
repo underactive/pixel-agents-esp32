@@ -53,6 +53,10 @@ struct Character {
     // Spawn/despawn effect
     float effectTimer;
     bool alive;               // true once spawnAllCharacters() is called
+
+    // Mini-agent (3/4 scale overflow characters)
+    bool isMini;              // true for slots MAX_DESK_AGENTS..MAX_AGENTS-1
+    int8_t deskIdx;           // workstation index (0-5) this mini-agent stands near, -1 if none
 };
 
 struct Pet {
@@ -200,6 +204,12 @@ private:
     int findCharByAgentId(uint8_t agentId) const;
     int findFreeSeat() const;
     int findOrAssignChar(uint8_t agentId);
+
+    // Mini-agent management
+    int findOrAssignMini(uint8_t agentId);
+    int leastLoadedDesk() const;
+    void pickMiniPosition(Character& ch);
+    void startMiniWander(Character& ch);
 
     // Character update
     void updateCharacter(Character& ch, float dt);

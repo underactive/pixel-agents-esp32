@@ -17,6 +17,8 @@ void OfficeState::init() {
         _chars[i].alive = false;
         _chars[i].seatIdx = -1;
         _chars[i].agentId = -1;
+        _chars[i].isMini = (i >= MAX_DESK_AGENTS);
+        _chars[i].deskIdx = -1;
     }
     initTileMap();
     _serialConnected = false;
@@ -27,10 +29,14 @@ void OfficeState::init() {
 }
 
 void OfficeState::spawnAllCharacters() {
-    for (int i = 0; i < MAX_AGENTS; i++) {
+    // Only spawn desk agents (0..MAX_DESK_AGENTS-1) at boot.
+    // Mini-agent slots (MAX_DESK_AGENTS..MAX_AGENTS-1) start dead and spawn on demand.
+    for (int i = 0; i < MAX_DESK_AGENTS; i++) {
         Character& ch = _chars[i];
         memset(&ch, 0, sizeof(Character));
         ch.alive = true;
+        ch.isMini = false;
+        ch.deskIdx = -1;
         ch.id = (uint8_t)i;
         ch.palette = (uint8_t)(i % NUM_PALETTES);
         ch.state = CharState::IDLE;
@@ -303,12 +309,12 @@ int OfficeState::findFreeSeat() const {
 }
 
 int OfficeState::findOrAssignChar(uint8_t agentId) {
-    // First: find a character already assigned to this agentId
+    // First: find a character already assigned to this agentId (search all slots)
     int existing = findCharByAgentId(agentId);
     if (existing >= 0) return existing;
 
-    // Second: find an idle character not assigned to any agent
-    for (int i = 0; i < MAX_AGENTS; i++) {
+    // Second: find an idle desk agent not assigned to any agent (slots 0..MAX_DESK_AGENTS-1)
+    for (int i = 0; i < MAX_DESK_AGENTS; i++) {
         if (_chars[i].alive && _chars[i].agentId < 0 &&
             (_chars[i].state == CharState::IDLE || _chars[i].state == CharState::WALK ||
              _chars[i].state == CharState::ACTIVITY)) {
@@ -316,14 +322,125 @@ int OfficeState::findOrAssignChar(uint8_t agentId) {
             return i;
         }
     }
-    return -1;
+
+    // Third: all desk agents busy -- try mini-agent slots
+    return findOrAssignMini(agentId);
+}
+
+int OfficeState::findOrAssignMini(uint8_t agentId) {
+    // First: find an existing alive mini-agent not assigned to any agent
+    for (int i = MAX_DESK_AGENTS; i < MAX_AGENTS; i++) {
+        if (_chars[i].alive && _chars[i].agentId < 0 &&
+            (_chars[i].state == CharState::IDLE || _chars[i].state == CharState::WALK)) {
+            _chars[i].agentId = (int8_t)agentId;
+            return i;
+        }
+    }
+
+    // Second: find a dead mini slot and spawn a new mini-agent
+    for (int i = MAX_DESK_AGENTS; i < MAX_AGENTS; i++) {
+        if (!_chars[i].alive) {
+            Character& ch = _chars[i];
+            memset(&ch, 0, sizeof(Character));
+            ch.alive = true;
+            ch.isMini = true;
+            ch.id = (uint8_t)i;
+            ch.palette = (uint8_t)(i % NUM_PALETTES);
+            ch.agentId = (int8_t)agentId;
+            ch.seatIdx = -1;
+            ch.deskIdx = (int8_t)leastLoadedDesk();
+            ch.homeZone = (ch.deskIdx < 3) ? SocialZone::BREAK_ROOM : SocialZone::LIBRARY;
+            ch.state = CharState::SPAWN;
+            ch.effectTimer = 0;
+            ch.dir = Dir::DOWN;
+            ch.toolName[0] = '\0';
+            pickMiniPosition(ch);
+            return i;
+        }
+    }
+    return -1;  // all 18 slots full
+}
+
+int OfficeState::leastLoadedDesk() const {
+    int counts[NUM_WORKSTATIONS] = {};
+    for (int i = MAX_DESK_AGENTS; i < MAX_AGENTS; i++) {
+        if (_chars[i].alive && _chars[i].deskIdx >= 0 && _chars[i].deskIdx < NUM_WORKSTATIONS) {
+            counts[_chars[i].deskIdx]++;
+        }
+    }
+    int minIdx = 0;
+    for (int s = 1; s < NUM_WORKSTATIONS; s++) {
+        if (counts[s] < counts[minIdx]) minIdx = s;
+    }
+    return minIdx;
+}
+
+void OfficeState::pickMiniPosition(Character& ch) {
+    if (ch.deskIdx < 0 || ch.deskIdx >= NUM_WORKSTATIONS) {
+        ch.tileCol = 10; ch.tileRow = 3;
+        ch.x = ch.tileCol * TILE_SIZE + TILE_SIZE / 2.0f;
+        ch.y = ch.tileRow * TILE_SIZE + TILE_SIZE / 2.0f;
+        return;
+    }
+    const auto& ws = WORKSTATIONS[ch.deskIdx];
+    // Try random tiles within ±2 of desk, avoiding the seat
+    for (int attempt = 0; attempt < 40; attempt++) {
+        int8_t col = (int8_t)randomInt(ws.deskCol - 2, ws.deskCol + 3);
+        int8_t row = (int8_t)randomInt(ws.deskRow - 2, ws.deskRow + 3);
+        if (col == ws.seatCol && row == ws.seatRow) continue;
+        if (isWalkable(col, row)) {
+            ch.tileCol = col;
+            ch.tileRow = row;
+            ch.x = col * TILE_SIZE + TILE_SIZE / 2.0f;
+            ch.y = row * TILE_SIZE + TILE_SIZE / 2.0f;
+            return;
+        }
+    }
+    // Fallback: scan tiles adjacent to desk systematically
+    for (int dr = -2; dr <= 3; dr++) {
+        for (int dc = -2; dc <= 3; dc++) {
+            int8_t col = (int8_t)(ws.deskCol + dc);
+            int8_t row = (int8_t)(ws.deskRow + dr);
+            if (col == ws.seatCol && row == ws.seatRow) continue;
+            if (isWalkable(col, row)) {
+                ch.tileCol = col;
+                ch.tileRow = row;
+                ch.x = col * TILE_SIZE + TILE_SIZE / 2.0f;
+                ch.y = row * TILE_SIZE + TILE_SIZE / 2.0f;
+                return;
+            }
+        }
+    }
+    // Last resort
+    ch.tileCol = (int8_t)(ws.seatCol);
+    ch.tileRow = (int8_t)(ws.seatRow + 1);
+    ch.x = ch.tileCol * TILE_SIZE + TILE_SIZE / 2.0f;
+    ch.y = ch.tileRow * TILE_SIZE + TILE_SIZE / 2.0f;
+}
+
+void OfficeState::startMiniWander(Character& ch) {
+    if (ch.deskIdx < 0 || ch.deskIdx >= NUM_WORKSTATIONS) {
+        startZoneWander(ch);
+        return;
+    }
+    const auto& ws = WORKSTATIONS[ch.deskIdx];
+    for (int attempt = 0; attempt < 20; attempt++) {
+        int8_t col = (int8_t)randomInt(ws.deskCol - 2, ws.deskCol + 3);
+        int8_t row = (int8_t)randomInt(ws.deskRow - 2, ws.deskRow + 3);
+        if (col == ws.seatCol && row == ws.seatRow) continue;
+        if (isWalkable(col, row)) {
+            startWalk(ch, col, row);
+            return;
+        }
+    }
+    // Couldn't find a target; stay put
 }
 
 int OfficeState::getActiveAgentCount() const {
     int count = 0;
     for (int i = 0; i < MAX_AGENTS; i++) {
         if (!_chars[i].alive) continue;
-        if (_chars[i].agentId >= 0 && _chars[i].isActive) count++;
+        if (_chars[i].agentId >= 0) count++;
     }
     return count;
 }
@@ -342,7 +459,6 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
     int idx;
 
     if (state == CharState::OFFLINE) {
-        // Agent going offline: unassign character, walk back to zone
         idx = findCharByAgentId(id);
         if (idx < 0) return;
         Character& ch = _chars[idx];
@@ -355,9 +471,15 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
         ch.activityTimer = 0;
         ch.activityCooldown = false;
         ch.hasPlayedJobSound = false;
-        // Release seat
         ch.seatIdx = -1;
-        walkToZone(ch);
+        if (ch.isMini) {
+            // Mini-agents despawn in place (matrix effect → dead)
+            ch.state = CharState::DESPAWN;
+            ch.effectTimer = 0;
+        } else {
+            // Full-size agents walk back to zone
+            walkToZone(ch);
+        }
         return;
     }
 
@@ -389,27 +511,37 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
 
     // Determine actual animation state from protocol state
     if (state == CharState::TYPE || state == CharState::READ) {
-        // Assign a seat if not already seated
-        if (ch.seatIdx < 0) {
-            ch.seatIdx = (int8_t)findFreeSeat();
-        }
-        // Active: go to desk
-        if (ch.seatIdx >= 0) {
-            const auto& ws = WORKSTATIONS[ch.seatIdx];
-            if (ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow) {
-                // Already at seat
-                ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;
-                ch.dir = ws.facingDir;
-                ch.frame = 0;
-                ch.frameTimer = 0;
-            } else {
-                // Walk to seat (cancels any current walk, e.g., walking to zone)
-                startWalk(ch, (int8_t)ws.seatCol, (int8_t)ws.seatRow);
-            }
-        } else {
+        if (ch.isMini) {
+            // Mini-agents stand near their desk and walk-in-place
             ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;
+            if (ch.deskIdx >= 0 && ch.deskIdx < NUM_WORKSTATIONS) {
+                ch.dir = WORKSTATIONS[ch.deskIdx].facingDir;
+            }
             ch.frame = 0;
             ch.frameTimer = 0;
+        } else {
+            // Assign a seat if not already seated
+            if (ch.seatIdx < 0) {
+                ch.seatIdx = (int8_t)findFreeSeat();
+            }
+            // Active: go to desk
+            if (ch.seatIdx >= 0) {
+                const auto& ws = WORKSTATIONS[ch.seatIdx];
+                if (ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow) {
+                    // Already at seat
+                    ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;
+                    ch.dir = ws.facingDir;
+                    ch.frame = 0;
+                    ch.frameTimer = 0;
+                } else {
+                    // Walk to seat (cancels any current walk, e.g., walking to zone)
+                    startWalk(ch, (int8_t)ws.seatCol, (int8_t)ws.seatRow);
+                }
+            } else {
+                ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;
+                ch.frame = 0;
+                ch.frameTimer = 0;
+            }
         }
     } else if (state == CharState::IDLE) {
         // Release seat if character was heading to desk or working
@@ -424,8 +556,10 @@ void OfficeState::setAgentState(uint8_t id, CharState state, const char* toolNam
         ch.bubbleTimer = 0;
     }
 
-    // Handle bubble for special states
-    if (state == CharState::TYPE && toolName && strcmp(toolName, "PERMISSION") == 0) {
+    // Handle bubble for special states (no bubbles for mini-agents)
+    if (ch.isMini) {
+        ch.bubbleType = 0;
+    } else if (state == CharState::TYPE && toolName && strcmp(toolName, "PERMISSION") == 0) {
         ch.bubbleType = 1; // permission
         ch.bubbleTimer = PERMISSION_BUBBLE_DURATION_SEC;
         queueSound(SoundId::MINIMAL_POP);
@@ -544,10 +678,17 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
     if (ch.state == CharState::DESPAWN) {
         ch.effectTimer += dt;
         if (ch.effectTimer >= SPAWN_DURATION_SEC) {
-            // Characters never truly despawn -- transition to idle in zone
-            ch.state = CharState::IDLE;
-            ch.frame = 0;
-            ch.frameTimer = 0;
+            if (ch.isMini) {
+                // Mini-agents die after despawn — reclaim slot
+                ch.alive = false;
+                ch.agentId = -1;
+                ch.deskIdx = -1;
+            } else {
+                // Full-size characters return to idle in zone
+                ch.state = CharState::IDLE;
+                ch.frame = 0;
+                ch.frameTimer = 0;
+            }
         }
         return;
     }
@@ -555,20 +696,30 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
     switch (ch.state) {
         case CharState::TYPE:
         case CharState::READ: {
-            if (ch.frameTimer >= TYPE_FRAME_DURATION_SEC) {
-                ch.frameTimer -= TYPE_FRAME_DURATION_SEC;
-                ch.frame = (ch.frame + 1) % 2;
+            if (ch.isMini) {
+                // Walk-in-place animation for mini-agents
+                if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
+                    ch.frameTimer -= WALK_FRAME_DURATION_SEC;
+                    ch.frame = (ch.frame + 1) % 4;
+                }
+            } else {
+                if (ch.frameTimer >= TYPE_FRAME_DURATION_SEC) {
+                    ch.frameTimer -= TYPE_FRAME_DURATION_SEC;
+                    ch.frame = (ch.frame + 1) % 2;
+                }
             }
             if (!ch.isActive) {
                 ch.state = CharState::IDLE;
                 ch.frame = 0;
                 ch.frameTimer = 0;
-                if (ch.bubbleType == 0) {
+                if (!ch.isMini && ch.bubbleType == 0) {
                     ch.bubbleType = 2; // waiting
                     ch.bubbleTimer = WAITING_BUBBLE_DURATION_SEC;
                 }
                 ch.seatIdx = -1;
-                walkToZone(ch);
+                if (!ch.isMini) {
+                    walkToZone(ch);
+                }
             }
             break;
         }
@@ -576,8 +727,8 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
         case CharState::IDLE: {
             ch.frame = 0;
 
-            // If became active, go to seat
-            if (ch.isActive && ch.seatIdx >= 0) {
+            // If became active, go to seat (desk agents only)
+            if (!ch.isMini && ch.isActive && ch.seatIdx >= 0) {
                 const auto& ws = WORKSTATIONS[ch.seatIdx];
                 if (ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow) {
                     ch.state = CharState::TYPE;
@@ -593,8 +744,11 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
             // Wander timer
             ch.wanderTimer -= dt;
             if (ch.wanderTimer <= 0) {
-                // Unassigned characters may do idle activities or wander in zone
-                if (ch.agentId < 0) {
+                if (ch.isMini) {
+                    // Mini-agents wander near their assigned desk only, no idle activities
+                    startMiniWander(ch);
+                } else if (ch.agentId < 0) {
+                    // Unassigned desk characters may do idle activities or wander in zone
                     if (!ch.activityCooldown && randomRange(0, 1.0f) < ACTIVITY_CHANCE) {
                         startIdleActivity(ch);
                     } else {
@@ -623,7 +777,13 @@ void OfficeState::updateCharacter(Character& ch, float dt) {
                 ch.x = cx;
                 ch.y = cy;
 
-                if (ch.isActive && ch.seatIdx >= 0) {
+                if (ch.isMini && ch.isActive) {
+                    // Mini-agent arrived near desk: face desk and walk-in-place
+                    ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;
+                    if (ch.deskIdx >= 0 && ch.deskIdx < NUM_WORKSTATIONS) {
+                        ch.dir = WORKSTATIONS[ch.deskIdx].facingDir;
+                    }
+                } else if (!ch.isMini && ch.isActive && ch.seatIdx >= 0) {
                     const auto& ws = WORKSTATIONS[ch.seatIdx];
                     if (ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow) {
                         ch.state = isReadingTool(ch.toolName) ? CharState::READ : CharState::TYPE;

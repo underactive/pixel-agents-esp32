@@ -12,10 +12,14 @@ enum OfficeSim {
     static let gridRows = 14
     static let screenW: Float = 320
     static let screenH: Float = 240
-    static let maxAgents = 6
+    static let maxDeskAgents = 6
+    static let maxMiniAgents = 12
+    static let maxAgents = 18  // desk + mini
     static let numPalettes = 6
     static let charW: Float = 16
     static let charH: Float = 32
+    static let miniCharW: Float = 10
+    static let miniCharH: Float = 19
     static let dogW: Float = 25
     static let dogH: Float = 19
 
@@ -199,6 +203,8 @@ enum OfficeSim {
         var hasPlayedJobSound: Bool = false
         var effectTimer: Float = 0
         var alive: Bool = false
+        var isMini: Bool = false
+        var deskIdx: Int = -1
     }
 
     // MARK: - Pet
@@ -268,32 +274,36 @@ final class OfficeScene {
             count: OfficeSim.gridRows
         )
 
-        // Initialize characters
+        // Initialize desk characters (0..<maxDeskAgents) as alive; mini slots start dead
         characters = (0..<OfficeSim.maxAgents).map { i in
             var ch = OfficeSim.Character(id: i)
-            ch.alive = true
-            ch.palette = i % OfficeSim.numPalettes
-            ch.state = .idle
-            ch.isActive = false
-            ch.seatIdx = -1
-            ch.agentId = -1
-            ch.homeZone = (i < 3) ? .breakRoom : .library
-            ch.dir = .down
-            ch.frame = 0
-            ch.frameTimer = 0
-            ch.wanderTimer = Float.random(in: OfficeSim.wanderPauseMinSec...OfficeSim.wanderPauseMaxSec)
-            ch.wanderCount = 0
-            ch.wanderLimit = Int.random(in: OfficeSim.wanderMovesMin...OfficeSim.wanderMovesMax)
-            ch.pathLen = 0
-            ch.pathIdx = 0
-            ch.idleActivity = .none
-            ch.activityDir = .down
-            ch.activityTimer = 0
-            ch.activityCooldown = false
-            ch.bubbleType = 0
-            ch.bubbleTimer = 0
-            ch.effectTimer = 0
-            ch.toolName = ""
+            ch.isMini = (i >= OfficeSim.maxDeskAgents)
+            ch.deskIdx = -1
+            if i < OfficeSim.maxDeskAgents {
+                ch.alive = true
+                ch.palette = i % OfficeSim.numPalettes
+                ch.state = .idle
+                ch.isActive = false
+                ch.seatIdx = -1
+                ch.agentId = -1
+                ch.homeZone = (i < 3) ? .breakRoom : .library
+                ch.dir = .down
+                ch.frame = 0
+                ch.frameTimer = 0
+                ch.wanderTimer = Float.random(in: OfficeSim.wanderPauseMinSec...OfficeSim.wanderPauseMaxSec)
+                ch.wanderCount = 0
+                ch.wanderLimit = Int.random(in: OfficeSim.wanderMovesMin...OfficeSim.wanderMovesMax)
+                ch.pathLen = 0
+                ch.pathIdx = 0
+                ch.idleActivity = .none
+                ch.activityDir = .down
+                ch.activityTimer = 0
+                ch.activityCooldown = false
+                ch.bubbleType = 0
+                ch.bubbleTimer = 0
+                ch.effectTimer = 0
+                ch.toolName = ""
+            }
             return ch
         }
 
@@ -303,8 +313,8 @@ final class OfficeScene {
         // Build tile map (must happen before placing characters)
         initTileMap()
 
-        // Place characters in their home zones
-        for i in 0..<OfficeSim.maxAgents {
+        // Place desk characters in their home zones
+        for i in 0..<OfficeSim.maxDeskAgents {
             placeCharacterInZone(&characters[i])
         }
 
@@ -622,7 +632,6 @@ final class OfficeScene {
 
             if simState == .offline {
                 lastAppliedStates.removeValue(forKey: agent.id)
-                // Agent going offline: unassign character, walk back to zone
                 if let idx = findCharByAgentId(Int(agent.id)) {
                     characters[idx].agentId = -1
                     characters[idx].isActive = false
@@ -634,7 +643,12 @@ final class OfficeScene {
                     characters[idx].activityCooldown = false
                     characters[idx].hasPlayedJobSound = false
                     characters[idx].seatIdx = -1
-                    walkToZone(&characters[idx])
+                    if characters[idx].isMini {
+                        characters[idx].state = .despawn
+                        characters[idx].effectTimer = 0
+                    } else {
+                        walkToZone(&characters[idx])
+                    }
                 }
                 continue
             }
@@ -654,27 +668,35 @@ final class OfficeScene {
 
             // Determine actual animation state from protocol state
             if simState == .type || simState == .read {
-                // Assign a seat if not already seated
-                if characters[idx].seatIdx < 0 {
-                    characters[idx].seatIdx = findFreeSeat()
-                }
-                // Active: go to desk
-                if characters[idx].seatIdx >= 0 {
-                    let ws = OfficeSim.workstations[characters[idx].seatIdx]
-                    if characters[idx].tileCol == ws.seatCol && characters[idx].tileRow == ws.seatRow {
-                        // Already at seat
-                        characters[idx].state = OfficeSim.isReadingTool(toolName) ? .read : .type
-                        characters[idx].dir = ws.facingDir
-                        characters[idx].frame = 0
-                        characters[idx].frameTimer = 0
-                    } else {
-                        // Walk to seat
-                        startWalk(&characters[idx], goalCol: ws.seatCol, goalRow: ws.seatRow)
-                    }
-                } else {
+                if characters[idx].isMini {
+                    // Mini-agents stand near their desk and walk-in-place
                     characters[idx].state = OfficeSim.isReadingTool(toolName) ? .read : .type
+                    if characters[idx].deskIdx >= 0 && characters[idx].deskIdx < OfficeSim.workstations.count {
+                        characters[idx].dir = OfficeSim.workstations[characters[idx].deskIdx].facingDir
+                    }
                     characters[idx].frame = 0
                     characters[idx].frameTimer = 0
+                } else {
+                    // Assign a seat if not already seated
+                    if characters[idx].seatIdx < 0 {
+                        characters[idx].seatIdx = findFreeSeat()
+                    }
+                    // Active: go to desk
+                    if characters[idx].seatIdx >= 0 {
+                        let ws = OfficeSim.workstations[characters[idx].seatIdx]
+                        if characters[idx].tileCol == ws.seatCol && characters[idx].tileRow == ws.seatRow {
+                            characters[idx].state = OfficeSim.isReadingTool(toolName) ? .read : .type
+                            characters[idx].dir = ws.facingDir
+                            characters[idx].frame = 0
+                            characters[idx].frameTimer = 0
+                        } else {
+                            startWalk(&characters[idx], goalCol: ws.seatCol, goalRow: ws.seatRow)
+                        }
+                    } else {
+                        characters[idx].state = OfficeSim.isReadingTool(toolName) ? .read : .type
+                        characters[idx].frame = 0
+                        characters[idx].frameTimer = 0
+                    }
                 }
             } else if simState == .idle {
                 // Release seat if character was heading to desk or working
@@ -686,8 +708,10 @@ final class OfficeScene {
                 characters[idx].hasPlayedJobSound = false
             }
 
-            // Handle bubble for special states
-            if simState == .type && toolName == "PERMISSION" {
+            // Handle bubble for special states (no bubbles for mini-agents)
+            if characters[idx].isMini {
+                characters[idx].bubbleType = 0
+            } else if simState == .type && toolName == "PERMISSION" {
                 characters[idx].bubbleType = 1  // permission
                 characters[idx].bubbleTimer = OfficeSim.permissionBubbleDurationSec
             } else if simState == .idle {
@@ -696,6 +720,30 @@ final class OfficeScene {
             } else {
                 characters[idx].bubbleType = 0
             }
+        }
+
+        // Cleanup: despawn any characters whose agentId isn't in the current agent list.
+        // This handles mini-agents that were assigned higher IDs (6, 7, ...) that no longer
+        // appear in displayAgents after agents are pruned from the tracker.
+        let activeAgentIds = Set(agents.filter { $0.state != .offline }.map { Int($0.id) })
+        for i in 0..<characters.count {
+            guard characters[i].alive, characters[i].agentId >= 0 else { continue }
+            if assignedCharIndices.contains(i) { continue }
+            if activeAgentIds.contains(characters[i].agentId) { continue }
+            // Orphaned character — unassign and despawn/walk-to-zone
+            characters[i].agentId = -1
+            characters[i].isActive = false
+            characters[i].toolName = ""
+            characters[i].bubbleType = 0
+            characters[i].bubbleTimer = 0
+            characters[i].seatIdx = -1
+            if characters[i].isMini {
+                characters[i].state = .despawn
+                characters[i].effectTimer = 0
+            } else {
+                walkToZone(&characters[i])
+            }
+            lastAppliedStates = lastAppliedStates.filter { $0.value.0 != .offline || Int($0.key) != characters[i].id }
         }
     }
 
@@ -718,36 +766,52 @@ final class OfficeScene {
         if ch.state == .despawn {
             ch.effectTimer += dt
             if ch.effectTimer >= OfficeSim.spawnDurationSec {
-                ch.state = .idle
-                ch.frame = 0
-                ch.frameTimer = 0
+                if ch.isMini {
+                    ch.alive = false
+                    ch.agentId = -1
+                    ch.deskIdx = -1
+                } else {
+                    ch.state = .idle
+                    ch.frame = 0
+                    ch.frameTimer = 0
+                }
             }
             return
         }
 
         switch ch.state {
         case .type, .read:
-            if ch.frameTimer >= OfficeSim.typeFrameDurationSec {
-                ch.frameTimer -= OfficeSim.typeFrameDurationSec
-                ch.frame = (ch.frame + 1) % 2
+            if ch.isMini {
+                // Walk-in-place animation for mini-agents
+                if ch.frameTimer >= OfficeSim.walkFrameDurationSec {
+                    ch.frameTimer -= OfficeSim.walkFrameDurationSec
+                    ch.frame = (ch.frame + 1) % 4
+                }
+            } else {
+                if ch.frameTimer >= OfficeSim.typeFrameDurationSec {
+                    ch.frameTimer -= OfficeSim.typeFrameDurationSec
+                    ch.frame = (ch.frame + 1) % 2
+                }
             }
             if !ch.isActive {
                 ch.state = .idle
                 ch.frame = 0
                 ch.frameTimer = 0
-                if ch.bubbleType == 0 {
+                if !ch.isMini && ch.bubbleType == 0 {
                     ch.bubbleType = 2  // waiting
                     ch.bubbleTimer = OfficeSim.waitingBubbleDurationSec
                 }
                 ch.seatIdx = -1
-                walkToZone(&ch)
+                if !ch.isMini {
+                    walkToZone(&ch)
+                }
             }
 
         case .idle:
             ch.frame = 0
 
-            // If became active, go to seat
-            if ch.isActive && ch.seatIdx >= 0 {
+            // If became active, go to seat (desk agents only)
+            if !ch.isMini && ch.isActive && ch.seatIdx >= 0 {
                 let ws = OfficeSim.workstations[ch.seatIdx]
                 if ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow {
                     ch.state = .type
@@ -763,7 +827,9 @@ final class OfficeScene {
             // Wander timer
             ch.wanderTimer -= dt
             if ch.wanderTimer <= 0 {
-                if ch.agentId < 0 {
+                if ch.isMini {
+                    startMiniWander(&ch)
+                } else if ch.agentId < 0 {
                     if !ch.activityCooldown && Float.random(in: 0...1) < OfficeSim.activityChance {
                         startIdleActivity(&ch)
                     } else {
@@ -790,7 +856,13 @@ final class OfficeScene {
                 ch.x = cx
                 ch.y = cy
 
-                if ch.isActive && ch.seatIdx >= 0 {
+                if ch.isMini && ch.isActive {
+                    // Mini-agent arrived near desk: face desk and walk-in-place
+                    ch.state = OfficeSim.isReadingTool(ch.toolName) ? .read : .type
+                    if ch.deskIdx >= 0 && ch.deskIdx < OfficeSim.workstations.count {
+                        ch.dir = OfficeSim.workstations[ch.deskIdx].facingDir
+                    }
+                } else if !ch.isMini && ch.isActive && ch.seatIdx >= 0 {
                     let ws = OfficeSim.workstations[ch.seatIdx]
                     if ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow {
                         ch.state = OfficeSim.isReadingTool(ch.toolName) ? .read : .type
@@ -1107,13 +1179,13 @@ final class OfficeScene {
     }
 
     private func findOrAssignChar(agentId: Int) -> Int? {
-        // First: find a character already assigned to this agentId
+        // First: find a character already assigned to this agentId (all slots)
         if let existing = findCharByAgentId(agentId) {
             return existing
         }
 
-        // Second: find an idle character not assigned to any agent
-        for i in 0..<characters.count {
+        // Second: find an idle desk agent (0..<maxDeskAgents)
+        for i in 0..<OfficeSim.maxDeskAgents {
             if characters[i].alive && characters[i].agentId < 0 &&
                 (characters[i].state == .idle || characters[i].state == .walk ||
                  characters[i].state == .activity) {
@@ -1121,7 +1193,97 @@ final class OfficeScene {
                 return i
             }
         }
-        return nil
+
+        // Third: all desk agents busy — try mini-agent slots
+        return findOrAssignMini(agentId: agentId)
+    }
+
+    private func findOrAssignMini(agentId: Int) -> Int? {
+        // Find existing alive mini not assigned
+        for i in OfficeSim.maxDeskAgents..<OfficeSim.maxAgents {
+            if characters[i].alive && characters[i].agentId < 0 &&
+                (characters[i].state == .idle || characters[i].state == .walk) {
+                characters[i].agentId = agentId
+                return i
+            }
+        }
+
+        // Spawn a new mini-agent in a dead slot
+        for i in OfficeSim.maxDeskAgents..<OfficeSim.maxAgents {
+            if !characters[i].alive {
+                characters[i] = OfficeSim.Character(id: i)
+                characters[i].alive = true
+                characters[i].isMini = true
+                characters[i].palette = i % OfficeSim.numPalettes
+                characters[i].agentId = agentId
+                characters[i].seatIdx = -1
+                characters[i].deskIdx = leastLoadedDesk()
+                characters[i].homeZone = characters[i].deskIdx < 3 ? .breakRoom : .library
+                characters[i].state = .spawn
+                characters[i].effectTimer = 0
+                characters[i].dir = .down
+                characters[i].toolName = ""
+                pickMiniPosition(i)
+                return i
+            }
+        }
+        return nil  // all 18 slots full
+    }
+
+    private func leastLoadedDesk() -> Int {
+        var counts = [Int](repeating: 0, count: OfficeSim.workstations.count)
+        for i in OfficeSim.maxDeskAgents..<OfficeSim.maxAgents {
+            if characters[i].alive && characters[i].deskIdx >= 0 && characters[i].deskIdx < counts.count {
+                counts[characters[i].deskIdx] += 1
+            }
+        }
+        return counts.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
+    }
+
+    private func pickMiniPosition(_ idx: Int) {
+        let deskIdx = characters[idx].deskIdx
+        guard deskIdx >= 0 && deskIdx < OfficeSim.workstations.count else {
+            characters[idx].tileCol = 10; characters[idx].tileRow = 3
+            characters[idx].x = Float(10) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+            characters[idx].y = Float(3) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+            return
+        }
+        let ws = OfficeSim.workstations[deskIdx]
+        for _ in 0..<40 {
+            let col = Int.random(in: (ws.deskCol - 2)...(ws.deskCol + 3))
+            let row = Int.random(in: (ws.deskRow - 2)...(ws.deskRow + 3))
+            if col == ws.seatCol && row == ws.seatRow { continue }
+            if isWalkable(col: col, row: row) {
+                characters[idx].tileCol = col
+                characters[idx].tileRow = row
+                characters[idx].x = Float(col) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+                characters[idx].y = Float(row) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+                return
+            }
+        }
+        // Fallback
+        characters[idx].tileCol = ws.seatCol
+        characters[idx].tileRow = ws.seatRow + 1
+        characters[idx].x = Float(ws.seatCol) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+        characters[idx].y = Float(ws.seatRow + 1) * OfficeSim.tileSize + OfficeSim.tileSize / 2
+    }
+
+    private func startMiniWander(_ ch: inout OfficeSim.Character) {
+        let dIdx = ch.deskIdx
+        guard dIdx >= 0 && dIdx < OfficeSim.workstations.count else {
+            startZoneWander(&ch)
+            return
+        }
+        let ws = OfficeSim.workstations[dIdx]
+        for _ in 0..<20 {
+            let col = Int.random(in: (ws.deskCol - 2)...(ws.deskCol + 3))
+            let row = Int.random(in: (ws.deskRow - 2)...(ws.deskRow + 3))
+            if col == ws.seatCol && row == ws.seatRow { continue }
+            if isWalkable(col: col, row: row) {
+                startWalk(&ch, goalCol: col, goalRow: row)
+                return
+            }
+        }
     }
 
     // MARK: - Pathfinding (BFS)

@@ -22,6 +22,8 @@ static constexpr int GRID_ROWS = 10;   // 170 / 16 = 10 (with 10px for status ba
 // ── Character Sprites ───────────────────────────────────
 static constexpr int CHAR_W = 16;
 static constexpr int CHAR_H = 32;          // 16x32 frames (art bottom-aligned, top padded)
+static constexpr int MINI_CHAR_W = 10;     // 60%-scale mini-agent width
+static constexpr int MINI_CHAR_H = 19;     // 60%-scale mini-agent height
 static constexpr int NUM_PALETTES = 6;     // number of character variants
 static constexpr int FRAMES_PER_DIR = 7;   // walk1, walk2, walk3, type1, type2, read1, read2
 static constexpr int NUM_DIRS_STORED = 3;  // DOWN, UP, RIGHT (LEFT = flip RIGHT)
@@ -83,6 +85,7 @@ static constexpr uint8_t MSG_DEVICE_SETTINGS   = 0x07;
 static constexpr uint8_t MSG_SETTINGS_STATE    = 0x08;
 static constexpr uint8_t MSG_IDENTIFY_REQ      = 0x09;
 static constexpr uint8_t MSG_IDENTIFY_RSP      = 0x0A;
+static constexpr uint8_t MSG_REBOOT            = 0x0B;
 
 // Device identification (identify response payload)
 static constexpr uint8_t IDENTIFY_MAGIC[4] = {0x50, 0x58, 0x41, 0x47};  // "PXAG"
@@ -98,7 +101,9 @@ static constexpr uint8_t SCREENSHOT_SYNC1 = 0xBB;
 static constexpr uint8_t SCREENSHOT_SYNC2 = 0x66;
 
 // ── Agent Limits ────────────────────────────────────────
-static constexpr int MAX_AGENTS = 6;
+static constexpr int MAX_DESK_AGENTS = 6;     // full-size characters that sit at workstations
+static constexpr int MAX_MINI_AGENTS = 12;    // 3/4-scale overflow characters that stand near desks
+static constexpr int MAX_AGENTS = 18;         // total character slots (desk + mini)
 static constexpr uint8_t MAX_AGENT_ID = 127;  // int8_t storage: 128+ wraps negative, 255 collides with -1 sentinel
 static constexpr int MAX_TOOL_NAME_LEN = 24;
 static constexpr int MAX_STATUS_TEXT_LEN = 32;

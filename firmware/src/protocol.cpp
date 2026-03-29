@@ -26,6 +26,7 @@ int Protocol::payloadLength(uint8_t msgType) const {
         case MSG_SCREENSHOT_REQ: return 0;
         case MSG_DEVICE_SETTINGS: return 5;
         case MSG_IDENTIFY_REQ: return 0;
+        case MSG_REBOOT:       return 0;
         case MSG_STATUS_TEXT:  return -1;  // variable: 2 + text
         default: return -2;  // unknown
     }
@@ -173,6 +174,9 @@ void Protocol::dispatch() {
             break;
         case MSG_IDENTIFY_REQ:
             if (_onIdentifyReq) _onIdentifyReq();
+            break;
+        case MSG_REBOOT:
+            ESP.restart();
             break;
         case MSG_DEVICE_SETTINGS: {
             if (_bufIdx < 5) break;
