@@ -46,8 +46,17 @@ final class ActivityDatabase {
 
     private func openDatabase() {
         let fm = FileManager.default
-        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("com.pixelagents.companion")
+
+        // Prefer App Group container (shared with widget extension)
+        let dir: URL
+        if let groupDir = AppGroupConstants.containerURL {
+            dir = groupDir
+            migrateIfNeeded(to: groupDir)
+        } else {
+            // Fallback for dev without code signing / App Groups
+            let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            dir = appSupport.appendingPathComponent("com.pixelagents.companion")
+        }
 
         // Create directory if needed
         if !fm.fileExists(atPath: dir.path) {
@@ -82,6 +91,30 @@ final class ActivityDatabase {
             """
         if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
             Self.log.error("Failed to create daily_activity table")
+        }
+    }
+
+    /// One-time migration: copy existing database from app sandbox to App Group container.
+    private func migrateIfNeeded(to groupDir: URL) {
+        let fm = FileManager.default
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let oldDB = appSupport.appendingPathComponent("com.pixelagents.companion/activity.db")
+        let newDB = groupDir.appendingPathComponent("activity.db")
+
+        guard fm.fileExists(atPath: oldDB.path), !fm.fileExists(atPath: newDB.path) else { return }
+
+        do {
+            try fm.copyItem(at: oldDB, to: newDB)
+            for ext in ["-wal", "-shm"] {
+                let oldAux = URL(fileURLWithPath: oldDB.path + ext)
+                let newAux = URL(fileURLWithPath: newDB.path + ext)
+                if fm.fileExists(atPath: oldAux.path) {
+                    try fm.copyItem(at: oldAux, to: newAux)
+                }
+            }
+            Self.log.info("Migrated activity database to App Group container")
+        } catch {
+            Self.log.error("Failed to migrate activity database: \(error.localizedDescription)")
         }
     }
 

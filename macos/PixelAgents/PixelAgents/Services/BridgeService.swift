@@ -589,6 +589,14 @@ final class BridgeService: ObservableObject {
                 _ = transport.send(msg)
             }
         }
+
+        // Write to widget shared container
+        WidgetDataWriter.writeUsageStats(
+            claude: usageStats,
+            codex: codexUsageStats,
+            gemini: geminiUsageStats,
+            cursor: cursorUsageStats
+        )
     }
 
     private func processTranscripts() {
