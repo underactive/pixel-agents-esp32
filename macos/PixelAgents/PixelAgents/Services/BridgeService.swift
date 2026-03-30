@@ -769,7 +769,27 @@ final class BridgeService: ObservableObject {
             self.deviceIdentified = true
             NSLog("[Bridge] Pixel Agents device: %@ firmware v%@ protocol %d",
                   info.boardName, info.firmwareVersion, info.protocolVersion)
+            self.syncAllAgentsToDevice()
         }
+    }
+
+    /// Re-send the current state of all tracked agents to the device.
+    /// Called after the identify handshake so the device catches up with agents
+    /// that were already active before the connection was established.
+    private func syncAllAgentsToDevice() {
+        guard let transport = activeTransport, transport.isConnected else { return }
+        // Clear the dedup cache so all states are re-sent
+        lastStates.removeAll()
+        let agents = tracker.sortedAgents
+        for agent in agents {
+            let msg = ProtocolBuilder.agentUpdate(id: agent.id, state: agent.state, tool: agent.toolName)
+            _ = transport.send(msg)
+        }
+        let count = tracker.count
+        let msg = ProtocolBuilder.agentCount(UInt8(min(count, 255)))
+        _ = transport.send(msg)
+        lastCount = count
+        NSLog("[Bridge] Synced %d agent(s) to device", agents.count)
     }
 
     private func startIdentifyTimer() {
