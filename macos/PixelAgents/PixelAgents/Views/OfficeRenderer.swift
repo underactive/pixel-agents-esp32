@@ -23,9 +23,21 @@ final class SpriteCache {
     static let dogRows = 5
     static let dogFrameCount = dogCols * dogRows  // 25
 
+    // Robot mini-agent sprite sheet
+    static let robotFrameSize = 64   // each frame canvas in source
+    static let robotCols = 2
+    static let robotRows = 3
+    static let robotFrameCount = robotCols * robotRows  // 6
+    // Content bbox within each 64x64 frame
+    static let robotCropX = 19
+    static let robotCropY = 18
+    static let robotCropW = 24
+    static let robotCropH = 30
+
     // Pre-cropped frame caches
     private var charFrames: [Int: CGImage] = [:]   // key: (palette * 3 + row) * 7 + col
     private var dogFrames: [Int: CGImage] = [:]     // key: colorRaw * 25 + frameIdx
+    private var robotFrameCache: [Int: CGImage] = [:]  // key: frameIdx (0-5)
     private var bgImage: CGImage?
 
     init() {
@@ -72,6 +84,25 @@ final class SpriteCache {
             }
         }
 
+        // Load + pre-crop robot frames: 2 cols x 3 rows = 6 frames, cropped to content area
+        if let robotSheet = loadImage(named: "robot walk") {
+            var idx = 0
+            for row in 0..<Self.robotRows {
+                for col in 0..<Self.robotCols {
+                    let cropRect = CGRect(
+                        x: col * Self.robotFrameSize + Self.robotCropX,
+                        y: row * Self.robotFrameSize + Self.robotCropY,
+                        width: Self.robotCropW,
+                        height: Self.robotCropH
+                    )
+                    if let frame = robotSheet.cropping(to: cropRect) {
+                        robotFrameCache[idx] = frame
+                    }
+                    idx += 1
+                }
+            }
+        }
+
         bgImage = loadImage(named: "office_background")
     }
 
@@ -111,6 +142,12 @@ final class SpriteCache {
         return dogFrames[Int(color.rawValue) * Self.dogFrameCount + frameIdx]
     }
 
+    /// Returns a pre-cropped robot walk frame (0-5).
+    func robotFrame(index: Int) -> CGImage? {
+        let frameIdx = max(0, min(index, Self.robotFrameCount - 1))
+        return robotFrameCache[frameIdx]
+    }
+
     /// Returns the full office background image.
     func background() -> CGImage? {
         bgImage
@@ -130,8 +167,8 @@ final class OfficeRenderer {
     private let sceneH = 224  // Grid area only (14 rows * 16px), no status bar
     private let charW: CGFloat = 16
     private let charH: CGFloat = 32
-    private let miniCharW: CGFloat = 10
-    private let miniCharH: CGFloat = 19
+    private let miniCharW: CGFloat = 13
+    private let miniCharH: CGFloat = 16
     private let dogW: CGFloat = 25
     private let dogH: CGFloat = 19
     private let sittingOffsetPx: CGFloat = 6
@@ -371,60 +408,25 @@ final class OfficeRenderer {
 
     private func drawMiniCharacter(_ ctx: CGContext, character ch: OfficeSim.Character) {
         let drawX = CGFloat(ch.x) - miniCharW / 2
-        let drawY = CGFloat(ch.y) - miniCharH  // no sitting offset
+        let drawY = CGFloat(ch.y) - miniCharH
 
-        // Walk-in-place for TYPE/READ, normal walk for WALK, standing for IDLE
-        let frameCol: Int
-        if ch.state == .type || ch.state == .read {
-            let walkCycle = [0, 1, 2, 1]
-            frameCol = walkCycle[ch.frame % 4]
-        } else if ch.state == .walk {
-            let walkCycle = [0, 1, 2, 1]
-            frameCol = walkCycle[ch.frame % 4]
+        // Robot: no directional variants, cycle through walk frames
+        let localFrame: Int
+        if ch.state == .type || ch.state == .read || ch.state == .walk {
+            localFrame = ch.frame % SpriteCache.robotFrameCount
         } else {
-            frameCol = 1  // standing
+            localFrame = 0
         }
 
-        let renderDir: OfficeSim.Dir
-        let flipH: Bool
-        if ch.dir == .left {
-            renderDir = .right
-            flipH = true
-        } else {
-            renderDir = ch.dir
-            flipH = false
-        }
-
-        guard let frame = sprites.characterFrame(
-            palette: ch.palette,
-            dir: renderDir,
-            frameCol: frameCol
-        ) else { return }
-
-        // Draw at 3/4 scale — CoreGraphics scales with nearest-neighbor (interpolationQuality = .none)
-        drawSprite(ctx, image: frame, x: drawX, y: drawY, w: miniCharW, h: miniCharH, flipH: flipH)
+        guard let frame = sprites.robotFrame(index: localFrame) else { return }
+        drawSprite(ctx, image: frame, x: drawX, y: drawY, w: miniCharW, h: miniCharH, flipH: false)
     }
 
     private func drawMiniSpawnEffect(_ ctx: CGContext, character ch: OfficeSim.Character) {
         let drawX = CGFloat(ch.x) - miniCharW / 2
         let drawY = CGFloat(ch.y) - miniCharH
-        let frameCol = 1  // standing pose
 
-        let renderDir: OfficeSim.Dir
-        let flipH: Bool
-        if ch.dir == .left {
-            renderDir = .right
-            flipH = true
-        } else {
-            renderDir = ch.dir
-            flipH = false
-        }
-
-        guard let frame = sprites.characterFrame(
-            palette: ch.palette,
-            dir: renderDir,
-            frameCol: frameCol
-        ) else { return }
+        guard let frame = sprites.robotFrame(index: 0) else { return }
 
         let progress = CGFloat(min(ch.effectTimer / OfficeSim.spawnDurationSec, 1.0))
         let revealCols = Int(progress * miniCharW)
@@ -440,9 +442,8 @@ final class OfficeRenderer {
             cropW = revealCols
         }
 
-        // Scale crop coordinates from mini to full-size frame for CGImage cropping
+        // Scale crop coordinates from mini to source frame for CGImage cropping
         let scaleX = CGFloat(frame.width) / miniCharW
-        let scaleY = CGFloat(frame.height) / miniCharH
         let srcCropRect = CGRect(
             x: CGFloat(cropX) * scaleX,
             y: 0,
@@ -452,20 +453,14 @@ final class OfficeRenderer {
         guard let croppedFrame = frame.cropping(to: srcCropRect) else { return }
 
         let offsetX = drawX + CGFloat(cropX)
-        drawSprite(ctx, image: croppedFrame, x: offsetX, y: drawY, w: CGFloat(cropW), h: miniCharH, flipH: flipH)
+        drawSprite(ctx, image: croppedFrame, x: offsetX, y: drawY, w: CGFloat(cropW), h: miniCharH, flipH: false)
 
         // Matrix-style green tint overlay
         let overlayAlpha = 0.3 * (1.0 - progress)
-        let overlayX: CGFloat
-        if flipH {
-            overlayX = drawX + miniCharW - CGFloat(cropX) - CGFloat(cropW)
-        } else {
-            overlayX = offsetX
-        }
         let overlayCGY = CGFloat(sceneH) - drawY - miniCharH
         ctx.saveGState()
         ctx.setFillColor(CGColor(red: 0, green: 1, blue: 0, alpha: overlayAlpha))
-        ctx.fill(CGRect(x: overlayX, y: overlayCGY, width: CGFloat(cropW), height: miniCharH))
+        ctx.fill(CGRect(x: offsetX, y: overlayCGY, width: CGFloat(cropW), height: miniCharH))
         ctx.restoreGState()
     }
 

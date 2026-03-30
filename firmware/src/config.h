@@ -22,8 +22,8 @@ static constexpr int GRID_ROWS = 10;   // 170 / 16 = 10 (with 10px for status ba
 // ── Character Sprites ───────────────────────────────────
 static constexpr int CHAR_W = 16;
 static constexpr int CHAR_H = 32;          // 16x32 frames (art bottom-aligned, top padded)
-static constexpr int MINI_CHAR_W = 10;     // 60%-scale mini-agent width
-static constexpr int MINI_CHAR_H = 19;     // 60%-scale mini-agent height
+static constexpr int MINI_CHAR_W = 13;     // robot mini-agent width
+static constexpr int MINI_CHAR_H = 16;     // robot mini-agent height (50% of CHAR_H)
 static constexpr int NUM_PALETTES = 6;     // number of character variants
 static constexpr int FRAMES_PER_DIR = 7;   // walk1, walk2, walk3, type1, type2, read1, read2
 static constexpr int NUM_DIRS_STORED = 3;  // DOWN, UP, RIGHT (LEFT = flip RIGHT)

@@ -18,8 +18,8 @@ enum OfficeSim {
     static let numPalettes = 6
     static let charW: Float = 16
     static let charH: Float = 32
-    static let miniCharW: Float = 10
-    static let miniCharH: Float = 19
+    static let miniCharW: Float = 13
+    static let miniCharH: Float = 16
     static let dogW: Float = 25
     static let dogH: Float = 19
 

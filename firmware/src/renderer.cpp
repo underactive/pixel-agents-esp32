@@ -2,6 +2,7 @@
 #include "splash.h"
 #include <string.h>
 #include "sprites/characters.h"
+#include "sprites/robot.h"
 #if defined(HAS_BATTERY)
 #include "battery.h"
 #endif
@@ -471,36 +472,22 @@ void Renderer::drawSpawnEffect(const Character& ch) {
 }
 
 void Renderer::drawMiniCharacter(const Character& ch) {
-    int drawY = (int)(ch.y) - MINI_CHAR_H;  // no sitting offset — mini-agents stand
+    int drawY = (int)(ch.y) - MINI_CHAR_H;
     if (drawY + MINI_CHAR_H <= _clipYMin || drawY >= _clipYMax) return;
 
+    // Robot has no directional variants — cycle through walk frames
     int localFrame;
-    if (ch.state == CharState::TYPE || ch.state == CharState::READ) {
-        // Walk-in-place animation: cycle 0→1→2→1
-        static const int walkCycle[] = {0, 1, 2, 1};
-        localFrame = walkCycle[ch.frame % 4];
-    } else if (ch.state == CharState::WALK) {
-        static const int walkCycle[] = {0, 1, 2, 1};
-        localFrame = walkCycle[ch.frame % 4];
+    if (ch.state == CharState::TYPE || ch.state == CharState::READ || ch.state == CharState::WALK) {
+        localFrame = ch.frame % ROBOT_FRAME_COUNT;
     } else {
-        localFrame = 1;  // standing frame
+        localFrame = 0;  // standing frame
     }
 
-    Dir renderDir = ch.dir;
-    bool flipH = false;
-    if (ch.dir == Dir::LEFT) {
-        renderDir = Dir::RIGHT;
-        flipH = true;
-    }
-
-    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + localFrame;
-    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
-
-    int charIdx = ch.palette % NUM_PALETTES;
-    const uint16_t* sprite = MINI_CHAR_SPRITES[charIdx][frameIdx];
+    if (localFrame >= ROBOT_FRAME_COUNT) localFrame = 0;
+    const uint16_t* sprite = ROBOT_SPRITES[localFrame];
 
     int drawX = (int)(ch.x) - MINI_CHAR_W / 2;
-    drawRGB565SpriteFlip(drawX, drawY, sprite, MINI_CHAR_W, MINI_CHAR_H, flipH);
+    drawRGB565SpriteFlip(drawX, drawY, sprite, MINI_CHAR_W, MINI_CHAR_H, false);
 }
 
 void Renderer::drawMiniSpawnEffect(const Character& ch) {
@@ -513,18 +500,7 @@ void Renderer::drawMiniSpawnEffect(const Character& ch) {
         progress = 1.0f - progress;
     }
 
-    Dir renderDir = ch.dir;
-    bool flipH = false;
-    if (ch.dir == Dir::LEFT) {
-        renderDir = Dir::RIGHT;
-        flipH = true;
-    }
-
-    int frameIdx = static_cast<int>(renderDir) * FRAMES_PER_DIR + 1; // standing frame
-    if (frameIdx >= CHAR_TEMPLATE_COUNT) return;
-
-    int charIdx = ch.palette % NUM_PALETTES;
-    const uint16_t* sprite = MINI_CHAR_SPRITES[charIdx][frameIdx];
+    const uint16_t* sprite = ROBOT_SPRITES[0];  // standing frame
 
     int drawX = (int)(ch.x) - MINI_CHAR_W / 2;
     int drawY = (int)(ch.y) - MINI_CHAR_H;
@@ -532,9 +508,8 @@ void Renderer::drawMiniSpawnEffect(const Character& ch) {
     int revealCols = (int)(progress * MINI_CHAR_W);
 
     for (int col = 0; col < revealCols && col < MINI_CHAR_W; col++) {
-        int srcCol = flipH ? (MINI_CHAR_W - 1 - col) : col;
         for (int row = 0; row < MINI_CHAR_H; row++) {
-            uint16_t color = sprite[row * MINI_CHAR_W + srcCol];
+            uint16_t color = sprite[row * MINI_CHAR_W + col];
             if (color == 0x0000) continue;
 
             if (progress < 0.8f) {
