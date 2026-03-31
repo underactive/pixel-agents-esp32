@@ -94,7 +94,7 @@ static constexpr uint8_t BOARD_TYPE_CYD    = 0;
 static constexpr uint8_t BOARD_TYPE_CYD_S3 = 1;
 static constexpr uint8_t BOARD_TYPE_LILYGO = 2;
 // Encoded as major*1000 + minor*10 + patch (0.11.2 → 112)
-static constexpr uint16_t FIRMWARE_VERSION_ENCODED = 122;
+static constexpr uint16_t FIRMWARE_VERSION_ENCODED = 130;
 
 // Screenshot response (ESP32 → companion) uses distinct sync bytes
 static constexpr uint8_t SCREENSHOT_SYNC1 = 0xBB;
@@ -412,7 +412,7 @@ static constexpr int SPLASH_FADE_STEP_MS = 8;   // ~400ms total per fade directi
 static constexpr int SPLASH_LOG_LINE_H = 10;
 static constexpr uint16_t COLOR_SPLASH_LOG = 0x07E0;  // green terminal text
 static constexpr uint16_t COLOR_SPLASH_FOOTER = 0x7BEF;  // gray footer text
-#define SPLASH_VERSION_STR "v0.12.2 (c) 2026 TARS Industrial Technical Solutions"
+#define SPLASH_VERSION_STR "v0.13.0 (c) 2026 TARS Industrial Technical Solutions"
 
 #if defined(BOARD_CYD) || defined(BOARD_CYD_S3)
 static constexpr int SPLASH_TITLE_Y = 15;
