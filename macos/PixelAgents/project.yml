@@ -68,6 +68,7 @@ targets:
         PRODUCT_NAME: "PixelAgentsWidget"
         INFOPLIST_FILE: PixelAgentsWidget/Info.plist
         CODE_SIGN_ENTITLEMENTS: PixelAgentsWidget/PixelAgentsWidget.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
         GENERATE_INFOPLIST_FILE: NO
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
