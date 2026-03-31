@@ -24,7 +24,6 @@ targets:
       - path: PixelAgents
         excludes:
           - "**/*.entitlements"
-      - path: Shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelagents.companion
@@ -36,51 +35,25 @@ targets:
         COMBINE_HIDPI_IMAGES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "0.13.0"
-        CURRENT_PROJECT_VERSION: "0.13.0"
+        MARKETING_VERSION: "0.12.2"
+        CURRENT_PROJECT_VERSION: "0.12.2"
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
           - "@executable_path/../Frameworks"
     dependencies:
       - package: Sparkle
-      - target: PixelAgentsWidgetExtension
-        embed: true
     entitlements:
       path: PixelAgents/PixelAgents.entitlements
       properties:
         com.apple.security.network.client: true
         com.apple.developer.ubiquity-container-identifiers:
           - iCloud.com.pixelagents.companion
-        com.apple.security.application-groups:
-          - group.com.pixelagents.companion
-
-  PixelAgentsWidgetExtension:
-    type: app-extension
-    platform: macOS
-    sources:
-      - path: PixelAgentsWidget
-        excludes:
-          - "**/*.entitlements"
-      - path: Shared
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.pixelagents.companion.widget
-        PRODUCT_NAME: "PixelAgentsWidget"
-        INFOPLIST_FILE: PixelAgentsWidget/Info.plist
-        CODE_SIGN_ENTITLEMENTS: PixelAgentsWidget/PixelAgentsWidget.entitlements
-        ENABLE_HARDENED_RUNTIME: YES
-        GENERATE_INFOPLIST_FILE: NO
-        LD_RUNPATH_SEARCH_PATHS:
-          - $(inherited)
-          - "@executable_path/../Frameworks"
-          - "@executable_path/../../../../Frameworks"
 
   PixelAgentsTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: PixelAgentsTests
-      - path: Shared
     dependencies:
       - target: PixelAgents
     settings:

@@ -2,17 +2,6 @@
 
 All notable changes to Pixel Agents are documented here.
 
-## [0.13.0] - 2026-03-30
-
-- Add mini-agents: 60%-scale robot characters spawn near desks when all 6 workstations are occupied (up to 12 mini + 6 desk = 18 total), with matrix spawn/despawn effects, walk-in-place animation, and even distribution across desks
-- Add dedicated robot sprite for mini-agents (13x16, 6-frame walk cycle via convert_robot.py) replacing downscaled character copies
-- Add macOS WidgetKit usage stats widget (small/medium/large) showing provider usage bars and interactive heatmaps with tappable provider tabs
-- Add MSG_REBOOT (0x0B) protocol command with "Reboot Device" button in macOS companion settings
-- Add agent state sync on device connect — re-sends all tracked agents after identify handshake
-- Fix agent count mismatch between companion and device (count assigned agents, not just TYPE/READ)
-- Remove denominator from status bar active count ("7 active" instead of "4/6 active")
-- Expand macOS agent list dynamically as agents grow beyond 6
-
 ## [0.12.2] - 2026-03-29
 
 - Restore battery percentage display in BLE transport picker (replaces device name with battery icon + colored percentage when connected)
