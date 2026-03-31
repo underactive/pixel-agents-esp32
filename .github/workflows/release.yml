@@ -164,6 +164,14 @@ jobs:
             --sign "$IDENTITY" --timestamp \
             "$FWPATH"
 
+      - name: Sign embedded widget extension
+        working-directory: macos/PixelAgents
+        run: |
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application" \
+            --entitlements PixelAgentsWidget/PixelAgentsWidget.entitlements \
+            ".build/Build/Products/Release/Pixel Agents.app/Contents/PlugIns/PixelAgentsWidget.appex"
+
       - name: Re-sign app bundle
         working-directory: macos/PixelAgents
         run: |
