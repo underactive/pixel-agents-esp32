@@ -8,6 +8,7 @@ struct MenuBarView: View {
     @AppStorage(SettingsKeys.showCodexUsage) private var showCodexUsage = true
     @AppStorage(SettingsKeys.showGeminiUsage) private var showGeminiUsage = true
     @AppStorage(SettingsKeys.showCursorUsage) private var showCursorUsage = true
+    @AppStorage(SettingsKeys.showAgentsList) private var showAgentsList = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -31,14 +32,16 @@ struct MenuBarView: View {
             switch bridge.displayMode {
             case .off:
                 // Off mode: just show agents list
-                AgentListView(agents: bridge.displayAgents)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                    )
-                    .padding(.horizontal, 4)
-                Spacer().frame(height: 2)
+                if showAgentsList {
+                    AgentListView(agents: bridge.displayAgents)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                        )
+                        .padding(.horizontal, 4)
+                    Spacer().frame(height: 2)
+                }
 
             case .software:
                 // Software mode: office canvas or PIP indicator
@@ -66,18 +69,20 @@ struct MenuBarView: View {
                         .padding(.horizontal, 4)
                 }
 
-                Divider()
-                    .padding(.vertical, 4)
+                if showAgentsList {
+                    Divider()
+                        .padding(.vertical, 4)
 
-                // Agent list
-                AgentListView(agents: bridge.displayAgents)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                    )
-                    .padding(.horizontal, 4)
-                Spacer().frame(height: 2)
+                    // Agent list
+                    AgentListView(agents: bridge.displayAgents)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                        )
+                        .padding(.horizontal, 4)
+                    Spacer().frame(height: 2)
+                }
 
             case .hardware:
                 // Hardware mode: transport picker + agents
@@ -86,14 +91,16 @@ struct MenuBarView: View {
                 Divider()
                     .padding(.vertical, 4)
 
-                AgentListView(agents: bridge.displayAgents)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-                    )
-                    .padding(.horizontal, 4)
-                Spacer().frame(height: 2)
+                if showAgentsList {
+                    AgentListView(agents: bridge.displayAgents)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+                        )
+                        .padding(.horizontal, 4)
+                    Spacer().frame(height: 2)
+                }
             }
 
             // Usage stats (always visible regardless of display mode or connection)

@@ -265,6 +265,24 @@ final class OfficeScene {
         lastAppliedStates.removeAll()
     }
 
+    // MARK: - Sound Queue
+
+    /// Pending sound effects queued during state transitions, consumed by BridgeService each tick.
+    private(set) var pendingSounds: [SoundEffect] = []
+
+    /// Queues a sound effect to be played after the current tick.
+    private func queueSound(_ sound: SoundEffect) {
+        pendingSounds.append(sound)
+    }
+
+    /// Drains and returns all pending sounds.
+    func consumePendingSounds() -> [SoundEffect] {
+        guard !pendingSounds.isEmpty else { return [] }
+        let sounds = pendingSounds
+        pendingSounds.removeAll()
+        return sounds
+    }
+
     // MARK: - Init
 
     init() {
@@ -665,6 +683,19 @@ final class OfficeScene {
             characters[idx].toolName = toolName
 
             characters[idx].isActive = (simState == .type || simState == .read)
+
+            // Sound triggers (mirroring firmware office_state.cpp)
+            if simState == .type || simState == .read {
+                if !characters[idx].hasPlayedJobSound {
+                    characters[idx].hasPlayedJobSound = true
+                    queueSound(.keyboardType)
+                }
+                if toolName == "PERMISSION" {
+                    queueSound(.minimalPop)
+                }
+            } else if simState == .idle {
+                queueSound(.notificationClick)
+            }
 
             // Determine actual animation state from protocol state
             if simState == .type || simState == .read {
@@ -1572,6 +1603,7 @@ final class OfficeScene {
             pet.followTarget = nextTarget
             pet.lastTargetCol = -1
             pet.lastTargetRow = -1
+            queueSound(.dogBark)
         }
     }
 

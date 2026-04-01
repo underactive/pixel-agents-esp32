@@ -10,6 +10,10 @@ enum SettingsKeys {
     static let showGeminiUsage = "showGeminiUsage"
     static let showCursorUsage = "showCursorUsage"
     static let showMiniBarsWhenSelected = "showMiniBarsWhenSelected"
+    static let showAgentsList = "showAgentsList"
+    static let softwareSoundEnabled = "softwareSoundEnabled"
+    static let softwareDogBarkEnabled = "softwareDogBarkEnabled"
+    static let softwareSoundVolume = "softwareSoundVolume"
     static let iCloudSyncEnabled = "iCloudSyncEnabled"
 }
 
@@ -905,6 +909,18 @@ final class BridgeService: ObservableObject {
 
         officeScene.applyAgentStates(displayAgents)
         officeScene.update(dt: dt)
+
+        // Play queued sound effects in software mode
+        let soundEnabled = UserDefaults.standard.object(forKey: SettingsKeys.softwareSoundEnabled) as? Bool ?? true
+        if soundEnabled {
+            let dogBarkEnabled = UserDefaults.standard.object(forKey: SettingsKeys.softwareDogBarkEnabled) as? Bool ?? true
+            for sound in officeScene.consumePendingSounds() {
+                if sound == .dogBark && !dogBarkEnabled { continue }
+                SoundPlayer.shared.play(sound)
+            }
+        } else {
+            _ = officeScene.consumePendingSounds()
+        }
 
         // Only render + publish when something is actually displaying the frame
         guard isSceneVisible else { return }

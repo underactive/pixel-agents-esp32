@@ -39,6 +39,10 @@ private struct CompanionSettingsTab: View {
     @AppStorage(SettingsKeys.showCursorUsage) private var showCursorUsage = true
     @AppStorage(SettingsKeys.showAgentCount) private var showAgentCount = true
     @AppStorage(SettingsKeys.showMiniBarsWhenSelected) private var showMiniBarsWhenSelected = true
+    @AppStorage(SettingsKeys.showAgentsList) private var showAgentsList = true
+    @AppStorage(SettingsKeys.softwareSoundEnabled) private var softwareSoundEnabled = true
+    @AppStorage(SettingsKeys.softwareDogBarkEnabled) private var softwareDogBarkEnabled = true
+    @AppStorage(SettingsKeys.softwareSoundVolume) private var softwareSoundVolume: Double = 0.65
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -51,8 +55,11 @@ private struct CompanionSettingsTab: View {
             Divider()
                 .padding(.vertical, 4)
 
-            Text("Provider Options")
+            Text("Agents")
                 .font(.subheadline.weight(.semibold))
+
+            Toggle("Show agents list", isOn: $showAgentsList)
+                .font(.subheadline)
 
             Toggle("Show mini progress bars when highlighted", isOn: $showMiniBarsWhenSelected)
                 .font(.subheadline)
@@ -68,6 +75,34 @@ private struct CompanionSettingsTab: View {
 
             Toggle("Show Cursor usage", isOn: $showCursorUsage)
                 .font(.subheadline)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Text("Audio")
+                .font(.subheadline.weight(.semibold))
+
+            Toggle("Sound effects", isOn: $softwareSoundEnabled)
+                .font(.subheadline)
+
+            Toggle("Dog bark", isOn: $softwareDogBarkEnabled)
+                .font(.subheadline)
+                .disabled(!softwareSoundEnabled)
+
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Slider(value: $softwareSoundVolume, in: 0...1)
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text("\(Int(softwareSoundVolume * 100))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .frame(width: 28, alignment: .trailing)
+            }
+            .disabled(!softwareSoundEnabled)
 
             Divider()
                 .padding(.vertical, 4)
