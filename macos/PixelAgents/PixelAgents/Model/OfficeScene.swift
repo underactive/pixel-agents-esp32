@@ -841,18 +841,29 @@ final class OfficeScene {
         case .idle:
             ch.frame = 0
 
-            // If became active, go to seat (desk agents only)
-            if !ch.isMini && ch.isActive && ch.seatIdx >= 0 {
-                let ws = OfficeSim.workstations[ch.seatIdx]
-                if ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow {
-                    ch.state = .type
-                    ch.dir = ws.facingDir
-                } else {
-                    startWalk(&ch, goalCol: ws.seatCol, goalRow: ws.seatRow)
+            // If became active, transition to working state
+            if ch.isActive {
+                if ch.isMini {
+                    // Mini-agents start walk-in-place immediately
+                    ch.state = OfficeSim.isReadingTool(ch.toolName) ? .read : .type
+                    if ch.deskIdx >= 0 && ch.deskIdx < OfficeSim.workstations.count {
+                        ch.dir = OfficeSim.workstations[ch.deskIdx].facingDir
+                    }
+                    ch.frame = 0
+                    ch.frameTimer = 0
+                    return
+                } else if ch.seatIdx >= 0 {
+                    let ws = OfficeSim.workstations[ch.seatIdx]
+                    if ch.tileCol == ws.seatCol && ch.tileRow == ws.seatRow {
+                        ch.state = .type
+                        ch.dir = ws.facingDir
+                    } else {
+                        startWalk(&ch, goalCol: ws.seatCol, goalRow: ws.seatRow)
+                    }
+                    ch.frame = 0
+                    ch.frameTimer = 0
+                    return
                 }
-                ch.frame = 0
-                ch.frameTimer = 0
-                return
             }
 
             // Wander timer
