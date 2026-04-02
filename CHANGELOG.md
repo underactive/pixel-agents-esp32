@@ -2,6 +2,14 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.13.1] - 2026-04-02
+
+- Add sound effects to software display mode: keyboard typing, notification click, permission pop, and dog bark sounds play locally via NSSound, mirroring firmware audio triggers (startup sound excluded)
+- Add Audio section in Companion settings with sound effects toggle, dog bark toggle, and volume slider (default 65%)
+- Rename "Provider Options" to "Agents" in Companion settings, add "Show agents list" toggle to hide/show agent list in all display modes
+- Fix mini-agent (robot) stuck in idle after spawn animation — robots now walk in place when assigned active work
+- Trim keyboard typing sound from 8s to 2s with fade-out
+
 ## [0.13.0] - 2026-03-30
 
 - Add mini-agents: 60%-scale robot characters spawn near desks when all 6 workstations are occupied (up to 12 mini + 6 desk = 18 total), with matrix spawn/despawn effects, walk-in-place animation, and even distribution across desks
