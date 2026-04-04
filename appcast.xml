@@ -10,5 +10,13 @@
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
       <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.13.0/PixelAgents-v0.13.0.dmg" length="2685863" type="application/octet-stream" sparkle:edSignature="n2IUyHZz6WBJRK9hggaUhI1Gmx2T04jZL1HmffOcFGPmDdBoPyn+qz88fN+iX8y+mf7XPElwuejaNYE94B9NBQ==" />
   </item>
+          <item>
+      <title>Version 0.13.1</title>
+      <pubDate>Sat, 04 Apr 2026 02:04:46 +0000</pubDate>
+      <sparkle:version>0.13.1</sparkle:version>
+      <sparkle:shortVersionString>0.13.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/underactive/pixel-agents-esp32/releases/download/v0.13.1/PixelAgents-v0.13.1.dmg" length="2840560" type="application/octet-stream" sparkle:edSignature="VeZeSBCa2/M7Fp7Fs9DWZPCDEGgrlUrsaIETuwbvgZWFwtpUG+HKEa3YB9XnLaQgtGfq0HVa6kfpJlMDqFskAw==" />
+  </item>
         </channel>
 </rss>
