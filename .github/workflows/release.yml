@@ -91,6 +91,9 @@ jobs:
   build-macos:
     needs: validate-version
     runs-on: macos-15
+    outputs:
+      ed_signature: ${{ steps.sign_dmg.outputs.ed_signature }}
+      dmg_size: ${{ steps.sign_dmg.outputs.dmg_size }}
     permissions:
       contents: write
     steps:
@@ -230,7 +233,7 @@ jobs:
           name: macos-release
           path: macos/PixelAgents/PixelAgents-v*.dmg
 
-      - name: Sign DMG and update appcast
+      - name: Sign DMG with EdDSA
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: macos/PixelAgents
         env:
@@ -248,67 +251,15 @@ jobs:
 
           # Sign DMG with EdDSA
           DMG_PATH="PixelAgents-v${VERSION}.dmg"
-          DMG_URL="https://github.com/underactive/pixel-agents-esp32/releases/download/v${VERSION}/PixelAgents-v${VERSION}.dmg"
 
           # sign_update outputs: sparkle:edSignature="..." length="..."
-          # Extract just the signature value and use stat for the file size
           SIGN_OUTPUT=$(echo "$SPARKLE_PRIVATE_KEY" | /tmp/sparkle-tools/bin/sign_update --ed-key-file - "$DMG_PATH")
           ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
           DMG_SIZE=$(stat -f%z "$DMG_PATH")
 
-          # Build appcast item XML
-          ITEM=$(cat <<XMLEOF
-            <item>
-                <title>Version ${VERSION}</title>
-                <pubDate>$(date -R)</pubDate>
-                <sparkle:version>${VERSION}</sparkle:version>
-                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" sparkle:edSignature="${ED_SIGNATURE}" />
-            </item>
-          XMLEOF
-          )
-
-          # Checkout or create gh-pages branch
-          cd "$GITHUB_WORKSPACE"
-          git fetch origin gh-pages 2>/dev/null || true
-          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
-            git worktree add /tmp/gh-pages origin/gh-pages
-          else
-            git worktree add --detach /tmp/gh-pages
-            cd /tmp/gh-pages && git checkout --orphan gh-pages && git rm -rf . 2>/dev/null || true
-            cd "$GITHUB_WORKSPACE"
-          fi
-
-          # Create or update appcast.xml (replaces existing entry for same version)
-          python3 - "$ITEM" "$VERSION" /tmp/gh-pages/appcast.xml <<'PYEOF'
-          import sys, os, re
-          item, version, path = sys.argv[1], sys.argv[2], sys.argv[3]
-          if os.path.exists(path):
-              appcast = open(path).read()
-              # Remove any existing items for this version
-              appcast = re.sub(
-                  r'\s*<item>.*?<sparkle:version>' + re.escape(version) + r'</sparkle:version>.*?</item>',
-                  '', appcast, flags=re.DOTALL)
-              # Insert new item before </channel>
-              appcast = appcast.replace('</channel>', item + '\n        </channel>')
-          else:
-              appcast = f'''<?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-              <channel>
-                  <title>Pixel Agents</title>
-          {item}
-              </channel>
-          </rss>'''
-          open(path, 'w').write(appcast)
-          PYEOF
-
-          # Commit and push
-          cd /tmp/gh-pages
-          git add appcast.xml
-          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
-            commit -m "Update appcast for v${VERSION}"
-          git push origin HEAD:gh-pages
+          echo "ed_signature=$ED_SIGNATURE" >> "$GITHUB_OUTPUT"
+          echo "dmg_size=$DMG_SIZE" >> "$GITHUB_OUTPUT"
+        id: sign_dmg
 
       - name: Cleanup keychain
         if: always()
@@ -348,3 +299,76 @@ jobs:
         with:
           files: releases/*
           body_path: /tmp/release_body.md
+
+  update-appcast:
+    needs: [validate-version, build-macos, release]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update appcast on gh-pages
+        env:
+          VERSION: ${{ needs.validate-version.outputs.version }}
+          ED_SIGNATURE: ${{ needs.build-macos.outputs.ed_signature }}
+          DMG_SIZE: ${{ needs.build-macos.outputs.dmg_size }}
+        run: |
+          set -e
+
+          DMG_URL="https://github.com/underactive/pixel-agents-esp32/releases/download/v${VERSION}/PixelAgents-v${VERSION}.dmg"
+
+          # Build appcast item XML
+          ITEM=$(cat <<XMLEOF
+            <item>
+                <title>Version ${VERSION}</title>
+                <pubDate>$(date -R)</pubDate>
+                <sparkle:version>${VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" sparkle:edSignature="${ED_SIGNATURE}" />
+            </item>
+          XMLEOF
+          )
+
+          # Checkout or create gh-pages branch
+          git fetch origin gh-pages 2>/dev/null || true
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            git worktree add /tmp/gh-pages origin/gh-pages
+          else
+            git worktree add --detach /tmp/gh-pages
+            cd /tmp/gh-pages && git checkout --orphan gh-pages && git rm -rf . 2>/dev/null || true
+            cd "$GITHUB_WORKSPACE"
+          fi
+
+          # Create or update appcast.xml (replaces existing entry for same version)
+          python3 - "$ITEM" "$VERSION" /tmp/gh-pages/appcast.xml <<'PYEOF'
+          import sys, os, re
+          item, version, path = sys.argv[1], sys.argv[2], sys.argv[3]
+          if os.path.exists(path):
+              appcast = open(path).read()
+              # Remove any existing items for this version
+              appcast = re.sub(
+                  r'\s*<item>.*?<sparkle:version>' + re.escape(version) + r'</sparkle:version>.*?</item>',
+                  '', appcast, flags=re.DOTALL)
+              # Insert new item before </channel>
+              appcast = appcast.replace('</channel>', item + '\n        </channel>')
+          else:
+              appcast = f'''<?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+              <channel>
+                  <title>Pixel Agents</title>
+          {item}
+              </channel>
+          </rss>'''
+          open(path, 'w').write(appcast)
+          PYEOF
+
+          # Commit and push
+          cd /tmp/gh-pages
+          git add appcast.xml
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "Update appcast for v${VERSION}"
+          git push origin HEAD:gh-pages

@@ -1,5 +1,6 @@
 #if defined(HAS_BLE)
 
+#include <Arduino.h>
 #include "ble_service.h"
 #include "config.h"
 #include <NimBLEDevice.h>
