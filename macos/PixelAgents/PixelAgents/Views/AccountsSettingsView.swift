@@ -157,10 +157,9 @@ struct AccountsSettingsView: View {
                 }
             }
 
-            Spacer()
         }
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .sheet(isPresented: $showPasteSheet) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Paste Claude Token")

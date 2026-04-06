@@ -19,7 +19,6 @@ struct DeviceSettingsView: View {
                 Text("Connect to a device to configure settings.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Spacer()
             } else if bridge.deviceIdentified == false {
                 Text("Connected device is not a Pixel Agents device.")
                     .font(.subheadline)
@@ -29,13 +28,10 @@ struct DeviceSettingsView: View {
                     bridge.disconnect()
                 }
                 .font(.subheadline)
-
-                Spacer()
             } else if !bridge.deviceSettingsReceived {
                 Text("Waiting for device settings...")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Spacer()
             } else {
                 Text("Dog")
                     .font(.subheadline.weight(.semibold))
@@ -95,11 +91,9 @@ struct DeviceSettingsView: View {
                     bridge.rebootDevice()
                 }
                 .font(.subheadline)
-
-                Spacer()
             }
         }
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

@@ -24,7 +24,7 @@ struct SettingsView: View {
         .padding(.horizontal, 12)
         .padding(.top, 8)
         .padding(.bottom, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -128,10 +128,9 @@ private struct CompanionSettingsTab: View {
                     setLaunchAtLogin(newValue)
                 }
 
-            Spacer()
         }
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
@@ -179,10 +178,9 @@ private struct UpdateSettingsTab: View {
                     updater.automaticallyChecksForUpdates = newValue
                 }
 
-            Spacer()
         }
         .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             lastCheckDate = updater.lastUpdateCheckDate
             autoCheckForUpdates = updater.automaticallyChecksForUpdates
