@@ -25,6 +25,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Install crash reporter before anything else
+        if let prev = CrashReporter.previousCrashInfo {
+            NSLog("[PixelAgents] Previous session crashed:\n%@", prev)
+        }
+        CrashReporter.install()
+
         bridge.onOpenSettings = { [weak self] in self?.openSettings() }
         bridge.start()
         registerLifecycleObservers()

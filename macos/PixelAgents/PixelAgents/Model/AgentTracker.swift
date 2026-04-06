@@ -27,8 +27,9 @@ final class AgentTracker {
 
     /// Update an agent in place.
     func update(key: String, _ mutate: (inout Agent) -> Void) {
-        guard agents[key] != nil else { return }
-        mutate(&agents[key]!)
+        guard var agent = agents[key] else { return }
+        mutate(&agent)
+        agents[key] = agent
     }
 
     /// Remove agents not seen for `timeout` seconds. Returns the removed agents.
@@ -36,11 +37,11 @@ final class AgentTracker {
     func pruneStale(timeout: TimeInterval) -> [Agent] {
         let cutoff = Date().addingTimeInterval(-timeout)
         var pruned: [Agent] = []
-        for (key, agent) in agents {
-            if agent.lastSeen < cutoff {
+        let staleKeys = agents.filter { $0.value.lastSeen < cutoff }.map { $0.key }
+        for key in staleKeys {
+            if let agent = agents.removeValue(forKey: key) {
                 pruned.append(agent)
                 recycledIds.append(agent.id)
-                agents.removeValue(forKey: key)
             }
         }
         return pruned

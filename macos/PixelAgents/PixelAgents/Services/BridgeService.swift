@@ -596,6 +596,7 @@ final class BridgeService: ObservableObject {
     }
 
     private func processTranscripts() {
+        CrashReporter.lastAction = "processTranscripts"
         let skipHardware = displayMode != .hardware
 
         let transcripts = watcher.findActiveTranscripts()
@@ -678,6 +679,7 @@ final class BridgeService: ObservableObject {
     /// Prune stale agents, send count updates, and refresh the published display array.
     /// Called from both FSEvents-driven processTranscripts() and the periodic heartbeat timer.
     private func pruneAndUpdateDisplay() {
+        CrashReporter.lastAction = "pruneAndUpdateDisplay"
         let skipHardware = displayMode != .hardware
         let transportConnected = activeTransport?.isConnected ?? false
 
@@ -898,6 +900,7 @@ final class BridgeService: ObservableObject {
     }
 
     private func tickScene() {
+        CrashReporter.lastAction = "tickScene"
         let now = Date()
         let dt: Float
         if let last = lastSceneDate {
@@ -911,6 +914,7 @@ final class BridgeService: ObservableObject {
         officeScene.update(dt: dt)
 
         // Play queued sound effects in software mode
+        CrashReporter.lastAction = "tickScene:sound"
         let soundEnabled = UserDefaults.standard.object(forKey: SettingsKeys.softwareSoundEnabled) as? Bool ?? true
         if soundEnabled {
             let dogBarkEnabled = UserDefaults.standard.object(forKey: SettingsKeys.softwareDogBarkEnabled) as? Bool ?? true
