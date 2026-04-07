@@ -2,6 +2,13 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.13.2] - 2026-04-07
+
+- Migrate docs harness to AGENTS.md progressive disclosure structure
+- Fix settings window height to auto-size from tallest tab content
+- Add crash reporter and fix AgentTracker crash-prone patterns
+- Fix CI build failure and prevent appcast update before release
+
 ## [0.13.1] - 2026-04-02
 
 - Add sound effects to software display mode: keyboard typing, notification click, permission pop, and dog bark sounds play locally via NSSound, mirroring firmware audio triggers (startup sound excluded)
