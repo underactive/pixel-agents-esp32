@@ -181,8 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
         window.title = "Pixel Agents Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        let fittingSize = hostingController.sizeThatFits(in: NSSize(width: 480, height: CGFloat.greatestFiniteMagnitude))
-        window.setContentSize(NSSize(width: 480, height: max(480, fittingSize.height)))
+        window.setContentSize(NSSize(width: 480, height: 560))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
