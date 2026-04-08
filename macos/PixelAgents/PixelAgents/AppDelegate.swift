@@ -90,12 +90,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
             .sink { [weak self] _ in self?.updateStatusTitle() }
             .store(in: &cancellables)
 
-        bridge.$connectionState
-            .receive(on: RunLoop.main)
-            .sink { [weak self] state in
-                self?.statusItem.button?.appearsDisabled = (state == .disconnected)
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Popover
