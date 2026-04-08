@@ -148,7 +148,7 @@ struct MenuBarView: View {
     /// Usage stats section, conditionally shown based on settings toggles.
     @ViewBuilder
     private var usageStatsSection: some View {
-        let claudeNeedsSignIn = showClaudeUsage && bridge.usageStats == nil && !bridge.claudeAuth.isAuthenticated
+        let claudeNeedsSignIn = showClaudeUsage && !bridge.claudeAuth.isAuthenticated
         let enabledSet = Set<UsageProvider>(
             [showClaudeUsage ? .claude : nil,
              showCodexUsage ? .codex : nil,

@@ -81,6 +81,7 @@ final class ClaudeAuthService: ObservableObject {
         let safeExpiry = token.expiresAt - 60_000
         guard safeExpiry > nowMs else {
             Self.log.warning("Stored token expired — re-import or refresh needed")
+            isAuthenticated = false
             return nil
         }
 
@@ -243,6 +244,7 @@ final class ClaudeAuthService: ObservableObject {
 
             cachedToken = newAccessToken
             cachedExpiresAt = newExpiresAt
+            isAuthenticated = true
             updateExpiryDescription(newExpiresAt)
             Self.log.info("Token refreshed successfully")
             return newAccessToken

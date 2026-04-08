@@ -172,7 +172,7 @@ struct UsageStatsView: View {
                 // Detail area for selected provider
                 if let selected = selectedProvider,
                    let entry = enabledProviders.first(where: { $0.provider == selected }) {
-                    if selected == .claude, claudeSignInAction != nil, entry.stats == nil {
+                    if selected == .claude, claudeSignInAction != nil {
                         // Claude sign-in prompt
                         HStack {
                             Text("Sign in to see Claude usage")
