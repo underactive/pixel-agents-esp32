@@ -173,7 +173,8 @@ struct MenuBarView: View {
                            codexHeatmap: bridge.codexHeatmapData,
                            geminiHeatmap: bridge.geminiHeatmapData,
                            cursorHeatmap: bridge.cursorHeatmapData,
-                           cursorAgentHeatmap: bridge.cursorAgentHeatmapData
+                           cursorAgentHeatmap: bridge.cursorAgentHeatmapData,
+                           providerStatuses: bridge.providerStatuses
                            )
             .padding(.vertical, 8)
             .background(

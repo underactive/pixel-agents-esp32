@@ -192,14 +192,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, Obs
             return
         }
 
-        let view = AboutView(updater: updaterController.updater)
+        let view = AboutView(updater: updaterController.updater, bridge: bridge)
         let hostingController = NSHostingController(rootView: view)
 
         let window = NSWindow(contentViewController: hostingController)
         window.title = "About Pixel Agents"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
-        window.setContentSize(NSSize(width: 300, height: 260))
+        window.setContentSize(NSSize(width: 300, height: 320))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

@@ -417,6 +417,19 @@
 - [ ] Reset timer text ("Resets in Xh Xm") unchanged in both modes
 - [ ] "No usage data" message displays correctly when no stats available (both modes)
 
+#### Provider Status Monitoring
+- [ ] No status banner visible when all provider APIs are operational
+- [ ] Yellow dot + incident title appears between provider tabs and detail area during a degraded_performance incident
+- [ ] Red dot + incident title appears during a partial_outage or major_outage incident
+- [ ] Clicking incident title opens provider status page in default browser
+- [ ] Hovering over truncated title shows full incident text in tooltip
+- [ ] Clicking X dismisses the banner; switching tabs and back keeps it dismissed
+- [ ] A new incident (different ID) shows a new banner even after dismissing the previous one
+- [ ] Banner only shows for the currently selected provider tab
+- [ ] Status is not checked for unconfigured/unauthenticated providers
+- [ ] About window shows "last checked" timestamp per configured provider after GitHub link
+- [ ] Network failures during status check are silently skipped (no error UI)
+
 ### Status Bar: Transport Icons (all boards)
 - [ ] USB icon is visible in status bar left side (green when serial companion connected, dim gray when disconnected)
 - [ ] BT icon appears next to USB icon on CYD and CYD-S3 (blue when BLE connected, dim gray when disconnected)

@@ -2,6 +2,16 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.14.0] - 2026-04-08
+
+- Add provider status monitoring: poll Claude, Codex, Gemini, and Cursor status pages every 15 minutes for API outages
+- Show colored dot (yellow = degraded, red = outage) with incident title between provider tabs and usage detail area
+- Click incident title to open provider status page in browser; dismiss per-incident with X button
+- Show per-provider "last checked" timestamps in About window
+- New `ProviderStatusChecker` service supports Atlassian Statuspage v2 API (Claude, Codex, Cursor) and Google Cloud Status API (Gemini)
+- Component-specific monitoring: only checks the API component for each provider, not overall status
+- Only checks status for configured/authenticated providers
+
 ## [0.13.2] - 2026-04-07
 
 - Migrate docs harness to AGENTS.md progressive disclosure structure

@@ -113,8 +113,10 @@ struct UsageStatsView: View {
     var geminiHeatmap: ActivityHeatmapData? = nil
     var cursorHeatmap: CursorHeatmapData? = nil
     var cursorAgentHeatmap: ActivityHeatmapData? = nil
+    var providerStatuses: [UsageProvider: ProviderStatusResult] = [:]
 
     @State private var selectedProvider: UsageProvider?
+    @State private var dismissedIncidentIds: Set<String> = []
 
     /// Returns the local activity heatmap data for a given provider.
     private func activityHeatmapFor(_ provider: UsageProvider) -> ActivityHeatmapData? {
@@ -167,6 +169,41 @@ struct UsageStatsView: View {
                             selectedProvider = entry.provider
                         }
                     }
+                }
+
+                // Status incident banner
+                if let selected = selectedProvider,
+                   let status = providerStatuses[selected],
+                   let incident = status.incident,
+                   !dismissedIncidentIds.contains(incident.id) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(incident.severity == .outage ? Color.red : Color.yellow)
+                            .frame(width: 8, height: 8)
+
+                        Button {
+                            NSWorkspace.shared.open(incident.statusPageURL)
+                        } label: {
+                            Text(String(incident.title.prefix(60)) + (incident.title.count > 60 ? "\u{2026}" : ""))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                        .help(incident.title)
+
+                        Spacer()
+
+                        Button {
+                            dismissedIncidentIds.insert(incident.id)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 2)
                 }
 
                 // Detail area for selected provider

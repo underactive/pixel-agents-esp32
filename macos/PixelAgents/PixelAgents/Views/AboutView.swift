@@ -5,6 +5,7 @@ import Sparkle
 /// check-for-updates button with last-checked timestamp, and Ko-fi link.
 struct AboutView: View {
     let updater: SPUUpdater
+    @ObservedObject var bridge: BridgeService
 
     private static let githubURL = URL(string: "https://github.com/underactive/pixel-agents-esp32")
     private static let kofiURL = URL(string: "https://ko-fi.com/Q5Q06RX1Z")
@@ -29,6 +30,18 @@ struct AboutView: View {
             if let url = Self.githubURL {
                 Link("GitHub", destination: url)
                     .font(.subheadline)
+            }
+
+            if !bridge.providerStatuses.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(UsageProvider.allCases.filter { bridge.providerStatuses[$0] != nil }, id: \.self) { provider in
+                        if let result = bridge.providerStatuses[provider] {
+                            Text("\(provider.displayName) status last checked: \(result.lastChecked.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
 
             VStack(spacing: 4) {

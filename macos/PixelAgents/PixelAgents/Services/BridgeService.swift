@@ -73,6 +73,8 @@ final class BridgeService: ObservableObject {
     @Published var cursorAgentHeatmapData: ActivityHeatmapData?
     /// True once the initial cookie check is done and no session was found.
     @Published var cursorNeedsDashboardAuth: Bool = false
+    /// Active provider status incidents (nil value = operational, key absent = not checked).
+    @Published var providerStatuses: [UsageProvider: ProviderStatusResult] = [:]
     @Published var displayMode: DisplayMode = .software
     @Published var transportMode: TransportMode = .serial
 
@@ -126,6 +128,7 @@ final class BridgeService: ObservableObject {
     private let codexUsageFetcher = CodexUsageFetcher()
     private let geminiUsageFetcher = GeminiUsageFetcher()
     private let cursorUsageFetcher = CursorUsageFetcher()
+    private let statusChecker = ProviderStatusChecker()
     private lazy var activitySyncService = ActivitySyncService(database: ActivityDatabase.shared)
 
     private var activeTransport: TransportProtocol? {
@@ -133,6 +136,16 @@ final class BridgeService: ObservableObject {
         case .serial: return serialTransport
         case .ble:    return bleTransport
         }
+    }
+
+    /// Providers that are signed in / have credentials — used to gate status checks.
+    private var configuredProviders: Set<UsageProvider> {
+        var set = Set<UsageProvider>()
+        if claudeAuth.isAuthenticated { set.insert(.claude) }
+        if codexUsageFetcher.hasFetched && codexUsageFetcher.currentStats() != nil { set.insert(.codex) }
+        if geminiUsageFetcher.hasFetched && geminiUsageFetcher.currentStats() != nil { set.insert(.gemini) }
+        if cursorUsageFetcher.currentStats() != nil { set.insert(.cursor) }
+        return set
     }
 
     private var heartbeatTimer: Timer?
@@ -241,6 +254,7 @@ final class BridgeService: ObservableObject {
         codexUsageFetcher.fetchAndCache()
         geminiUsageFetcher.fetchAndCache()
         cursorUsageFetcher.fetchAndCache()
+        statusChecker.checkAll(configured: configuredProviders)
         // Wire immediate heatmap update callback (bypasses 10s usage timer)
         cursorUsageFetcher.onHeatmapUpdate = { [weak self] data in
             self?.cursorHeatmapData = data
@@ -485,6 +499,7 @@ final class BridgeService: ObservableObject {
                 self.geminiUsageFetcher.fetchAndCache()
                 self.cursorUsageFetcher.fetchAndCache()
                 self.cursorUsageFetcher.fetchAnalytics()
+                self.statusChecker.checkAll(configured: self.configuredProviders)
             }
         }
 
@@ -573,6 +588,10 @@ final class BridgeService: ObservableObject {
             let newCursorAgent = ActivityDatabase.shared.loadHeatmapData(provider: TranscriptSource.cursor.heatmapKey!)
             if newCursorAgent != cursorAgentHeatmapData { cursorAgentHeatmapData = newCursorAgent }
         }
+
+        // Sync provider status results
+        let statuses = statusChecker.results
+        if statuses != providerStatuses { providerStatuses = statuses }
 
         // Export to iCloud if local data changed
         activitySyncService.exportIfNeeded()
