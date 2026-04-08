@@ -201,6 +201,8 @@ enum OfficeSim {
         var bubbleType: Int = 0   // 0=none, 1=permission, 2=waiting, 3=info
         var bubbleTimer: Float = 0
         var hasPlayedJobSound: Bool = false
+        var hasPlayedPermissionSound: Bool = false
+        var hasPlayedIdleSound: Bool = false
         var effectTimer: Float = 0
         var alive: Bool = false
         var isMini: Bool = false
@@ -660,6 +662,8 @@ final class OfficeScene {
                     characters[idx].activityTimer = 0
                     characters[idx].activityCooldown = false
                     characters[idx].hasPlayedJobSound = false
+                    characters[idx].hasPlayedPermissionSound = false
+                    characters[idx].hasPlayedIdleSound = false
                     characters[idx].seatIdx = -1
                     if characters[idx].isMini {
                         characters[idx].state = .despawn
@@ -684,16 +688,20 @@ final class OfficeScene {
 
             characters[idx].isActive = (simState == .type || simState == .read)
 
-            // Sound triggers (mirroring firmware office_state.cpp)
+            // Sound triggers (mirroring firmware office_state.cpp — one-shot per transition)
             if simState == .type || simState == .read {
                 if !characters[idx].hasPlayedJobSound {
                     characters[idx].hasPlayedJobSound = true
+                    characters[idx].hasPlayedPermissionSound = false  // reset for new job session
                     queueSound(.keyboardType)
                 }
-                if toolName == "PERMISSION" {
+                if toolName == "PERMISSION" && !characters[idx].hasPlayedPermissionSound {
+                    characters[idx].hasPlayedPermissionSound = true
                     queueSound(.minimalPop)
                 }
-            } else if simState == .idle {
+                characters[idx].hasPlayedIdleSound = false  // arm idle sound for next idle
+            } else if simState == .idle && !characters[idx].hasPlayedIdleSound {
+                characters[idx].hasPlayedIdleSound = true
                 queueSound(.notificationClick)
             }
 

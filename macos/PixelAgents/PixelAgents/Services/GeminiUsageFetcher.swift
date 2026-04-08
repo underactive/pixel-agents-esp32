@@ -26,6 +26,8 @@ final class GeminiUsageFetcher {
     // MARK: - State
 
     private(set) var latestData: UsageStatsData?
+    /// True after the first fetch attempt completes, regardless of outcome.
+    private(set) var hasFetched = false
 
     /// Cached access token and its expiry.
     private var cachedAccessToken: String?
@@ -44,6 +46,7 @@ final class GeminiUsageFetcher {
     /// Fetch from API and update latestData. Retries once on 401 with a refreshed token.
     func fetchAndCache() {
         Task {
+            defer { self.hasFetched = true }
             var didRetry = false
 
             while true {

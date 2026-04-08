@@ -22,6 +22,8 @@ final class CodexUsageFetcher {
     // MARK: - State
 
     private(set) var latestData: UsageStatsData?
+    /// True after the first fetch attempt completes, regardless of outcome.
+    private(set) var hasFetched = false
 
     /// Cached token to avoid re-reading auth.json on every poll.
     private var cachedToken: String?
@@ -35,6 +37,7 @@ final class CodexUsageFetcher {
     /// Fetch from API and update latestData.
     func fetchAndCache() {
         Task {
+            defer { self.hasFetched = true }
             guard let creds = readCredentials() else { return }
             guard let data = await callUsageAPI(token: creds.accessToken, accountId: creds.accountId) else { return }
 

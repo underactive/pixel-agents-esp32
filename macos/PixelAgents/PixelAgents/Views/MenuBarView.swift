@@ -155,6 +155,10 @@ struct MenuBarView: View {
              showGeminiUsage ? .gemini : nil,
              showCursorUsage ? .cursor : nil].compactMap { $0 }
         )
+        let fetchedProviders = Set<UsageProvider>(
+            [bridge.codexHasFetched ? UsageProvider.codex : nil,
+             bridge.geminiHasFetched ? UsageProvider.gemini : nil].compactMap { $0 }
+        )
 
         if !enabledSet.isEmpty {
             UsageStatsView(stats: bridge.usageStats,
@@ -162,6 +166,7 @@ struct MenuBarView: View {
                            geminiStats: bridge.geminiUsageStats,
                            cursorStats: bridge.cursorUsageStats,
                            enabled: enabledSet,
+                           fetchedProviders: fetchedProviders,
                            showRemaining: $showRemaining,
                            claudeSignInAction: claudeNeedsSignIn ? { bridge.onOpenSettings?() } : nil,
                            claudeHeatmap: bridge.claudeHeatmapData,

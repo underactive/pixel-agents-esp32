@@ -90,6 +90,7 @@ enum UsageProvider: String, CaseIterable, Identifiable {
 private struct ProviderEntry: Identifiable {
     let provider: UsageProvider
     let stats: UsageStatsData?  // nil = loading/no data yet
+    var hasFetched: Bool = true // false = first fetch not yet complete (show "Loading…")
     var id: String { provider.id }
 }
 
@@ -104,6 +105,7 @@ struct UsageStatsView: View {
     let geminiStats: UsageStatsData?
     let cursorStats: UsageStatsData?
     let enabled: Set<UsageProvider>
+    var fetchedProviders: Set<UsageProvider> = []
     @Binding var showRemaining: Bool
     var claudeSignInAction: (() -> Void)? = nil
     var claudeHeatmap: ActivityHeatmapData? = nil
@@ -124,12 +126,12 @@ struct UsageStatsView: View {
         }
     }
 
-    /// Tabs for all enabled providers. Stats may be nil (loading).
+    /// Tabs for all enabled providers. Stats may be nil (loading or not configured).
     private var enabledProviders: [ProviderEntry] {
         var entries: [ProviderEntry] = []
         if enabled.contains(.claude) { entries.append(ProviderEntry(provider: .claude, stats: stats)) }
-        if enabled.contains(.codex) { entries.append(ProviderEntry(provider: .codex, stats: codexStats)) }
-        if enabled.contains(.gemini) { entries.append(ProviderEntry(provider: .gemini, stats: geminiStats)) }
+        if enabled.contains(.codex) { entries.append(ProviderEntry(provider: .codex, stats: codexStats, hasFetched: fetchedProviders.contains(.codex))) }
+        if enabled.contains(.gemini) { entries.append(ProviderEntry(provider: .gemini, stats: geminiStats, hasFetched: fetchedProviders.contains(.gemini))) }
         if enabled.contains(.cursor) { entries.append(ProviderEntry(provider: .cursor, stats: cursorStats)) }
         return entries
     }
@@ -190,8 +192,13 @@ struct UsageStatsView: View {
                             activityHeatmap: activityHeatmapFor(selected),
                             cursorHeatmap: selected == .cursor ? cursorHeatmap : nil
                         )
+                    } else if entry.hasFetched {
+                        // Fetcher ran but found no credentials
+                        Text("Not configured")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
                     } else {
-                        // Loading state — stats not yet fetched
+                        // First fetch not yet complete
                         Text("Loading\u{2026}")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)

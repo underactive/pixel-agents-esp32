@@ -62,6 +62,9 @@ final class BridgeService: ObservableObject {
     @Published var usageStats: UsageStatsData?
     @Published var codexUsageStats: UsageStatsData?
     @Published var geminiUsageStats: UsageStatsData?
+    /// True once the Codex/Gemini fetcher has completed at least one attempt (success or no-credentials).
+    @Published var codexHasFetched = false
+    @Published var geminiHasFetched = false
     @Published var cursorUsageStats: UsageStatsData?
     @Published var cursorHeatmapData: CursorHeatmapData?
     @Published var claudeHeatmapData: ActivityHeatmapData?
@@ -534,15 +537,13 @@ final class BridgeService: ObservableObject {
 
         // Update Codex usage stats for UI (always, not sent to hardware)
         let codexData = codexUsageFetcher.currentStats()
-        if codexData != codexUsageStats {
-            codexUsageStats = codexData
-        }
+        if codexData != codexUsageStats { codexUsageStats = codexData }
+        if codexUsageFetcher.hasFetched && !codexHasFetched { codexHasFetched = true }
 
         // Update Gemini usage stats for UI (always, not sent to hardware)
         let geminiData = geminiUsageFetcher.currentStats()
-        if geminiData != geminiUsageStats {
-            geminiUsageStats = geminiData
-        }
+        if geminiData != geminiUsageStats { geminiUsageStats = geminiData }
+        if geminiUsageFetcher.hasFetched && !geminiHasFetched { geminiHasFetched = true }
 
         // Update Cursor usage stats for UI (always, not sent to hardware)
         let cursorData = cursorUsageFetcher.currentStats()
