@@ -1,6 +1,6 @@
 # Project History
 
-Evolution of Pixel Agents ESP32 from initial concept to v0.14.1.
+Evolution of Pixel Agents ESP32 from initial concept to v0.14.2.
 
 ---
 
@@ -15,7 +15,7 @@ Evolution of Pixel Agents ESP32 from initial concept to v0.14.1.
 | 4: macOS Companion | v0.8.5–v0.8.8 | Native macOS app, Sparkle updates, BLE UX, agent ID fix |
 | 5: Multi-CLI & CYD-S3 | v0.9.0–v0.9.6 | Codex CLI, CYD-S3 board, sound system, wake word, battery, settings |
 | 6: macOS Features | v0.10.0–v0.10.7 | Software Display, Settings window, Sparkle, Cursor IDE, Gemini CLI |
-| 7: Analytics & Polish | v0.11.0–v0.14.1 | Activity heatmaps, iCloud sync, device fingerprinting, mini-agents, provider status monitoring |
+| 7: Analytics & Polish | v0.11.0–v0.14.2 | Activity heatmaps, iCloud sync, device fingerprinting, mini-agents, provider status monitoring |
 
 ---
 
@@ -116,7 +116,7 @@ Built the Software Display mode for users without ESP32 hardware, added Sparkle 
 
 ---
 
-## Phase 7: Analytics & Polish (v0.11.0–v0.14.1)
+## Phase 7: Analytics & Polish (v0.11.0–v0.14.2)
 
 Added activity heatmaps for all providers, iCloud sync, device fingerprinting, and mini-agents for overflow characters.
 
@@ -140,3 +140,4 @@ Added activity heatmaps for all providers, iCloud sync, device fingerprinting, a
 - **v0.13.2** — Crash reporter, AgentTracker stability fixes, settings window auto-sizing, docs restructure
 - **v0.14.0** — Provider status monitoring: poll Claude/Codex/Gemini/Cursor status pages, show incident banners in usage tabs
 - **v0.14.1** — Preserve raw API timestamps and extra usage credits in cache file
+- **v0.14.2** — Accept raw OAuth tokens in Paste Token dialog

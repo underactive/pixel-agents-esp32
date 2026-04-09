@@ -165,7 +165,7 @@ struct AccountsSettingsView: View {
                 Text("Paste Claude Token")
                     .font(.headline)
 
-                Text("Run `claude setup-token` in your terminal and paste the output below.")
+                Text("Run `claude setup-token` in your terminal and paste the output below, or paste a raw OAuth token (sk-ant-...).")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -190,7 +190,7 @@ struct AccountsSettingsView: View {
                         if claudeAuth.importFromPastedJSON(trimmed) {
                             showPasteSheet = false
                         } else {
-                            pasteError = "Invalid token format. Expected JSON from `claude setup-token`."
+                            pasteError = "Invalid token format. Paste JSON from `claude setup-token` or a raw token (sk-ant-...)."
                         }
                     }
                     .disabled(pastedToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

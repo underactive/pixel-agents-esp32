@@ -134,10 +134,35 @@ final class ClaudeAuthService: ObservableObject {
 
     // MARK: - Import from Pasted JSON
 
-    /// Parse output of `claude setup-token` or a raw JSON blob with token fields.
+    /// Parse output of `claude setup-token`, a raw JSON blob with token fields,
+    /// or a raw OAuth token string (e.g. `sk-ant-oat01-...`).
     @discardableResult
     func importFromPastedJSON(_ json: String) -> Bool {
-        guard let jsonData = json.data(using: .utf8),
+        let trimmed = json.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Accept a raw token string (not JSON) — wrap it into the expected structure
+        if !trimmed.hasPrefix("{"), trimmed.hasPrefix("sk-ant-") {
+            let syntheticOAuth: [String: Any] = [
+                "accessToken": trimmed,
+                "expiresAt": Date().timeIntervalSince1970 * 1000 + 365.25 * 24 * 3_600_000  // ~1 year
+            ]
+            let blob: [String: Any] = ["claudeAiOauth": syntheticOAuth]
+            guard let blobData = try? JSONSerialization.data(withJSONObject: blob),
+                  saveToOwnKeychain(blobData) else {
+                Self.log.error("Failed to save raw token to app Keychain")
+                return false
+            }
+            let expiresAt = syntheticOAuth["expiresAt"] as? Double ?? 0
+            cachedToken = trimmed
+            cachedExpiresAt = expiresAt
+            isAuthenticated = true
+            updateExpiryDescription(expiresAt)
+            onAuthenticated?()
+            Self.log.info("Imported raw OAuth token")
+            return true
+        }
+
+        guard let jsonData = trimmed.data(using: .utf8),
               let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
             Self.log.error("Pasted text is not valid JSON")
             return false

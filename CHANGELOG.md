@@ -2,6 +2,10 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.14.2] - 2026-04-09
+
+- Accept raw OAuth token strings (sk-ant-...) in Paste Token dialog, not just JSON from `claude setup-token`
+
 ## [0.14.1] - 2026-04-08
 
 - Preserve raw `resets_at` ISO timestamps from Anthropic API in cache file instead of recomputing from minutes
