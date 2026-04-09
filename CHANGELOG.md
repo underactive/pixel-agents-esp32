@@ -2,6 +2,11 @@
 
 All notable changes to Pixel Agents are documented here.
 
+## [0.14.1] - 2026-04-08
+
+- Preserve raw `resets_at` ISO timestamps from Anthropic API in cache file instead of recomputing from minutes
+- Add `extra_usage` fields (`extra_spent`, `extra_limit`) to usage cache for downstream consumers
+
 ## [0.14.0] - 2026-04-08
 
 - Add provider status monitoring: poll Claude, Codex, Gemini, and Cursor status pages every 15 minutes for API outages
