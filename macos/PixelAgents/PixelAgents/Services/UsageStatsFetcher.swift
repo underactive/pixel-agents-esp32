@@ -39,19 +39,29 @@ final class UsageStatsFetcher {
                 Self.log.warning("Skipping fetch — no valid OAuth token (not signed in or expired)")
                 return
             }
-            guard let data = await callUsageAPI(token: token) else { return }
+            guard let response = await callUsageAPI(token: token) else { return }
 
-            Self.log.info("Fetched: current=\(data.currentPct)% weekly=\(data.weeklyPct)%")
+            Self.log.info("Fetched: current=\(response.stats.currentPct)% weekly=\(response.stats.weeklyPct)%")
 
-            self.latestData = data
+            self.latestData = response.stats
 
-            writeCacheFile(data)
+            writeCacheFile(response)
         }
+    }
+
+    // MARK: - Private response type
+
+    private struct APIResponse {
+        let stats: UsageStatsData
+        let currentResetsAt: String
+        let weeklyResetsAt: String
+        let extraSpent: Double
+        let extraLimit: Int
     }
 
     // MARK: - API call
 
-    private func callUsageAPI(token: String) async -> UsageStatsData? {
+    private func callUsageAPI(token: String) async -> APIResponse? {
         var request = URLRequest(url: apiURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -88,33 +98,37 @@ final class UsageStatsFetcher {
 
         let fiveHour = json["five_hour"] as? [String: Any]
         let sevenDay = json["seven_day"] as? [String: Any]
+        let extraUsage = json["extra_usage"] as? [String: Any]
 
-        let currentPct = clampPct(fiveHour?["utilization"])
-        let weeklyPct = clampPct(sevenDay?["utilization"])
-        let currentResetMin = minutesUntilReset(fiveHour?["resets_at"])
-        let weeklyResetMin = minutesUntilReset(sevenDay?["resets_at"])
+        let currentResetsAt = fiveHour?["resets_at"] as? String ?? ""
+        let weeklyResetsAt = sevenDay?["resets_at"] as? String ?? ""
 
-        return UsageStatsData(
-            currentPct: currentPct,
-            weeklyPct: weeklyPct,
-            currentResetMin: currentResetMin,
-            weeklyResetMin: weeklyResetMin
+        let stats = UsageStatsData(
+            currentPct: clampPct(fiveHour?["utilization"]),
+            weeklyPct: clampPct(sevenDay?["utilization"]),
+            currentResetMin: minutesUntilReset(currentResetsAt),
+            weeklyResetMin: minutesUntilReset(weeklyResetsAt)
+        )
+
+        return APIResponse(
+            stats: stats,
+            currentResetsAt: currentResetsAt,
+            weeklyResetsAt: weeklyResetsAt,
+            extraSpent: (extraUsage?["used_credits"] as? NSNumber)?.doubleValue ?? 0,
+            extraLimit: (extraUsage?["monthly_limit"] as? NSNumber)?.intValue ?? 0
         )
     }
 
     // MARK: - Cache file writer
 
-    private func writeCacheFile(_ stats: UsageStatsData) {
-        let currentResetDate = Date().addingTimeInterval(Double(stats.currentResetMin) * 60)
-        let weeklyResetDate = Date().addingTimeInterval(Double(stats.weeklyResetMin) * 60)
-        let fmt = ISO8601DateFormatter()
-        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
+    private func writeCacheFile(_ response: APIResponse) {
         let cache: [String: Any] = [
-            "current_pct": Int(stats.currentPct),
-            "current_resets_at": fmt.string(from: currentResetDate),
-            "weekly_pct": Int(stats.weeklyPct),
-            "weekly_resets_at": fmt.string(from: weeklyResetDate),
+            "current_pct": Int(response.stats.currentPct),
+            "current_resets_at": response.currentResetsAt,
+            "weekly_pct": Int(response.stats.weeklyPct),
+            "weekly_resets_at": response.weeklyResetsAt,
+            "extra_spent": response.extraSpent,
+            "extra_limit": response.extraLimit,
             "updated_at": ISO8601DateFormatter().string(from: Date()),
         ]
 
@@ -153,9 +167,9 @@ final class UsageStatsFetcher {
         return f
     }()
 
-    private func minutesUntilReset(_ value: Any?) -> UInt16 {
-        guard let str = value as? String else { return 0 }
-        let date = Self.isoFormatter.date(from: str) ?? Self.isoFormatterNoFrac.date(from: str)
+    private func minutesUntilReset(_ iso: String) -> UInt16 {
+        guard !iso.isEmpty else { return 0 }
+        let date = Self.isoFormatter.date(from: iso) ?? Self.isoFormatterNoFrac.date(from: iso)
         guard let resetDate = date else { return 0 }
         let minutes = resetDate.timeIntervalSinceNow / 60.0
         let clamped = max(0.0, min(minutes, Double(UInt16.max)))
